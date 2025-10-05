@@ -1,6 +1,6 @@
 # Food Delivery API
 
-A RESTful API for a food delivery application built with Node.js, Express, and TypeScript. This API provides cart management functionality for customers to add, modify, and manage their food orders.
+A RESTful API for a food delivery application built with Node.js, Express, and TypeScript.
 
 ## 🚀 Features
 
