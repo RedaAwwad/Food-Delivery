@@ -2,7 +2,7 @@
   "name": "food-delivery",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "src/server.ts",
   "scripts": {
     "dev": "nodemon",
     "build": "tsc",
@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/RedaAwwad/Food-Delivery#readme",
   "dependencies": {
+    "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
@@ -27,7 +28,10 @@
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^24.6.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "nodemon": "^3.1.10",
+    "swagger-autogen": "^2.23.7",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"

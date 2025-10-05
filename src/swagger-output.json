@@ -1,0 +1,101 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "version": "1.0.0",
+    "title": "REST API",
+    "description": ""
+  },
+  "host": "localhost:3000",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/cart/{item_id}/update-quantity": {
+      "put": {
+        "description": "",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/v1/cart/clear": {
+      "delete": {
+        "description": "",
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "openapi": {
+      "type": "string",
+      "example": "3.0.0"
+    },
+    "info": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "example": "Food Delivery API"
+        },
+        "version": {
+          "type": "string",
+          "example": "1.0.0"
+        },
+        "description": {
+          "type": "string",
+          "example": "API documentation for the Food Delivery application"
+        }
+      }
+    },
+    "servers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "example": "http://localhost:5000"
+          }
+        }
+      }
+    },
+    "schemes": {
+      "type": "array",
+      "example": [
+        "http",
+        "https"
+      ],
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "apis": [
+    "./**/*.ts"
+  ]
+}
