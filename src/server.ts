@@ -1,6 +1,6 @@
 import express from "express";
-import routes from "./routes";
-import { setupSwagger } from "./swagger";
+import { setupSwagger } from "./swagger/swagger";
+import { cartRouter } from "./Controller/cart.controller.js";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -17,7 +17,7 @@ app.get("/", (req, res) => {
 
 setupSwagger(app);
 
-app.use("/api/v1/", routes);
+app.use("/api/v1/cart", cartRouter);
 
 app.use((req, res, next) => {
   res.status(404).json({
