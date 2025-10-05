@@ -23,7 +23,7 @@ const options: swaggerJSDoc.Options = {
 
 const swaggerSpec = swaggerJSDoc(options);
 const outputFile = "./swagger-output.json";
-const endpointsFiles = ["./server.ts"];
+const endpointsFiles = ["../server.ts"];
 
 export const setupSwagger = (app: Express) => {
   app.use("/api-docs.json", (req, res, next) => {
