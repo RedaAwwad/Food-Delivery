@@ -1,0 +1,24 @@
+services:
+  node-app:
+    container_name: express-node-app-container
+    build: .
+    volumes:
+      - ./src:/app/src:ro   # remove :ro if you want watch mode
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./.env
+    depends_on:
+      - postgres
+
+  postgres:
+    image: postgres
+    restart: always
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: example
+
+volumes:
+  postgres-db:
