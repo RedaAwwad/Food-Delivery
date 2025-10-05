@@ -61,7 +61,7 @@ cartRouter.get("/view", (req, res) => {
  *             required:
  *               - customerId
  *               - cartItem
- *               - Action
+ *               - action
  *     responses:
  *       200:
  *         description: Cart modified successfully
@@ -99,7 +99,14 @@ cartRouter.put("/modify", (req, res) => {
  *             properties:
  *               quantity:
  *                 type: integer
- *                 example: 5
+ *               cartId:
+ *                 type: string
+ *             required:
+ *              - cartId
+ *              - quantity
+ *             example:
+ *               cartId: "abc123"
+ *               quantity: 3
  *     responses:
  *       200:
  *         description: Item quantity updated successfully
@@ -133,14 +140,10 @@ cartRouter.put("cart/:itemId/update-quantity", (req, res) => {
  *             properties:
  *               cartId:
  *                 type: string
- *               customerId:
- *                 type: string
  *             required:
  *               - cartId
- *               - customerId
  *             example:
  *               cartId: "abc123"
- *               customerId: "cust456"
  *     responses:
  *       200:
  *         description: Cart cleared successfully
@@ -151,8 +154,8 @@ cartRouter.put("cart/:itemId/update-quantity", (req, res) => {
  *               properties:
  *                 message:
  *                   type: string
- *             example:
- *               message: Cart has been cleared successfully
+ *               example:
+ *                 message: Cart has been cleared successfully
  */
 cartRouter.delete("cart/clear", (req, res) => {
   res.json({ message: "Cart has been cleared successfully" });
