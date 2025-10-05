@@ -5,3 +5,5 @@ dist
 npm-debug.log
 yarn-error.log
 .git
+Dockerfile
+docker-compose*

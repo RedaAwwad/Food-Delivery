@@ -2,11 +2,18 @@ import { Router } from "express";
 export const cartRouter = Router();
 /**
  * @swagger
- * /cart/view:
+ * /cart/{cartId}:
  *   get:
  *     tags:
  *       - Cart
  *     summary: Customer view cart
+ *     parameters:
+ *       - in: path
+ *         name: cartId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the cart to view
  *     responses:
  *       200:
  *         description: Customer View cart successfully
@@ -31,18 +38,26 @@ cartRouter.get("/view", (req, res) => {
  *           schema:
  *             type: object
  *             properties:
- *               cartId:
- *                 type: integer
- *                 description: ID of the cart
+ *               cartItem:
+ *                 type: object
+ *                 properties:
+ *                   itemId:
+ *                     type: integer
+ *                     description: ID of the item   
+ *                   quantity:
+ *                     type: integer
+ *                     description: Quantity of the item
  *               customerId:
  *                 type: integer
  *                 description: ID of the customer
  *               action:
  *                 type: string
- *                 enum: [add, remove]
- *               quantity:
- *                     type: integer
- *                     description: Quantity of the item
+ *                 description: Action to perform on the cart
+ *                 enum:
+ *                   - add
+ *                   - remove
+ *                   - update
+ *                   - clear
  *             required:
  *               - customerId
  *               - cartItem
