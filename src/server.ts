@@ -1,19 +1,34 @@
-import express from 'express';
-import swaggerUi from 'swagger-ui-express';
-import swaggerDocument from './swagger/swagger-output.json'
-import { cartRouter } from './Controller/cart.controller.js';
+import express from "express";
+import { setupSwagger } from "./swagger/swagger";
+import { cartRouter } from "./Controller/cart.controller.js";
+import dotenv from "dotenv";
 
+dotenv.config();
+
+// Setup Express server
+const PORT = process.env.PORT || 4000;
 
 const app = express();
-const port = 4000;
 app.use(express.json());
 
+app.get("/", (req, res) => {
+  res.send("<h1>Food Delivery API</h1>");
+});
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+setupSwagger(app);
 
-app.use('/api/v1/cart', cartRouter);
+app.use("/api/v1/cart", cartRouter);
 
-app.listen(port, () => {
-  console.log(`Server running: http://localhost:${port}`);
-  console.log(`Swagger docs: http://localhost:${port}/api-docs`);
+app.use((req, res, next) => {
+  res.status(404).json({
+    status: 404,
+    message: "Not Found",
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(
+    `🚀 Swagger Api Docs running on http://localhost:${PORT}/api-docs`
+  );
 });
