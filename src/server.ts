@@ -1,5 +1,5 @@
 import express from "express";
-import { setupSwagger } from "./lib/swagger/swagger";
+import { setupSwagger } from "./lib/swagger";
 import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
 
@@ -25,5 +25,5 @@ app.use((req, res, next) => {
 
 app.listen(process.env.PORT, () => {
   console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
-  console.log(`📖 Api Docs running on ${process.env.APP_BASE_URL}/api-docs`);
+  console.log(`📖 API docs: ${process.env.APP_BASE_URL}/api-docs`);
 });
