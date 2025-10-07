@@ -2,6 +2,7 @@ import swaggerJSDoc from "swagger-jsdoc";
 import swaggerUi from "swagger-ui-express";
 import { Express } from "express";
 import swaggerAutogen from "swagger-autogen";
+import swaggerFile from "./swagger-output.json";
 
 const options: swaggerJSDoc.Options = {
   definition: {
@@ -13,26 +14,31 @@ const options: swaggerJSDoc.Options = {
     },
     servers: [
       {
-        url: process.env.APP_BASE_URL || "http://localhost:4000",
+        url: process.env.APP_BASE_URL,
       },
     ],
     schemes: ["http", "https"],
   },
-  apis: ["./**/*.ts"], // Path to the API docs
+  apis: ["../../**/*.ts"], // Path to the API docs
+};
+
+const doc = {
+  info: {
+    title: "My API",
+    description: "Description",
+  },
+  host: "localhost:3000",
 };
 
 const swaggerSpec = swaggerJSDoc(options);
 const outputFile = "./swagger-output.json";
-const endpointsFiles = ["../server.ts"];
+const endpointsFiles = ["../../router/router.ts"];
 
 export const setupSwagger = (app: Express) => {
-  app.use("/api-docs.json", (req, res, next) => {
-    swaggerAutogen()(outputFile, endpointsFiles, options).then(() => {
-      console.log("Swagger documentation generated");
-    });
-    res.setHeader("Content-Type", "application/json");
-    res.send(swaggerSpec);
+  swaggerAutogen()(outputFile, endpointsFiles, doc).then(() => {
+    console.log("Swagger documentation generated");
   });
 
-  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  // app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+  app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerFile));
 };

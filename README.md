@@ -4,22 +4,9 @@ A RESTful API for a food delivery application built with Node.js, Express, and T
 
 ## 🚀 Features
 
-- **Cart Management**: Add, remove, update, and clear items from shopping cart
-- **Quantity Updates**: Update item quantities in the cart
 - **API Documentation**: Interactive Swagger/OpenAPI documentation
 - **Docker Support**: Containerized application with PostgreSQL database
 - **TypeScript**: Full TypeScript support for better development experience
-
-## 📋 API Endpoints
-
-### Cart Operations
-
-| Method   | Endpoint                               | Description                                 |
-| -------- | -------------------------------------- | ------------------------------------------- |
-| `GET`    | `/api/v1/cart/view`                    | View cart contents                          |
-| `PUT`    | `/api/v1/cart/modify`                  | Modify cart (add/remove/update/clear items) |
-| `PUT`    | `/api/v1/cart/:itemId/update-quantity` | Update item quantity                        |
-| `DELETE` | `/api/v1/cart/clear`                   | Clear entire cart                           |
 
 ### API Documentation
 
@@ -39,8 +26,8 @@ Visit `http://localhost:4000/api-docs` for interactive API documentation powered
 ### Prerequisites
 
 - Node.js 20 or higher
-- Docker and Docker Compose (for containerized setup)
-- npm or yarn
+- Docker and Docker Compose
+- npm
 
 ### Local Development
 

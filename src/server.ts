@@ -1,25 +1,20 @@
 import express from "express";
-import { setupSwagger } from "./swagger/swagger";
-import { cartRouter } from "./Controller/cart.controller.js";
+import { setupSwagger } from "./lib/swagger/swagger";
 import dotenv from "dotenv";
+import { initAPIRoutes } from "./routes";
 
 dotenv.config();
-
-// Setup Express server
-const PORT = process.env.PORT || 4000;
 
 const app = express();
 app.use(express.json());
 
-setupSwagger(app);
+// setupSwagger(app);
 
 app.get("/", (req, res) => {
-  res.send(
-    "<h1>Food Delivery API <a href='/api-docs' style='color: green;text-decoration:none;font-size: 1rem;border: 1px solid #ddd;padding:5px 10px;border-radius:5px;'>API Docs</a></h1>"
-  );
+  res.send("<h1>Food Delivery API</h1>");
 });
 
-app.use("/api/v1/cart", cartRouter);
+initAPIRoutes(app);
 
 app.use((req, res, next) => {
   res.status(404).json({
@@ -28,7 +23,7 @@ app.use((req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-  console.log(`📖 Api Docs running on http://localhost:${PORT}/api-docs`);
+app.listen(process.env.PORT, () => {
+  console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
+  console.log(`📖 Api Docs running on ${process.env.APP_BASE_URL}/api-docs`);
 });
