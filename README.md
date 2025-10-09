@@ -1,35 +1,40 @@
-# Food Delivery API
+# 🍔 Food Delivery API
 
-A RESTful API for a food delivery application built with Node.js, Express, and TypeScript.
+A modern RESTful API for a food delivery application built with Node.js, Express, and TypeScript, following clean architecture principles.
 
-## 🚀 Features
+## ✨ Features
 
-- **API Documentation**: Interactive Swagger/OpenAPI documentation
-- **Docker Support**: Containerized application with PostgreSQL database
-- **TypeScript**: Full TypeScript support for better development experience
-
-### API Documentation
-
-Visit `http://localhost:4000/api-docs` for interactive API documentation powered by Swagger UI.
+- 🏗️ **Clean Architecture**: Organized with Controllers, Services, Repositories, and Entities
+- 🔒 **Type Safety**: Full TypeScript support with strict type checking
+- 📚 **API Documentation**: Interactive Swagger/OpenAPI documentation
+- 🐳 **Docker Support**: Containerized application with Docker Compose
+- ✅ **Validation**: Request validation using Joi schemas
+- 🗄️ **Database**: PostgreSQL database integration
+- 🔄 **Hot Reload**: Development server with automatic restart on changes
 
 ## 🛠️ Tech Stack
 
 - **Runtime**: Node.js 20
-- **Framework**: Express.js
-- **Language**: TypeScript
+- **Framework**: Express.js 5
+- **Language**: TypeScript 5
 - **Database**: PostgreSQL
-- **Documentation**: Swagger/OpenAPI
+- **Validation**: Joi
+- **Documentation**: Swagger/OpenAPI (swagger-autogen, swagger-jsdoc)
 - **Containerization**: Docker & Docker Compose
+- **Dev Tools**: tsx, ts-node
 
-## 📦 Installation
+## 📋 Prerequisites
 
-### Prerequisites
+Before you begin, ensure you have the following installed:
 
-- Node.js 20 or higher
-- Docker and Docker Compose
-- npm
+- [Node.js](https://nodejs.org/) (v20 or higher)
+- [Docker](https://www.docker.com/get-started) and Docker Compose
+- [npm](https://www.npmjs.com/) (comes with Node.js)
+- [Git](https://git-scm.com/)
 
-### Local Development
+## 🚀 Getting Started
+
+### Local Development Setup
 
 1. **Clone the repository**
 
@@ -45,107 +50,122 @@ Visit `http://localhost:4000/api-docs` for interactive API documentation powered
    ```
 
 3. **Set up environment variables**
+
    Create a `.env` file in the root directory:
 
    ```env
    PORT=4000
-   # Add other environment variables as needed
+   API_VERSION=v1
+   APP_BASE_URL=http://localhost:4000
+
+   # Database Configuration
+   POSTGRES_USER=root
+   POSTGRES_PASSWORD=example
+   POSTGRES_DB=food_delivery
+   DATABASE_URL=postgresql://root:example@postgres:5432/food_delivery
    ```
 
-4. **Start the development server**
+4. **Generate Swagger documentation**
+
+   ```bash
+   npm run swagger
+   ```
+
+5. **Start the development server**
 
    ```bash
    npm run dev
    ```
 
-5. **Generate Swagger documentation**
-   ```bash
-   npm run swagger
-   ```
-
-The API will be available at `http://localhost:4000`
+   The API will be available at `http://localhost:4000`
 
 ### Docker Setup
 
-1. **Start the application with Docker Compose**
-   ```bash
-   docker-compose up --build
-   ```
+Start the entire application stack (API + PostgreSQL) with Docker Compose:
+
+```bash
+docker-compose up --build
+```
 
 This will start:
 
-- Express API server on port 4000
-- PostgreSQL database
+- Express API server on `http://localhost:4000`
+- PostgreSQL database (accessible internally to the app)
 - Automatic volume mounting for development
+
+To run in detached mode:
+
+```bash
+docker-compose up -d
+```
+
+To stop all services:
+
+```bash
+docker-compose down
+```
 
 ## 🏗️ Project Structure
 
 ```
-src/
-├── Controller/
-│   └── cart.controller.ts    # Cart API endpoints
-├── Service/
-│   └── cart.service.ts       # Business logic layer
-├── Repository/
-│   └── cart.repository.ts    # Data access layer
-├── entity/
-│   └── cart.entity.ts        # Data models
-├── swagger/
-│   ├── swagger.ts            # Swagger configuration
-│   └── swagger-output.json   # Generated API docs
-└── server.ts                 # Application entry point
+Food-Delivery/
+├── src/
+│   ├── config/              # Application configuration
+│   │   └── config.ts
+│   ├── controllers/         # Request handlers
+│   │   └── cart.controller.ts
+│   ├── dto/                 # Data Transfer Objects
+│   │   └── cart.dto.ts
+│   ├── entities/            # Database entities/models
+│   │   └── cart.entity.ts
+│   ├── lib/                 # External library configurations
+│   │   ├── joi/
+│   │   │   └── joi.config.ts
+│   │   └── swagger/
+│   │       ├── swagger.config.ts
+│   │       └── swagger-output.json
+│   ├── middleware/          # Custom middleware
+│   ├── repositories/        # Data access layer
+│   │   └── cart.repository.ts
+│   ├── routes/              # API routes
+│   │   ├── index.ts
+│   │   └── cart.routes.ts
+│   ├── services/            # Business logic layer
+│   │   └── cart.service.ts
+│   ├── types/               # TypeScript type definitions
+│   │   └── index.ts
+│   ├── utils/               # Utility functions and constants
+│   │   ├── constants.ts
+│   │   ├── enums.ts
+│   │   └── helpers.ts
+│   ├── validation/          # Joi validation schemas
+│   │   └── cart.schema.ts
+│   └── server.ts            # Application entry point
+├── docker-compose.yml       # Docker Compose configuration
+├── Dockerfile               # Docker image definition
+├── tsconfig.json            # TypeScript configuration
+├── package.json             # Project dependencies and scripts
+└── README.md
 ```
 
-## 🚀 Available Scripts
+## 🎯 Architecture
 
-- `npm run dev` - Start development server with hot reload
-- `npm run build` - Build the TypeScript project
-- `npm start` - Start the production server
-- `npm run swagger` - Generate Swagger documentation
+This project follows a **layered architecture** pattern:
 
-## 📝 API Usage Examples
+1. **Routes Layer** (`routes/`) - Defines API endpoints and maps them to controllers
+2. **Controllers Layer** (`controllers/`) - Handles HTTP requests and responses
+3. **Services Layer** (`services/`) - Contains business logic
+4. **Repositories Layer** (`repositories/`) - Handles data access and database operations
+5. **Entities Layer** (`entities/`) - Defines data models and schemas
+6. **DTOs Layer** (`dto/`) - Data Transfer Objects for API contracts
+7. **Validation Layer** (`validation/`) - Request validation schemas
 
-### View Cart
+## 📖 API Documentation
 
-```bash
-curl -X GET http://localhost:4000/api/v1/cart/view
-```
+Once the server is running, you can access:
 
-### Modify Cart
-
-```bash
-curl -X PUT http://localhost:4000/api/v1/cart/modify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerId": 123,
-    "cartItem": {
-      "itemId": 1,
-      "quantity": 2
-    },
-    "action": "add"
-  }'
-```
-
-### Update Item Quantity
-
-```bash
-curl -X PUT http://localhost:4000/api/v1/cart/1/update-quantity \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cartId": "abc123",
-    "quantity": 3
-  }'
-```
-
-### Clear Cart
-
-```bash
-curl -X DELETE http://localhost:4000/api/v1/cart/clear \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cartId": "abc123"
-  }'
-```
+- **API Documentation**: `http://localhost:4000/api-docs`
+- **Health Check**: `http://localhost:4000/`
 
 ## 🐳 Docker Commands
 
@@ -153,7 +173,7 @@ curl -X DELETE http://localhost:4000/api/v1/cart/clear \
 # Build and start all services
 docker-compose up --build
 
-# Start in background
+# Start services in background
 docker-compose up -d
 
 # Stop all services
@@ -162,27 +182,176 @@ docker-compose down
 # View logs
 docker-compose logs -f
 
-# Rebuild specific service
+# View logs for specific service
+docker-compose logs -f node-app
+
+# Rebuild and restart specific service
 docker-compose up --build node-app
+
+# Remove all containers and volumes
+docker-compose down -v
 ```
+
+## 🔍 Development
+
+### TypeScript Configuration
+
+The project uses strict TypeScript configuration with:
+
+- Strict mode enabled
+- No unchecked indexed access
+- Exact optional property types
+- ES modules with Node.js resolution
+
+### Code Organization
+
+- **Controllers**: Handle HTTP requests and responses, delegate to services
+- **Services**: Contain business logic, orchestrate repositories
+- **Repositories**: Direct database access, data persistence
+- **Entities**: Database models and data structures
+- **DTOs**: Define API request/response shapes
+- **Validation**: Joi schemas for input validation
 
 ## 🤝 Contributing
 
+Contributions are welcome! Please follow these steps:
+
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create a feature branch
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. Commit your changes
+   ```bash
+   git commit -m 'Add some amazing feature'
+   ```
+4. Push to the branch
+   ```bash
+   git push origin feature/amazing-feature
+   ```
 5. Open a Pull Request
 
-## 📄 License
+### 📝 Semantic Commit Messages
 
-This project is licensed under the ISC License.
+This project follows the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages. This leads to more readable messages that are easy to follow when looking through the project history.
+
+#### Commit Message Format
+
+Each commit message consists of a **header**, a **body** (optional), and a **footer** (optional):
+
+```
+<type>(<scope>): <subject>
+
+<body>
+
+<footer>
+```
+
+#### Type
+
+Must be one of the following:
+
+- **feat**: A new feature
+- **fix**: A bug fix
+- **docs**: Documentation only changes
+- **style**: Changes that do not affect the meaning of the code (white-space, formatting, etc)
+- **refactor**: A code change that neither fixes a bug nor adds a feature
+- **perf**: A code change that improves performance
+- **test**: Adding missing tests or correcting existing tests
+- **build**: Changes that affect the build system or external dependencies
+- **ci**: Changes to CI configuration files and scripts
+- **chore**: Other changes that don't modify src or test files
+- **revert**: Reverts a previous commit
+
+#### Scope
+
+The scope should be the name of the affected module/component (optional but recommended):
+
+- `cart`
+- `auth`
+- `order`
+- `payment`
+- `user`
+- `config`
+- `swagger`
+- `docker`
+
+#### Subject
+
+The subject contains a succinct description of the change:
+
+- Use the imperative, present tense: "change" not "changed" nor "changes"
+- Don't capitalize the first letter
+- No dot (.) at the end
+
+#### Examples
+
+```bash
+# Feature
+git commit -m "feat(cart): add ability to update item quantity"
+
+# Bug fix
+git commit -m "fix(cart): resolve issue with cart total calculation"
+
+# Documentation
+git commit -m "docs(readme): update installation instructions"
+
+# Refactoring
+git commit -m "refactor(cart): extract cart validation logic to separate service"
+
+# Performance
+git commit -m "perf(cart): optimize cart retrieval query"
+
+# Breaking change
+git commit -m "feat(api): change cart response structure
+
+BREAKING CHANGE: cart API now returns items array instead of items object"
+```
+
+#### Full Example
+
+```bash
+feat(cart): add cart item validation
+
+- Add Joi schema for cart items
+- Implement validation middleware
+- Add error handling for invalid items
+
+Closes #123
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Port Already in Use**
+
+```bash
+# Find process using port 4000
+lsof -ti:4000
+# Kill the process
+kill -9 <PID>
+```
+
+**Docker Issues**
+
+```bash
+# Clean up Docker resources
+docker system prune -a
+docker volume prune
+```
+
+**Database Connection Issues**
+
+- Ensure PostgreSQL container is running
+- Check DATABASE_URL in .env file
+- Verify network connectivity between containers
 
 ## 🔗 Links
 
 - **Repository**: [https://github.com/RedaAwwad/Food-Delivery](https://github.com/RedaAwwad/Food-Delivery)
 - **Issues**: [https://github.com/RedaAwwad/Food-Delivery/issues](https://github.com/RedaAwwad/Food-Delivery/issues)
 
-## 📞 Support
+---
 
-If you have any questions or need help, please open an issue in the GitHub repository.
+Made with ❤️ using TypeScript and Express.js
