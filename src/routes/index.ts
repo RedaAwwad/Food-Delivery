@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { cartRouter } from "./cartRoutes";
+import { cartRouter } from "./cart.routes";
 
 const initAPIRoutes = (app: Router) => {
   const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
