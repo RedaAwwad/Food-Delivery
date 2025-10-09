@@ -346,8 +346,8 @@ This project follows the **Git Flow** branching model for managing releases and 
 - **`release/*`**
 
   - Purpose: Prepare for production release
-  - Branch from: `develop`
-  - Merge back into: `main` and `develop`
+  - Branch from: `dev`
+  - Merge back into: `main` and `dev`
   - Naming: `release/<version>`
   - Example: `release/1.0.0`, `release/2.1.0`
 
@@ -355,14 +355,14 @@ This project follows the **Git Flow** branching model for managing releases and 
 
   - Purpose: Quick production fixes
   - Branch from: `main`
-  - Merge back into: `main` and `develop`
+  - Merge back into: `main` and `dev`
   - Naming: `hotfix/<version>` or `hotfix/<issue-description>`
   - Example: `hotfix/1.0.1`, `hotfix/critical-cart-bug`
 
 - **`bugfix/*`**
   - Purpose: Fix bugs in development
-  - Branch from: `develop`
-  - Merge back into: `develop`
+  - Branch from: `dev`
+  - Merge back into: `dev`
   - Naming: `bugfix/<bug-description>`
   - Example: `bugfix/cart-quantity-validation`
 
@@ -386,10 +386,10 @@ This project follows the **Git Flow** branching model for managing releases and 
 2. **Keep branches up to date**
 
    ```bash
-   git checkout develop
-   git pull origin develop
+   git checkout dev
+   git pull origin dev
    git checkout feature/your-feature
-   git merge develop
+   git merge dev
    ```
 
 3. **Use Pull Requests**
