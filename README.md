@@ -268,13 +268,6 @@ Must be one of the following:
 The scope should be the name of the affected module/component (optional but recommended):
 
 - `cart`
-- `auth`
-- `order`
-- `payment`
-- `user`
-- `config`
-- `swagger`
-- `docker`
 
 #### Subject
 
@@ -319,33 +312,6 @@ feat(cart): add cart item validation
 
 Closes #123
 ```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Port Already in Use**
-
-```bash
-# Find process using port 4000
-lsof -ti:4000
-# Kill the process
-kill -9 <PID>
-```
-
-**Docker Issues**
-
-```bash
-# Clean up Docker resources
-docker system prune -a
-docker volume prune
-```
-
-**Database Connection Issues**
-
-- Ensure PostgreSQL container is running
-- Check DATABASE_URL in .env file
-- Verify network connectivity between containers
 
 ## 🔗 Links
 
