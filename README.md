@@ -313,6 +313,99 @@ feat(cart): add cart item validation
 Closes #123
 ```
 
+## 🌿 Git Flow
+
+This project follows the **Git Flow** branching model for managing releases and features.
+
+### Branch Structure
+
+#### Main Branches
+
+- **`main`**
+
+  - Production-ready code
+  - Always stable and deployable
+  - Protected branch (no direct commits)
+  - Tagged with version numbers
+
+- **`dev`**
+  - Integration branch for features
+  - Contains the latest delivered development changes
+  - Base branch for feature development
+
+#### Supporting Branches
+
+- **`feature/*`**
+
+  - Purpose: Develop new features
+  - Branch from: `dev`
+  - Merge back into: `dev`
+  - Naming: `feature/<feature-name>`
+  - Example: `feature/cart-management`, `feature/user-authentication`
+
+- **`release/*`**
+
+  - Purpose: Prepare for production release
+  - Branch from: `develop`
+  - Merge back into: `main` and `develop`
+  - Naming: `release/<version>`
+  - Example: `release/1.0.0`, `release/2.1.0`
+
+- **`hotfix/*`**
+
+  - Purpose: Quick production fixes
+  - Branch from: `main`
+  - Merge back into: `main` and `develop`
+  - Naming: `hotfix/<version>` or `hotfix/<issue-description>`
+  - Example: `hotfix/1.0.1`, `hotfix/critical-cart-bug`
+
+- **`bugfix/*`**
+  - Purpose: Fix bugs in development
+  - Branch from: `develop`
+  - Merge back into: `develop`
+  - Naming: `bugfix/<bug-description>`
+  - Example: `bugfix/cart-quantity-validation`
+
+### Branch Naming Conventions
+
+| Branch Type | Pattern                 | Example                         |
+| ----------- | ----------------------- | ------------------------------- |
+| Feature     | `feature/<description>` | `feature/payment-integration`   |
+| Bugfix      | `bugfix/<description>`  | `bugfix/cart-total-calculation` |
+| Release     | `release/<version>`     | `release/2.0.0`                 |
+| Hotfix      | `hotfix/<version>`      | `hotfix/1.0.1`                  |
+
+### Guidelines
+
+1. **Always branch from the correct source**
+
+   - Features and bugfixes from `dev`
+   - Hotfixes from `main`
+   - Releases from `dev`
+
+2. **Keep branches up to date**
+
+   ```bash
+   git checkout develop
+   git pull origin develop
+   git checkout feature/your-feature
+   git merge develop
+   ```
+
+3. **Use Pull Requests**
+
+   - All merges should go through Pull Requests
+   - Require code review before merging
+   - Run CI/CD checks before merging
+
+### Version Tagging
+
+Use [Semantic Versioning](https://semver.org/) for tags:
+
+- **MAJOR** version (1.0.0): Incompatible API changes
+- **MINOR** version (0.1.0): Add functionality (backwards compatible)
+- **PATCH** version (0.0.1): Bug fixes (backwards compatible)
+
 ## 🔗 Links
 
 - **Repository**: [https://github.com/RedaAwwad/Food-Delivery](https://github.com/RedaAwwad/Food-Delivery)
