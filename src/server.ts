@@ -1,5 +1,5 @@
 import express from "express";
-import { setupSwagger } from "./lib/swagger";
+import { setupSwagger } from "./lib/swagger/swagger.config";
 import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
 
