@@ -1,0 +1,145 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+// Table User
+model User {
+  id          Int      @id @default(autoincrement())
+  name        String 
+  password    String
+  email       String   @unique 
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  usersRoles UserRole[]
+  customer Customer ?
+  restaurant Restaurant ?
+}
+// Table Role
+model Role {
+   id   Int  @id @default(autoincrement())
+   name String
+   description String ? 
+   createdAt  DateTime @default(now())
+   updatedAt  DateTime @updatedAt
+   usersRoles UserRole[]
+}
+model UserRole {
+  id  Int @id @default(autoincrement())
+  user_id Int 
+  role_id Int
+
+  user    User   @relation(fields:[user_id] , references:[id])
+  role    Role  @relation(fields: [role_id] , references: [id])
+
+  @@unique([user_id , role_id])
+}
+
+model Customer {
+    id  Int  @id @default(autoincrement())
+    user_id Int @unique
+    phone String
+    avatar String  
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    cart Cart ?
+    user    User   @relation(fields:[user_id] , references:[id])
+}
+
+model Restaurant {
+    id          Int @id @default(autoincrement())
+    manager_id  Int @unique
+    name        String
+    description String
+    logo        String?
+    address     String
+    isAvailable Boolean
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt
+
+    manager User @relation(fields: [manager_id] , references: [id]) 
+   // cart      Cart[]
+    menu  Menu ?
+}
+model Cart {
+   id            Int  @id @default(autoincrement())
+   customer_id   Int  @unique
+   createdAt     DateTime @default(now())
+   updatedAt     DateTime @updatedAt  
+
+   customer  Customer   @relation(fields:[customer_id] , references:[id])
+   cartItems Cart_item[]
+}
+model Cart_item {
+     id    Int  @id @default(autoincrement())
+     cart_id Int
+     menuItem_Id Int
+     quantity Int
+     price Int
+     createdAt  DateTime @default(now())
+     updatedAt  DateTime @updatedAt  
+     
+     menuItem     Menu_item @relation(fields: [menuItem_Id], references: [id])
+     cart  Cart   @relation(fields:[cart_id] , references:[id])
+}
+
+model Menu {
+    id Int  @id @default(autoincrement())
+    restaurant_id Int @unique
+    menu_description String
+    is_active Boolean @default(true)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt 
+
+    restaurant Restaurant @relation(fields: [restaurant_id] ,references: [id])
+    menuCategories Menu_category[]
+}
+    
+
+
+model Menu_category {
+    id Int  @id @default(autoincrement())
+    menu_id Int
+    name String
+    menu_category_image_url String
+//    menu_category_display_order Int @default(0)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt 
+   
+    menu Menu @relation(fields: [menu_id] , references: [id])
+    menu_items Menu_item[]
+}
+    
+
+model Menu_item {
+    id  Int  @id @default(autoincrement())
+    menuCategoryId Int
+    name String
+    description String
+    imageUrl String
+    price Int
+    stockQuantity Int
+    isActive Boolean @default(true)
+    createdAt  DateTime @default(now())
+    updatedAt  DateTime @updatedAt 
+
+    menuCategory Menu_category @relation(fields: [menuCategoryId], references: [id])
+    cartItems Cart_item[]
+}
+
+
+
+
+
