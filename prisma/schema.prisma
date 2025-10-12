@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -13,130 +7,156 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-// Table User
+
+// ====== User ======
 model User {
-  id          Int      @id @default(autoincrement())
-  name        String 
-  password    String
-  email       String   @unique 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        Int      @id @default(autoincrement()) 
+  name      String   
+  password  String   
+  email     String   @unique 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  usersRoles  UserRole[]
+  customer    Customer?
+  restaurant  Restaurant?
+
+  @@map("users")
+}
+
+// ====== Role ======
+model Role {
+  id          Int      @id @default(autoincrement()) 
+  name        String   
+  description String?  
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   usersRoles UserRole[]
-  customer Customer ?
-  restaurant Restaurant ?
+
+  @@map("roles")
 }
-// Table Role
-model Role {
-   id   Int  @id @default(autoincrement())
-   name String
-   description String ? 
-   createdAt  DateTime @default(now())
-   updatedAt  DateTime @updatedAt
-   usersRoles UserRole[]
-}
+
+// ====== UserRole ======
 model UserRole {
-  id  Int @id @default(autoincrement())
-  user_id Int 
-  role_id Int
+  id     Int @id @default(autoincrement()) 
+  userId Int @map("user_id")
+  roleId Int @map("role_id")
 
-  user    User   @relation(fields:[user_id] , references:[id])
-  role    Role  @relation(fields: [role_id] , references: [id])
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
 
-  @@unique([user_id , role_id])
+  @@unique([userId, roleId])
+  @@map("users_roles")
 }
 
+// ====== Customer ======
 model Customer {
-    id  Int  @id @default(autoincrement())
-    user_id Int @unique
-    phone String
-    avatar String  
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+  id        Int      @id @default(autoincrement()) 
+  userId    Int      @unique
+  phone     String   @map("phone")
+  avatar    String   @map("avatar")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-    cart Cart ?
-    user    User   @relation(fields:[user_id] , references:[id])
+  user User @relation(fields: [userId], references: [id])
+  cart Cart?
+
+  @@map("customers")
 }
 
+// ====== Restaurant ======
 model Restaurant {
-    id          Int @id @default(autoincrement())
-    manager_id  Int @unique
-    name        String
-    description String
-    logo        String?
-    address     String
-    isAvailable Boolean
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt
+  id          Int      @id @default(autoincrement())
+  managerId   Int      @unique @map("manager_id")
+  name        String   
+  description String   
+  logo        String?  
+  address     String   
+  isAvailable Boolean  @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-    manager User @relation(fields: [manager_id] , references: [id]) 
-   // cart      Cart[]
-    menu  Menu ?
+  manager User @relation(fields: [managerId], references: [id])
+  menu    Menu?
+
+  @@map("restaurants")
 }
+
+// ====== Cart ======
 model Cart {
-   id            Int  @id @default(autoincrement())
-   customer_id   Int  @unique
-   createdAt     DateTime @default(now())
-   updatedAt     DateTime @updatedAt  
+  id         Int       @id @default(autoincrement()) 
+  customerId Int       @unique @map("customer_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
 
-   customer  Customer   @relation(fields:[customer_id] , references:[id])
-   cartItems Cart_item[]
-}
-model Cart_item {
-     id    Int  @id @default(autoincrement())
-     cart_id Int
-     menuItem_Id Int
-     quantity Int
-     price Int
-     createdAt  DateTime @default(now())
-     updatedAt  DateTime @updatedAt  
-     
-     menuItem     Menu_item @relation(fields: [menuItem_Id], references: [id])
-     cart  Cart   @relation(fields:[cart_id] , references:[id])
+  customer  Customer   @relation(fields: [customerId], references: [id])
+  cartItems CartItem[]
+
+  @@map("carts")
 }
 
+// ====== CartItem ======
+model CartItem {
+  id         Int      @id @default(autoincrement())
+  cartId     Int      @map("cart_id")
+  menuItemId Int      @map("menu_item_id")
+  quantity   Int      @map("quantity")
+  price      Int      @map("price")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  cart     Cart     @relation(fields: [cartId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("cart_items")
+}
+
+// ====== Menu ======
 model Menu {
-    id Int  @id @default(autoincrement())
-    restaurant_id Int @unique
-    menu_description String
-    is_active Boolean @default(true)
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt 
+  id              Int          @id @default(autoincrement()) 
+  restaurantId    Int          @unique @map("restaurant_id")
+  menuDescription String       @map("menu_description")
+  isActive        Boolean      @default(true) @map("is_active")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
-    restaurant Restaurant @relation(fields: [restaurant_id] ,references: [id])
-    menuCategories Menu_category[]
+  restaurant      Restaurant   @relation(fields: [restaurantId], references: [id])
+  menuCategories  MenuCategory[]
+
+  @@map("menus")
 }
 
-model Menu_category {
-    id Int  @id @default(autoincrement())
-    menu_id Int
-    name String
-    menu_category_image_url String
-//    menu_category_display_order Int @default(0)
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt 
-   
-    menu Menu @relation(fields: [menu_id] , references: [id])
-    menu_items Menu_item[]
+// ====== MenuCategory ======
+model MenuCategory {
+  id                   Int       @id @default(autoincrement()) 
+  menuId               Int       @map("menu_id")
+  name                 String   
+  menuCategoryImageUrl String    @map("menu_category_image_url")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  menu      Menu      @relation(fields: [menuId], references: [id])
+  menuItems MenuItem[]
+
+  @@map("menu_categories")
 }
 
-model Menu_item {
-    id  Int  @id @default(autoincrement())
-    menuCategoryId Int
-    name String
-    description String
-    imageUrl String
-    price Int
-    stockQuantity Int
-    isActive Boolean @default(true)
-    createdAt  DateTime @default(now())
-    updatedAt  DateTime @updatedAt 
+// ====== MenuItem ======
+model MenuItem {
+  id            Int       @id @default(autoincrement()) 
+  menuCategoryId Int      @map("menu_category_id")
+  name          String    
+  description   String    
+  imageUrl      String    @map("image_url")
+  price         Int    
+  stockQuantity Int       @map("stock_quantity")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-    menuCategory Menu_category @relation(fields: [menuCategoryId], references: [id])
-    cartItems Cart_item[]
+  menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [id])
+  cartItems     CartItem[]
+
+  @@map("menu_items")
 }
-
-
-
-
-
