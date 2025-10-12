@@ -3,22 +3,28 @@ services:
     container_name: express-node-app-container
     build: .
     volumes:
-      - ./src:/app/src:ro   # remove :ro if you want watch mode
+      - ./src:/app/src
     ports:
       - "4000:4000"
     env_file:
       - ./.env
+    environment:
+      - DATABASE_URL=postgresql://root:example@postgres:5432/food-delivery?schema=public
     depends_on:
       - postgres
-
+    command: ["npm", "run", "dev"]
   postgres:
     image: postgres
     restart: always
+    container_name: postgres-db
+    ports:
+      - "5432:5432"
     volumes:
       - postgres-db:/var/lib/postgresql/data
     environment:
       POSTGRES_USER: root
       POSTGRES_PASSWORD: example
+      POSTGRES_DB: food-delivery   
 
 volumes:
   postgres-db:

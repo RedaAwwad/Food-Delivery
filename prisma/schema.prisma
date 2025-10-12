@@ -106,8 +106,6 @@ model Menu {
     restaurant Restaurant @relation(fields: [restaurant_id] ,references: [id])
     menuCategories Menu_category[]
 }
-    
-
 
 model Menu_category {
     id Int  @id @default(autoincrement())
@@ -121,7 +119,6 @@ model Menu_category {
     menu Menu @relation(fields: [menu_id] , references: [id])
     menu_items Menu_item[]
 }
-    
 
 model Menu_item {
     id  Int  @id @default(autoincrement())
