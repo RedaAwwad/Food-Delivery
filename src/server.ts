@@ -2,6 +2,7 @@ import express from "express";
 import { setupSwagger } from "./lib/swagger/swagger.config";
 import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
+import { errorHandler } from "./utils/error-handler";
 
 dotenv.config();
 
@@ -22,6 +23,8 @@ app.use((req, res, next) => {
     message: "Not Found",
   });
 });
+
+app.use(errorHandler);
 
 app.listen(process.env.PORT, () => {
   console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
