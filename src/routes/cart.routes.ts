@@ -1,4 +1,6 @@
 import express from "express";
+import { validateRequest } from "../middleware/validate-request";
+import { AddToCartSchema } from "../validation/cart.schema";
 
 const cartRouter = express.Router();
 
@@ -9,9 +11,14 @@ cartRouter.get("/", (req, res) => {
    * #swagger.responses[200] = { description: 'Customer View cart successfully' }
    * #swagger.responses[400] = { description: 'Cart not found' }
    */
+
   res.json({
     message: "Customer View cart successfully",
   });
+});
+
+cartRouter.post("/add", validateRequest(AddToCartSchema), (req, res) => {
+  res.json({ message: "Item added successfully" });
 });
 
 cartRouter.put("/update-quantity", (req, res) => {
