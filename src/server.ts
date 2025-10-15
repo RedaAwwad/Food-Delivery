@@ -2,7 +2,8 @@ import express from "express";
 import { setupSwagger } from "./lib/swagger/swagger.config";
 import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
-import { errorHandler } from "./utils/error-handler";
+import { errorHandler } from "./utils/errors/error-handler";
+import { CustomError } from "./utils/errors/custom-error";
 
 dotenv.config();
 
@@ -18,8 +19,9 @@ app.get("/", (req, res) => {
 initAPIRoutes(app);
 
 app.use((req, res, next) => {
-  res.status(404).json({
-    status: 404,
+  throw new CustomError({
+    statusCode: 404,
+    code: "ERR_NF_ROUTE",
     message: "Not Found",
   });
 });
