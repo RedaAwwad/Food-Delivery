@@ -1,5 +1,5 @@
 class RemoveCartItemDTO {
-  itemId!: string;
+  itemId!: number;
 }
 
 export { RemoveCartItemDTO };
