@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
 import { errorHandler } from "./utils/errors/error-handler";
 import { CustomError } from "./utils/errors/custom-error";
+import { prisma } from "./config/prisma.config";
 
 dotenv.config();
 
@@ -13,7 +14,7 @@ app.use(express.json());
 // setupSwagger(app);
 
 app.get("/", (req, res) => {
-  res.send("<h1>Food Delivery API</h1>");
+//  res.send("<h1>Food Delivery API</h1>");
 });
 
 initAPIRoutes(app);
