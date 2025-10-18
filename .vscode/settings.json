@@ -3,6 +3,7 @@
     "Autogen"
   ],
   "conventionalCommits.scopes": [
-    "user"
+    "user",
+    "Cart Mangment"
   ]
 }
