@@ -1,5 +1,6 @@
-import {prisma} from "../config/prisma.config"
+import { prisma } from "../config/prisma.config";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
+import { UpdateQuantityDTO } from "../dto/UpdateQuantity.dto";
 
 class CartRepository {
    async findByCustomerId(customerId:number) {
@@ -24,19 +25,36 @@ class CartRepository {
      } catch (error) {
            console.log('err' , error)      
      }
-  }
-   async findByCartAndMenuItem(cartId:number , menuItemId:number) {
-        return await prisma.cartItem.findFirst({where:{cartId , menuItemId }})
     }
 
-    async createItem(cartItem:CreateCartItemDTO , cartId:number){
-            return await prisma.cartItem.create({
-                data:{
-                    cartId ,
-                    quantity:cartItem.quantity , 
-                    menuItemId:cartItem.menuItemId , 
-                    price:cartItem.price 
-                }})
-        }
+  async findByCartAndMenuItem(cartId: number, menuItemId: number) {
+    return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
+  }
+
+  async createItem(cartItem: CreateCartItemDTO, cartId: number) {
+    return await prisma.cartItem.create({
+      data: {
+        cartId,
+        quantity: cartItem.quantity,
+        menuItemId: cartItem.menuItemId,
+        price: cartItem.price,
+      },
+    });
+  }
+
+  async updateItemQuantity({
+    cartId,
+    itemId,
+    quantity,
+  }: UpdateQuantityDTO & { cartId: number }) {
+    return await prisma.cartItem.update({
+      where: { cartId, id: itemId },
+      data: { quantity },
+    });
+  }
+
+  async findCartByCustomerId(customerId: number) {
+    return await prisma.cart.findUnique({ where: { customerId } });
+  }
 }
-export const cartRepository = new CartRepository()
+export const cartRepository = new CartRepository();

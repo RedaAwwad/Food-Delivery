@@ -6,7 +6,7 @@ import { CustomError } from "../utils/errors/custom-error";
 
 
 class CartService {
-   async addToCart(cartItem:CreateCartItemDTO , customerId:number) {
+  async addToCart(cartItem:CreateCartItemDTO , customerId:number) {
           // check customer have cart or no
            // const cartRepository = new cartRepository()
            let cart = await cartRepository.findByCustomerId(customerId)
@@ -24,7 +24,7 @@ class CartService {
              updateItem = await cartRepository.createItem(cartItem , cart.id)
            }
            return {cart , item: updateItem}    
-    }
+   }
    async viewCart(customerId: number) {
        const cart = await cartRepository.findByCustomerId(customerId)
        if (!cart) {
@@ -35,6 +35,26 @@ class CartService {
        }
        return cart
    } 
-}
-export const cartService = new CartService()
+  async updateQuantity(updateQuantityDto: {
+    itemId: string;
+    quantity: number;
+  }) {
+    // check if the authenticated user owns the cart item
+    // TODO: get customerId from auth
+    const cart = await cartRepository.findCartByCustomerId(1);
+    if (!cart) {
+      throw new CustomError({
+        statusCode: 404,
+        code: "ERR_NF",
+        message: "Cart not found!",
+      });
+    }
 
+    const updatedItem = await cartRepository.updateItemQuantity({
+      ...updateQuantityDto,
+      cartId: cart.id,
+    });
+    return updatedItem;
+  }
+}
+export const cartService = new CartService();

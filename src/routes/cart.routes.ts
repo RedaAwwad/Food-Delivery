@@ -1,8 +1,10 @@
 import express from "express";
 import { cartController } from "../controllers/cart.controller";
 import { validateRequest } from "../middleware/validate-request";
-import { AddToCartSchema } from "../validation/cart.schema";
-
+import {
+  AddToCartSchema,
+  UpdateQuantitySchema,
+} from "../validation/cart.schema";
 
 const cartRouter = express.Router();
 
@@ -20,6 +22,13 @@ cartRouter.put("/update-quantity", (req, res) => {
   };
   res.json({ message: "Item quantity updated successfully" });
 });
+
+
+cartRouter.put(
+  "/update-quantity",
+  validateRequest(UpdateQuantitySchema),
+  cartController.updateQuantity
+);
 
 cartRouter.delete("/clear", (req, res) => {
   res.json({ message: "Cart has been cleared successfully" });
