@@ -3,18 +3,30 @@ import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { UpdateQuantityDTO } from "../dto/UpdateQuantity.dto";
 
 class CartRepository {
-  async findByCustomerId(customerId: number) {
-    return await prisma.cart.findUnique({ where: { customerId } });
-  }
+   async findByCustomerId(customerId:number) {
+        return await prisma.cart.findUnique({
+          where:{customerId} , 
+          include: {
+            cartItems:{
+              include: {
+                menuItem:true
+              }
+            }
+          }
+        }
+        )
+    } 
 
-  async createCart(customerId: number) {
-    try {
-      const cart = await prisma.cart.create({ data: { customerId } });
-      return cart;
-    } catch (error) {
-      console.log("err", error);
+   async createCart(customerId: number) {
+     try {
+         const cart = await prisma.cart.create({data:{customerId}});
+          return cart
+
+     } catch (error) {
+           console.log('err' , error)      
+     }
     }
-  }
+
   async findByCartAndMenuItem(cartId: number, menuItemId: number) {
     return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
   }
