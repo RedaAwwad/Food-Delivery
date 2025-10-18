@@ -1,6 +1,7 @@
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { Cart } from "../generated/prisma";
 import { cartRepository } from "../repositories/cart.repository";
+import { CustomError } from "../utils/errors/custom-error";
 
 
 
@@ -24,6 +25,16 @@ class CartService {
            }
            return {cart , item: updateItem}    
     }
+   async viewCart(customerId: number) {
+       const cart = await cartRepository.findByCustomerId(customerId)
+       if (!cart) {
+          throw new CustomError({
+            message: "Customer doesn't have a cart",
+            statusCode: 404,
+          });
+       }
+       return cart
+   } 
 }
 export const cartService = new CartService()
 

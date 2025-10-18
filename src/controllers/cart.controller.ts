@@ -11,5 +11,11 @@ class CartController {
           const cart =  await cartService.addToCart(req.body ,  customerId)
           res.status(201).json({success:true , data:cart})
     }
+    async viewCart(req:Request , res:Response) {
+        const customerId = 1  // TODO -When create Token , auth
+        const cart = await cartService.viewCart(customerId)
+
+        res.status(200).json({success:true , data:cart})
+    }
 }
 export const cartController = new CartController()

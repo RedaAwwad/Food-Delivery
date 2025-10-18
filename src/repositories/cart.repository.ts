@@ -2,9 +2,19 @@ import {prisma} from "../config/prisma.config"
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 
 class CartRepository {
-     async findByCustomerId(customerId:number) {
-        return await prisma.cart.findUnique({where:{customerId}})
-      } 
+   async findByCustomerId(customerId:number) {
+        return await prisma.cart.findUnique({
+          where:{customerId} , 
+          include: {
+            cartItems:{
+              include: {
+                menuItem:true
+              }
+            }
+          }
+        }
+        )
+    } 
 
    async createCart(customerId: number) {
      try {
