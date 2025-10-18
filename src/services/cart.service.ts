@@ -1,4 +1,5 @@
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
+import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
 import { Cart } from "../generated/prisma";
 import { cartRepository } from "../repositories/cart.repository";
 import { CustomError } from "../utils/errors/custom-error";
@@ -33,7 +34,7 @@ class CartService {
   }) {
     // check if the authenticated user owns the cart item
     // TODO: get customerId from auth
-    const cart = await cartRepository.findCartByCustomerId(1);
+    const cart = await cartRepository.findByCustomerId(1);
     if (!cart) {
       throw new CustomError({
         statusCode: 404,
@@ -47,6 +48,23 @@ class CartService {
       cartId: cart.id,
     });
     return updatedItem;
+  }
+
+  async removeItem(removeCartItemDto: RemoveCartItemDTO) {
+    // get authenticated user cart
+    const cart = await cartRepository.findByCustomerId(1);
+    if (!cart) {
+      throw new CustomError({
+        statusCode: 404,
+        code: "ERR_NF",
+        message: "Cart not found!",
+      });
+    }
+
+    return await cartRepository.removeItemFromCart({
+      ...removeCartItemDto,
+      cartId: cart.id,
+    });
   }
 }
 export const cartService = new CartService();
