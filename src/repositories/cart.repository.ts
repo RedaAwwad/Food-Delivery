@@ -20,14 +20,16 @@ class CartRepository {
     return await prisma.cart.findUnique({ where: { customerId } });
   }
 
-  async createCart(customerId: number) {
-    try {
-      const cart = await prisma.cart.create({ data: { customerId } });
-      return cart;
-    } catch (error) {
-      console.log("err", error);
+   async createCart(customerId: number) {
+     try {
+         const cart = await prisma.cart.create({data:{customerId}});
+          return cart
+
+     } catch (error) {
+           console.log('err' , error)      
+     }
     }
-  }
+
   async findByCartAndMenuItem(cartId: number, menuItemId: number) {
     return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
   }
