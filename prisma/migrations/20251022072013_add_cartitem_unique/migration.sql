@@ -1,78 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the `Cart` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Cart_item` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Customer` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Menu` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Menu_category` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Menu_item` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Restaurant` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `Role` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `User` table. If the table is not empty, all the data it contains will be lost.
-  - You are about to drop the `UserRole` table. If the table is not empty, all the data it contains will be lost.
-
-*/
--- DropForeignKey
-ALTER TABLE "public"."Cart" DROP CONSTRAINT "Cart_customer_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Cart_item" DROP CONSTRAINT "Cart_item_cart_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Cart_item" DROP CONSTRAINT "Cart_item_menuItem_Id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Customer" DROP CONSTRAINT "Customer_user_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Menu" DROP CONSTRAINT "Menu_restaurant_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Menu_category" DROP CONSTRAINT "Menu_category_menu_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Menu_item" DROP CONSTRAINT "Menu_item_menuCategoryId_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."Restaurant" DROP CONSTRAINT "Restaurant_manager_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."UserRole" DROP CONSTRAINT "UserRole_role_id_fkey";
-
--- DropForeignKey
-ALTER TABLE "public"."UserRole" DROP CONSTRAINT "UserRole_user_id_fkey";
-
--- DropTable
-DROP TABLE "public"."Cart";
-
--- DropTable
-DROP TABLE "public"."Cart_item";
-
--- DropTable
-DROP TABLE "public"."Customer";
-
--- DropTable
-DROP TABLE "public"."Menu";
-
--- DropTable
-DROP TABLE "public"."Menu_category";
-
--- DropTable
-DROP TABLE "public"."Menu_item";
-
--- DropTable
-DROP TABLE "public"."Restaurant";
-
--- DropTable
-DROP TABLE "public"."Role";
-
--- DropTable
-DROP TABLE "public"."User";
-
--- DropTable
-DROP TABLE "public"."UserRole";
-
 -- CreateTable
 CREATE TABLE "users" (
     "id" SERIAL NOT NULL,
@@ -209,6 +134,9 @@ CREATE UNIQUE INDEX "restaurants_manager_id_key" ON "restaurants"("manager_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "carts_customer_id_key" ON "carts"("customer_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "cart_items_cart_id_menu_item_id_key" ON "cart_items"("cart_id", "menu_item_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "menus_restaurant_id_key" ON "menus"("restaurant_id");
