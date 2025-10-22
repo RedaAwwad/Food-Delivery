@@ -11,7 +11,7 @@ const cartRouter = express.Router();
 
 
 // add To Cart
-cartRouter.post("/addToCart" , validateRequest(AddToCartSchema) ,  cartController.addToCart)
+cartRouter.post("/add-to-cart" , validateRequest(AddToCartSchema) ,  cartController.addToCart)
 
 cartRouter.get("/" , cartController.viewCart)
 
