@@ -8,21 +8,14 @@ import {
 
 const cartRouter = express.Router();
 
-
-
 // add To Cart
-cartRouter.post("/add-to-cart" , validateRequest(AddToCartSchema) ,  cartController.addToCart)
+cartRouter.post(
+  "/add-to-cart",
+  validateRequest(AddToCartSchema),
+  cartController.addToCart
+);
 
-cartRouter.get("/" , cartController.viewCart)
-
-cartRouter.put("/update-quantity", (req, res) => {
-  const { quantity, itemId } = (req.body = {}) as {
-    quantity: number;
-    itemId: string;
-  };
-  res.json({ message: "Item quantity updated successfully" });
-});
-
+cartRouter.get("/", cartController.viewCart);
 
 cartRouter.put(
   "/update-quantity",
