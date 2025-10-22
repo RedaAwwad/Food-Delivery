@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import { prisma } from "../config/prisma.config";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
+import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
 import { UpdateQuantityDTO } from "../dto/UpdateQuantity.dto";
 import { CustomError } from "../utils/errors/custom-error";
 
@@ -16,8 +17,6 @@ class CartRepository {
         create:{customerId}
       })
    }
-
-
 
   async findByCartAndMenuItem(cartId: number, menuItemId: number) {
     return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
@@ -41,15 +40,6 @@ class CartRepository {
            price:cartItem.price
         }
       })
-    
-    //   data: {
-    //     cartId,
-    //     quantity: cartItem.quantity,
-    //     menuItemId: cartItem.menuItemId,
-    //     price: cartItem.price,
-    //   },
-    // });
-  }
 
   async updateItemQuantity({
     cartId,

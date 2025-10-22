@@ -1,6 +1,6 @@
 class UpdateQuantityDTO {
   quantity: number = 1;
-  itemId!: string;
+  itemId!: number;
 }
 
 export { UpdateQuantityDTO };

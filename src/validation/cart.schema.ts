@@ -29,4 +29,10 @@ const UpdateQuantitySchema = Joi.object({
   }),
 });
 
-export { AddToCartSchema, UpdateQuantitySchema };
+const RemoveCartItemSchema = Joi.object({
+  itemId: Joi.number().integer().required().messages({
+    "any.required": "Item ID is required",
+  }),
+});
+
+export { AddToCartSchema, UpdateQuantitySchema, RemoveCartItemSchema };
