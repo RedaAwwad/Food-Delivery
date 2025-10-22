@@ -37,17 +37,19 @@ cartRouter.post(
   cartController.addToCart
 );
 
-/**
- * @swagger
- * /api/v1/cart:
- *   get:
- *     summary: View user's cart
- *     tags: [Cart]
- *     responses:
- *       200:
- *         description: List of items in the cart
- */
-cartRouter.get("/", cartController.viewCart);
+// add To Cart
+cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController.addToCart)
+
+cartRouter.get("/", cartController.viewCart)
+
+cartRouter.put("/update-quantity", (req, res) => {
+  const { quantity, itemId } = (req.body = {}) as {
+    quantity: number;
+    itemId: string;
+  };
+  res.json({ message: "Item quantity updated successfully" });
+});
+
 
 /**
  * @swagger
