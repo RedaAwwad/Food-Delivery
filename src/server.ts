@@ -1,5 +1,5 @@
 import express from "express";
-import { setupSwagger } from "./lib/swagger/swagger.config";
+import { setupSwagger } from "./lib/swagger/swagger";
 import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
 import { errorHandler } from "./utils/errors/error-handler";
@@ -11,10 +11,10 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 
-// setupSwagger(app);
+setupSwagger(app);
 
 app.get("/", (req, res) => {
-//  res.send("<h1>Food Delivery API</h1>");
+  //  res.send("<h1>Food Delivery API</h1>");
 });
 
 initAPIRoutes(app);

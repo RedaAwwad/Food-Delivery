@@ -4,7 +4,7 @@ import { cartRouter } from "./cart.routes";
 const initAPIRoutes = (app: Router) => {
   const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
 
-  app.use(`${apiPrefix}/cart`, cartRouter);
+  app.use(`${apiPrefix}/carts`, cartRouter);
 };
 
 export { initAPIRoutes };

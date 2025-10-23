@@ -6,30 +6,32 @@ import { cartRepository } from "../repositories/cart.repository";
 import { CustomError } from "../utils/errors/custom-error";
 
 class CartService {
-  async addToCart(cartItem:CreateCartItemDTO , customerId:number) {
-           // const cartRepository = new cartRepository()
-       const cart = await cartRepository.upsertCart(customerId)
-          
-       const newCartItem = await cartRepository.createItem(cartItem,cart.id)       
-       return {cart , item: newCartItem}    
-   }
-   async viewCart(customerId: number) {
-       const cart = await cartRepository.findCartByCustomerId(customerId)
-        if (!cart) { 
-               throw new CustomError({
-                 message:"The customer doesn't have cart" , 
-                 statusCode:StatusCodes.BAD_REQUEST 
-               })
-             }
-        return cart     
-   } 
+  async addToCart(cartItem: CreateCartItemDTO, customerId: number) {
+    // const cartRepository = new cartRepository()
+    const cart = await cartRepository.upsertCart(customerId);
+
+    const newCartItem = await cartRepository.createCartItem(cartItem, cart.id);
+    return { cart, item: newCartItem };
+  }
+
+  async viewCart(customerId: number) {
+    const cart = await cartRepository.findCartByCustomerId(customerId);
+    if (!cart) {
+      throw new CustomError({
+        message: "The customer doesn't have cart",
+        statusCode: StatusCodes.BAD_REQUEST,
+      });
+    }
+    return cart;
+  }
+
   async updateQuantity(updateQuantityDto: {
-    itemId: number;
+    cartItemId: number;
     quantity: number;
   }) {
     // check if the authenticated user owns the cart item
     // TODO: get customerId from auth
-    const cart = await cartRepository.findByCustomerId(1);
+    const cart = await cartRepository.findCartByCustomerId(1);
     if (!cart) {
       throw new CustomError({
         statusCode: 404,
@@ -38,16 +40,17 @@ class CartService {
       });
     }
 
-    const updatedItem = await cartRepository.updateItemQuantity({
+    const updatedCartItem = await cartRepository.updateCartItemQuantity({
       ...updateQuantityDto,
+      cartItemId: updateQuantityDto.cartItemId,
       cartId: cart.id,
     });
-    return updatedItem;
+    return updatedCartItem;
   }
 
-  async removeItem(removeCartItemDto: RemoveCartItemDTO) {
+  async removeCartItem(removeCartItemDto: RemoveCartItemDTO) {
     // get authenticated user cart
-    const cart = await cartRepository.findByCustomerId(1);
+    const cart = await cartRepository.findCartByCustomerId(1);
     if (!cart) {
       throw new CustomError({
         statusCode: 404,
