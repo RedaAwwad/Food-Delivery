@@ -63,5 +63,19 @@ class CartService {
       cartId: cart.id,
     });
   }
+
+  async clearCart(cartId: number) {
+
+    const cart = await cartRepository.findCartById(cartId);
+    if (!cart) {
+      throw new CustomError({
+        statusCode: 404,
+        code: "ERR_NF",
+        message: "Cart not found!",
+      });
+    }
+
+    await cartRepository.clearCart(cartId);
+  }
 }
 export const cartService = new CartService();
