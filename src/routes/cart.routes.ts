@@ -20,7 +20,7 @@ cartRouter.get("/", cartController.viewCart);
 
 /**
  * @swagger
- * /api/v1/cart/addToCart:
+ * /api/v1/cart/add-to-cart:
  *   post:
  *     summary: Add an item to cart
  *     tags: [Cart]
@@ -29,7 +29,7 @@ cartRouter.get("/", cartController.viewCart);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/AddToCart'
+ *
  *     responses:
  *       200:
  *         description: Item added to cart
@@ -42,7 +42,7 @@ cartRouter.post(
 
 /**
  * @swagger
- * /api/v1/carts/{cartId}/update-quantity:
+ * /api/v1/cart/update-quantity:
  *   put:
  *     summary: Update item quantity in cart
  *     tags: [Cart]
@@ -64,14 +64,14 @@ cartRouter.post(
  *           - Quantity is required and must be at least 1
  */
 cartRouter.put(
-  "{cartId}/update-quantity",
+  "/update-quantity",
   validateRequest(UpdateQuantitySchema),
   cartController.updateQuantity
 );
 
 /**
  * @swagger
- * /api/v1/carts/{cartId}/remove-item:
+ * /api/v1/cart/remove-item:
  *   delete:
  *     summary: Clear item from the cart
  *     tags: [Cart]
@@ -87,14 +87,14 @@ cartRouter.put(
  *           - Item ID is required
  */
 cartRouter.put(
-  "{cartId}/remove-item",
+  "/remove-item",
   validateRequest(RemoveCartItemSchema),
   cartController.removeCartItem
 );
 
 /**
  * @swagger
- * /api/v1/carts/clear:
+ * /api/v1/cart/clear:
  *   delete:
  *     summary: Clear all items in the cart
  *     tags: [Cart]

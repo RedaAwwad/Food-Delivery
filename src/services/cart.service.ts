@@ -1,7 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
-import { Cart } from "../generated/prisma";
 import { cartRepository } from "../repositories/cart.repository";
 import { CustomError } from "../utils/errors/custom-error";
 
@@ -34,7 +33,7 @@ class CartService {
     const cart = await cartRepository.findCartByCustomerId(1);
     if (!cart) {
       throw new CustomError({
-        statusCode: 404,
+        statusCode: StatusCodes.NOT_FOUND,
         code: "ERR_NF",
         message: "Cart not found!",
       });
@@ -53,7 +52,7 @@ class CartService {
     const cart = await cartRepository.findCartByCustomerId(1);
     if (!cart) {
       throw new CustomError({
-        statusCode: 404,
+        statusCode: StatusCodes.NOT_FOUND,
         code: "ERR_NF",
         message: "Cart not found!",
       });
