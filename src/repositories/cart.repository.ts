@@ -61,16 +61,10 @@ class CartRepository {
       where: { id: itemId, cartId },
     });
   }
-  
+
   async clearCart(cartId: number) {
     return await prisma.cartItem.deleteMany({
       where: { cartId },
-    });
-  }
-
-  async findCartById(cartId: number) {
-    return prisma.cart.findUnique({
-      where: { id: cartId },
     });
   }
 }
