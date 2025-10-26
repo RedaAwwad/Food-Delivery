@@ -30,5 +30,11 @@ class CartController {
       .status(200)
       .json({ success: true, message: "Item removed successfully" });
   }
+
+  async clearCart(req: Request, res: Response) {
+    const customerId = 1; // TODO - When creating token, get from auth
+    await cartService.clearCart(customerId);
+    res.status(200).json({ success: true, message: "Cart cleared successfully" });
+  }
 }
 export const cartController = new CartController();

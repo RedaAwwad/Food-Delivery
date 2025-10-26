@@ -83,8 +83,7 @@ cartRouter.put(
  *       200:
  *         description: Cart cleared successfully
  */
-cartRouter.delete("/clear", (req, res) => {
-  res.json({ message: "Cart has been cleared successfully" });
-});
+cartRouter.delete("/clear", cartController.clearCart);
+
 
 export { cartRouter };
