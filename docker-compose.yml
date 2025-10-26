@@ -9,7 +9,9 @@ services:
     env_file:
       - ./.env
     environment:
-      - DATABASE_URL=postgresql://root:example@postgres:5432/food-delivery?schema=public&connection_limit=30&pool_timeout=20
+     - DATABASE_URL=postgresql://root:example@postgres:5432/food-delivery?schema=public
+
+
     depends_on:
       - postgres
     command: ["npm", "run", "dev"]

@@ -162,7 +162,7 @@ model MenuItem {
 
   menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [id])
   cartItems     CartItem[]
-
+  orderItems   OrderItem[]
   @@map("menu_items")
 }
 

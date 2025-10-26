@@ -8,7 +8,9 @@
     "build": "tsc",
     "start": "node api-first.js",
     "swagger": "tsx ./src/lib/swagger/swagger.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+        "seed": "ts-node prisma/seed.ts"
+
   },
   "repository": {
     "type": "git",
@@ -23,6 +25,7 @@
   "homepage": "https://github.com/RedaAwwad/Food-Delivery#readme",
   "dependencies": {
     "@prisma/client": "^6.17.1",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "http-status-codes": "^2.3.0",

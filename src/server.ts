@@ -4,7 +4,6 @@ import dotenv from "dotenv";
 import { initAPIRoutes } from "./routes";
 import { errorHandler } from "./utils/errors/error-handler";
 import { CustomError } from "./utils/errors/custom-error";
-import { prisma } from "./config/prisma.config";
 
 dotenv.config();
 

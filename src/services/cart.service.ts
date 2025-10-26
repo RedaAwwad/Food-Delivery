@@ -8,7 +8,7 @@ class CartService {
   async addToCart(cartItem: CreateCartItemDTO, customerId: number) {
     // const cartRepository = new cartRepository()
     const cart = await cartRepository.upsertCart(customerId);
-
+    console.log("the cart: " +cart)
     const newCartItem = await cartRepository.createCartItem(cartItem, cart.id);
     return { cart, item: newCartItem };
   }
