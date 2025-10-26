@@ -3,6 +3,7 @@ import { appConfig } from "../../config/app.config";
 import { getErrorMessage } from "../helpers";
 import Joi from "joi";
 import { CustomError } from "./custom-error";
+import { StatusCodes } from "http-status-codes";
 
 const errorHandler = (
   error: Error,
@@ -18,7 +19,7 @@ const errorHandler = (
   if (Joi.isError(error)) {
     const validationError: { error: ErrorFormat } = {
       error: {
-        statusCode: 422,
+        statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
         code: "ERR_VALID",
         message: "Validation error!",
         errors: error.details.map((detail) => ({
@@ -28,7 +29,7 @@ const errorHandler = (
       },
     };
 
-    res.status(422).json(validationError);
+    res.status(StatusCodes.UNPROCESSABLE_ENTITY).json(validationError);
     return;
   }
 
@@ -46,12 +47,12 @@ const errorHandler = (
 
   const SERVER_ERROR: { error: ErrorFormat } = {
     error: {
-      statusCode: 500,
+      statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       code: "ERR_INTERNAL",
       message: getErrorMessage(error) || "Internal Server Error",
     },
   };
-  res.status(500).json(SERVER_ERROR);
+  res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(SERVER_ERROR);
 };
 
 export { errorHandler };

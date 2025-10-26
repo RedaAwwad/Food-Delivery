@@ -3,6 +3,7 @@ import { cartController } from "../controllers/cart.controller";
 import { validateRequest } from "../middleware/validate-request";
 import {
   AddToCartSchema,
+  RemoveCartItemSchema,
   UpdateQuantitySchema,
 } from "../validation/cart.schema";
 
@@ -15,9 +16,11 @@ const cartRouter = express.Router();
  *   description: Cart management APIs
  */
 
+cartRouter.get("/", cartController.viewCart);
+
 /**
  * @swagger
- * /api/v1/cart/addToCart:
+ * /api/v1/cart/add-to-cart:
  *   post:
  *     summary: Add an item to cart
  *     tags: [Cart]
@@ -26,30 +29,16 @@ const cartRouter = express.Router();
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/AddToCart'
+ *
  *     responses:
  *       200:
  *         description: Item added to cart
  */
 cartRouter.post(
-  "/addToCart",
+  "/add-to-cart",
   validateRequest(AddToCartSchema),
   cartController.addToCart
 );
-
-// add To Cart
-cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController.addToCart)
-
-cartRouter.get("/", cartController.viewCart)
-
-cartRouter.put("/update-quantity", (req, res) => {
-  const { quantity, itemId } = (req.body = {}) as {
-    quantity: number;
-    itemId: string;
-  };
-  res.json({ message: "Item quantity updated successfully" });
-});
-
 
 /**
  * @swagger
@@ -62,15 +51,45 @@ cartRouter.put("/update-quantity", (req, res) => {
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/UpdateQuantity'
  *     responses:
  *       200:
- *         description: Quantity updated
+ *       messages:
+ *         - Cart item quantity updated successfully
+ *       404:
+ *         messages:
+ *           - Cart item not found!
+ *       422:
+ *         messages:
+ *           - Item ID is required
+ *           - Quantity is required and must be at least 1
  */
 cartRouter.put(
   "/update-quantity",
   validateRequest(UpdateQuantitySchema),
   cartController.updateQuantity
+);
+
+/**
+ * @swagger
+ * /api/v1/cart/remove-item:
+ *   delete:
+ *     summary: Clear item from the cart
+ *     tags: [Cart]
+ *     responses:
+ *       200:
+ *       messages:
+ *         - Cart item cleared successfully
+ *       404:
+ *         messages:
+ *           - Cart item not found!
+ *       422:
+ *         messages:
+ *           - Item ID is required
+ */
+cartRouter.put(
+  "/remove-item",
+  validateRequest(RemoveCartItemSchema),
+  cartController.removeCartItem
 );
 
 /**

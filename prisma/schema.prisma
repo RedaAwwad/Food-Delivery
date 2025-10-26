@@ -1,8 +1,7 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
-  binaryTargets = ["native", "debian-openssl-3.0.x"]
-
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -64,6 +63,8 @@ model Customer {
   user User @relation(fields: [userId], references: [id])
   cart Cart?
 
+  orders Order[]
+
   @@map("customers")
 }
 
@@ -81,6 +82,8 @@ model Restaurant {
 
   manager User @relation(fields: [managerId], references: [id])
   menu    Menu?
+
+  orders Order[]
 
   @@map("restaurants")
 }
@@ -161,4 +164,49 @@ model MenuItem {
   cartItems     CartItem[]
 
   @@map("menu_items")
+}
+
+model Order {
+  id          Int      @id @default(autoincrement()) 
+  customerId  Int      @map("customer_id")
+  restaurantId Int     @map("restaurant_id")
+  totalAmount Int      @map("total_amount")
+  orderStatusId     Int     @map("order_status_id")   
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  orderStatus OrderStatus @relation(fields: [orderStatusId], references: [id])
+
+  orderItems OrderItem[]
+
+  @@map("orders")
+}
+
+model OrderStatus {
+  id        Int      @id @default(autoincrement()) 
+  name      String   
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_statuses")
+}
+
+model OrderItem {
+  id         Int      @id @default(autoincrement()) 
+  orderId    Int      @map("order_id")
+  menuItemId Int      @map("menu_item_id")
+  quantity   Int      @map("quantity")
+  price      Int      @map("price")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("order_items")
 }

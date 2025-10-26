@@ -14,38 +14,15 @@ export const setupSwagger = (app: Express) => {
     },
     servers: [
       {
-        url: process.env.APP_BASE_URL
+        url: process.env.APP_BASE_URL,
       },
     ],
-    components: {
-      schemas: {
-        AddToCart: {
-          type: "object",
-          required: ["itemId", "quantity", "price"],
-          properties: {
-            menuItemId: { type: "integer", example: 123 },
-            quantity: { type: "integer", example: 2 },
-            price: { type: "integer", example: 55 }
-          },
-        },
-        UpdateQuantity: {
-          type: "object",
-          required: ["itemId", "quantity"],
-          properties: {
-            ItemId: { type: "integer", example: 123 },
-            quantity: { type: "integer", example: 5 },
-          },
-        },
-      },
-    },
   };
 
   // Options for swagger-jsdoc
   const options: swaggerJSDoc.Options = {
     definition: swaggerDefinition,
-    apis: [
-      "./src/routes/cart.routes.ts",
-    ],
+    apis: ["./src/routes/index.ts", "./src/routes/*.ts"],
   };
 
   // Generate specification
