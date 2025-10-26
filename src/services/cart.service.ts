@@ -64,9 +64,9 @@ class CartService {
     });
   }
 
-  async clearCart(cartId: number) {
+  async clearCart(customerId: number) {
 
-    const cart = await cartRepository.findCartById(cartId);
+    const cart = await cartRepository.findCartByCustomerId(customerId);
     if (!cart) {
       throw new CustomError({
         statusCode: 404,
@@ -75,7 +75,7 @@ class CartService {
       });
     }
 
-    await cartRepository.clearCart(cartId);
+    await cartRepository.clearCart(cart.id);
   }
 }
 export const cartService = new CartService();

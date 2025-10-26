@@ -100,7 +100,12 @@ cartRouter.put(
  *     tags: [Cart]
  *     responses:
  *       200:
- *         description: Cart cleared successfully
+ *         messages: 
+ *          - Cart cleared successfully
+ *       404:
+ *         messages:
+ *           - Cart not found!
+ * 
  */
 cartRouter.delete("/clear", cartController.clearCart);
 
