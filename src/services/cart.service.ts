@@ -6,23 +6,23 @@ import { cartRepository } from "../repositories/cart.repository";
 import { CustomError } from "../utils/errors/custom-error";
 
 class CartService {
-  async addToCart(cartItem:CreateCartItemDTO , customerId:number) {
-           // const cartRepository = new cartRepository()
-       const cart = await cartRepository.upsertCart(customerId)
-          
-       const newCartItem = await cartRepository.createItem(cartItem,cart.id)       
-       return {cart , item: newCartItem}    
-   }
-   async viewCart(customerId: number) {
-       const cart = await cartRepository.findCartByCustomerId(customerId)
-        if (!cart) { 
-               throw new CustomError({
-                 message:"The customer doesn't have cart" , 
-                 statusCode:StatusCodes.BAD_REQUEST 
-               })
-             }
-        return cart     
-   } 
+  async addToCart(cartItem: CreateCartItemDTO, customerId: number) {
+    // const cartRepository = new cartRepository()
+    const cart = await cartRepository.upsertCart(customerId)
+
+    const newCartItem = await cartRepository.createItem(cartItem, cart.id)
+    return { cart, item: newCartItem }
+  }
+  async viewCart(customerId: number) {
+    const cart = await cartRepository.findCartByCustomerId(customerId)
+    if (!cart) {
+      throw new CustomError({
+        message: "The customer doesn't have cart",
+        statusCode: StatusCodes.BAD_REQUEST
+      })
+    }
+    return cart
+  }
   async updateQuantity(updateQuantityDto: {
     itemId: number;
     quantity: number;
@@ -60,6 +60,20 @@ class CartService {
       ...removeCartItemDto,
       cartId: cart.id,
     });
+  }
+
+  async clearCart(cartId: number) {
+
+    const cart = await cartRepository.findCartById(cartId);
+    if (!cart) {
+      throw new CustomError({
+        statusCode: 404,
+        code: "ERR_NF",
+        message: "Cart not found!",
+      });
+    }
+
+    await cartRepository.clearCart(cartId);
   }
 }
 export const cartService = new CartService();

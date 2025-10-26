@@ -53,6 +53,18 @@ class CartRepository {
     });
   }
 
+  async clearCart(cartId: number) {
+    return await prisma.cartItem.deleteMany({
+      where: { cartId },
+    });
+  }
+
+  async findCartById(cartId: number) {
+    return prisma.cart.findUnique({
+      where: { id: cartId },
+    });
+  }
+
 
 }
 export const cartRepository = new CartRepository();
