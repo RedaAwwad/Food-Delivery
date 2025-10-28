@@ -20,7 +20,6 @@ const errorHandler = (
     const validationError: { error: ErrorFormat } = {
       error: {
         statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-        code: "ERR_VALID",
         message: "Validation error!",
         errors: error.details.map((detail) => ({
           message: detail.message,
@@ -37,7 +36,6 @@ const errorHandler = (
     res.status(error.statusCode).json({
       error: {
         statusCode: error.statusCode,
-        code: error.code,
         message: error.message,
         errors: error.errors,
       },
@@ -48,7 +46,6 @@ const errorHandler = (
   const SERVER_ERROR: { error: ErrorFormat } = {
     error: {
       statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      code: "ERR_INTERNAL",
       message: getErrorMessage(error) || "Internal Server Error",
     },
   };
