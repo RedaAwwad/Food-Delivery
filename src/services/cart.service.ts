@@ -8,7 +8,7 @@ class CartService {
   async addToCart(cartItem: CreateCartItemDTO, customerId: number) {
     // const cartRepository = new cartRepository()
     const cart = await cartRepository.upsertCart(customerId);
-    console.log("the cart: " +cart)
+    console.log("the cart: " + cart);
     const newCartItem = await cartRepository.createCartItem(cartItem, cart.id);
     return { cart, item: newCartItem };
   }
@@ -34,7 +34,6 @@ class CartService {
     if (!cart) {
       throw new CustomError({
         statusCode: StatusCodes.NOT_FOUND,
-        code: "ERR_NF",
         message: "Cart not found!",
       });
     }
@@ -53,7 +52,6 @@ class CartService {
     if (!cart) {
       throw new CustomError({
         statusCode: StatusCodes.NOT_FOUND,
-        code: "ERR_NF",
         message: "Cart not found!",
       });
     }
@@ -65,12 +63,10 @@ class CartService {
   }
 
   async clearCart(customerId: number) {
-
     const cart = await cartRepository.findCartByCustomerId(customerId);
     if (!cart) {
       throw new CustomError({
-        statusCode: 404,
-        code: "ERR_NF",
+        statusCode: StatusCodes.NOT_FOUND,
         message: "Cart not found!",
       });
     }

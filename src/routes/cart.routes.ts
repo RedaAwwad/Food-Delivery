@@ -63,17 +63,100 @@ cartRouter.get("/", cartController.viewCart);
  * @swagger
  * /api/v1/cart/add-to-cart:
  *   post:
- *     summary: Add an item to cart
+ *     summary: Add an item to the cart
  *     tags: [Cart]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *
+ *             type: object
+ *             required:
+ *               - menuItemId
+ *               - quantity
+ *               - price
+ *             properties:
+ *               menuItemId:
+ *                 type: integer
+ *                 example: 101
+ *               quantity:
+ *                 type: integer
+ *                 example: 2
+ *               price:
+ *                 type: number
+ *                 example: 49.99
  *     responses:
  *       201:
- *         description: Item added to cart
+ *         description: Item added to cart successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Item added to cart successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     cartItemId:
+ *                       type: integer
+ *                       example: 1
+ *                     menuItemId:
+ *                       type: integer
+ *                       example: 101
+ *                     quantity:
+ *                       type: integer
+ *                       example: 2
+ *                     price:
+ *                       type: number
+ *                       example: 49.99
+ *       404:
+ *         description: Cart not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 404
+ *                     message:
+ *                       type: string
+ *                       example: Cart not found!
+ *       422:
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 422
+ *                     message:
+ *                       type: string
+ *                       example: Validation error!
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           message:
+ *                             type: string
+ *                             example: Quantity must be at least 1
+ *                           path:
+ *                             type: string
+ *                             example: quantity
  */
 cartRouter.post(
   "/add-to-cart",
@@ -92,17 +175,74 @@ cartRouter.post(
  *       content:
  *         application/json:
  *           schema:
+ *             type: object
+ *             required:
+ *               - cartItemId
+ *               - quantity
+ *             properties:
+ *               cartItemId:
+ *                 type: integer
+ *                 example: 1
+ *               quantity:
+ *                 type: integer
+ *                 example: 3
  *     responses:
  *       200:
- *       messages:
- *         - Cart item quantity updated successfully
+ *         description: Cart item quantity updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Cart item quantity updated successfully
  *       404:
- *         messages:
- *           - Cart item not found!
+ *         description: Cart item not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 404
+ *                     message:
+ *                       type: string
+ *                       example: Cart item not found!
  *       422:
- *         messages:
- *           - Item ID is required
- *           - Quantity is required and must be at least 1
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 422
+ *                     message:
+ *                       type: string
+ *                       example: Validation error!
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           message:
+ *                             type: string
+ *                             example: Quantity must be at least 1
+ *                           path:
+ *                             type: string
+ *                             example: quantity
  */
 cartRouter.put(
   "/update-quantity",
@@ -114,20 +254,76 @@ cartRouter.put(
  * @swagger
  * /api/v1/cart/remove-item:
  *   delete:
- *     summary: Clear item from the cart
+ *     summary: Remove an item from the cart
  *     tags: [Cart]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cartItemId
+ *             properties:
+ *               cartItemId:
+ *                 type: integer
+ *                 example: 1
  *     responses:
- *       204:
- *       messages:
- *         - Cart item cleared successfully
+ *       200:
+ *         description: Cart item removed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Cart item removed successfully
  *       404:
- *         messages:
- *           - Cart item not found!
+ *         description: Cart item not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 404
+ *                     message:
+ *                       type: string
+ *                       example: Cart item not found!
  *       422:
- *         messages:
- *           - Item ID is required
+ *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 422
+ *                     message:
+ *                       type: string
+ *                       example: Validation error!
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           message:
+ *                             type: string
+ *                             example: Item ID is required
+ *                           path:
+ *                             type: string
+ *                             example: cartItemId
  */
-cartRouter.put(
+cartRouter.delete(
   "/remove-item",
   validateRequest(RemoveCartItemSchema),
   cartController.removeCartItem
@@ -140,13 +336,43 @@ cartRouter.put(
  *     summary: Clear all items in the cart
  *     tags: [Cart]
  *     responses:
- *       204:
- *         messages:
- *          - Cart cleared successfully
+ *       200:
+ *         description: Cart cleared successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Cart cleared successfully
  *       404:
- *         messages:
- *           - Cart not found!
- *
+ *         description: Cart not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: object
+ *                   properties:
+ *                     statusCode:
+ *                       type: integer
+ *                       example: 404
+ *                     message:
+ *                       type: string
+ *                       example: Cart not found!
+ *                     errors:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           message:
+ *                             type: string
+ *                             example: Cart not found!
+ *                           path:
+ *                             type: string
+ *                             example: "/api/v1/cart/clear"
  */
 cartRouter.delete("/clear", cartController.clearCart);
 
