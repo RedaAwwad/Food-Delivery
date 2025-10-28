@@ -16,6 +16,47 @@ const cartRouter = express.Router();
  *   description: Cart management APIs
  */
 
+/**
+ * @swagger
+ * /api/v1/cart:
+ *   get:
+ *     summary: View cart items
+ *     tags: [Cart]
+ *     responses:
+ *       200:
+ *         description: List of cart items
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 123
+ *                       quantity:
+ *                         type: integer
+ *                         example: 2
+ *                       price:
+ *                         type: number
+ *                         example: 49.99
+ *       404:
+ *         description: Cart not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: Cart not found!
+ */
 cartRouter.get("/", cartController.viewCart);
 
 /**
@@ -31,7 +72,7 @@ cartRouter.get("/", cartController.viewCart);
  *           schema:
  *
  *     responses:
- *       200:
+ *       201:
  *         description: Item added to cart
  */
 cartRouter.post(
@@ -76,7 +117,7 @@ cartRouter.put(
  *     summary: Clear item from the cart
  *     tags: [Cart]
  *     responses:
- *       200:
+ *       204:
  *       messages:
  *         - Cart item cleared successfully
  *       404:
@@ -99,15 +140,14 @@ cartRouter.put(
  *     summary: Clear all items in the cart
  *     tags: [Cart]
  *     responses:
- *       200:
- *         messages: 
+ *       204:
+ *         messages:
  *          - Cart cleared successfully
  *       404:
  *         messages:
  *           - Cart not found!
- * 
+ *
  */
 cartRouter.delete("/clear", cartController.clearCart);
-
 
 export { cartRouter };
