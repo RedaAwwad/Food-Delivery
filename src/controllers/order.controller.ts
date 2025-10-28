@@ -10,6 +10,12 @@ class OrderController {
       const order = await orderService.updateStatus(orderId , orderStatus)
       res.status(200).json({ success: true, data: order });
     }
+    async cancelOrder(req:Request , res:Response) {
+      const orderId = Number(req.params.id)
+      const orderStatus = Number(req.body.statusId)
+      const order = await orderService.updateStatus(orderId , orderStatus)
+      res.status(200).json({ success: true, data: order });
+    }
 }
 
 export const orderController = new OrderController();
