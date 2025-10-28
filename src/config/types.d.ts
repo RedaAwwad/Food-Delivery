@@ -1,0 +1,3 @@
+interface AppConfig {
+  debug: boolean;
+}

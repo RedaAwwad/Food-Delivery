@@ -1,3 +1,9 @@
 {
-  "cSpell.words": ["Autogen"]
+  "cSpell.words": [
+    "Autogen"
+  ],
+  "conventionalCommits.scopes": [
+    "user",
+    "Cart Mangment"
+  ]
 }

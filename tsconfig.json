@@ -1,4 +1,5 @@
 {
+  "extends": "@tsconfig/node18/tsconfig.json",
   "compilerOptions": {
     // Visit https://aka.ms/tsconfig to read more about this file
     // File Layout
@@ -13,6 +14,8 @@
     // "lib": ["esnext"],
     "types": ["node"],
     // and npm install -D @types/node
+
+    "forceConsistentCasingInFileNames": true,
 
     // Other Outputs
     "sourceMap": true,
@@ -41,5 +44,10 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"],
+  "ts-node": {
+    "files": true
   }
 }
