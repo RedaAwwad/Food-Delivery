@@ -170,7 +170,7 @@ model Order {
   id          Int      @id @default(autoincrement()) 
   customerId  Int      @map("customer_id")
   restaurantId Int     @map("restaurant_id")
-  totalAmount Int      @map("total_amount")
+  totalAmount  Decimal      @map("total_amount")
   orderStatusId     Int     @map("order_status_id")   
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -201,7 +201,7 @@ model OrderItem {
   orderId    Int      @map("order_id")
   menuItemId Int      @map("menu_item_id")
   quantity   Int      @map("quantity")
-  price      Int      @map("price")
+  price      Decimal      @map("price")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
