@@ -1,17 +1,23 @@
-import { prisma } from "../config/prisma.config"
+import { prisma } from "../config/prisma.config";
 
 class OrderRepository {
-   async findOrderById (orderId:number) {
-    return await prisma.order.findUniqueOrThrow({where:{
-        id:orderId
-    }})
-   }
+  async findAllOrders() {
+    return await prisma.order.findMany();
+  }
 
-   async updateStatus(orderId:number , statusId:number) {
-     return await prisma.order.update({
-        where:{id:orderId} , 
-        data:{orderStatusId:statusId}
-     })
-   }
+  async findOrderById(orderId: number) {
+    return await prisma.order.findUniqueOrThrow({
+      where: {
+        id: orderId,
+      },
+    });
+  }
+
+  async updateStatus(orderId: number, statusId: number) {
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: { orderStatusId: statusId },
+    });
+  }
 }
-export const orderRepository = new OrderRepository()
+export const orderRepository = new OrderRepository();

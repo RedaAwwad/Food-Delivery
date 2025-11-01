@@ -22,6 +22,28 @@ const orderRouter = express.Router();
  *         description: List of all orders
  */
 orderRouter.get("/", orderController.getAllOrders);
+
+/**
+ * @swagger
+ * /api/v1/orders/{id}:
+ *   get:
+ *     summary: Get order details by ID
+ *     tags: [Order]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the order to retrieve
+ *     responses:
+ *       200:
+ *         description: Order details retrieved successfully
+ *       404:
+ *         description: Order not found
+ */
+orderRouter.get("/:id", orderController.getOrderDetails);
+
 /**
  * @swagger
  * /api/v1/orders/{id}/status:
@@ -58,8 +80,7 @@ orderRouter.get("/", orderController.getAllOrders);
  *       500:
  *         description: Internal server error
  */
-
-orderRouter.patch('/:id/status' , orderController.updateStatus)
+orderRouter.patch("/:id/status", orderController.updateStatus);
 
 /**
  * @swagger
@@ -97,6 +118,10 @@ orderRouter.patch('/:id/status' , orderController.updateStatus)
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch('/:id/cancel' , isAuthorized(['customer' , 'restaurant']) , orderController.cancelOrder)
+orderRouter.patch(
+  "/:id/cancel",
+  isAuthorized(["customer", "restaurant"]),
+  orderController.cancelOrder
+);
 
 export { orderRouter };
