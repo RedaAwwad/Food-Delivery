@@ -124,4 +124,9 @@ orderRouter.patch(
   orderController.cancelOrder
 );
 
+orderRouter.post(
+  "/check-out",
+  orderController.placeOrder
+);
+
 export { orderRouter };
