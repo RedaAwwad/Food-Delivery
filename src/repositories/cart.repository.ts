@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma.config";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
