@@ -14,7 +14,8 @@ class CartService {
   }
 
   async viewCart(customerId: number) {
-    const cart = await cartRepository.findCartByCustomerId(customerId);
+    // const cart = await cartRepository.findCartByCustomerId(customerId);
+    const cart = cartRepository.upsertCart(customerId);
     if (!cart) {
       throw new CustomError({
         message: "The customer doesn't have cart",
@@ -24,10 +25,7 @@ class CartService {
     return cart;
   }
 
-  async updateQuantity(updateQuantityDto: {
-    cartItemId: number;
-    quantity: number;
-  }) {
+  async updateQuantity(updateQuantityDto: { cartItemId: number; quantity: number }) {
     // check if the authenticated user owns the cart item
     // TODO: get customerId from auth
     const cart = await cartRepository.findCartByCustomerId(1);

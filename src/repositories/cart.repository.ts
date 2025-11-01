@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { prisma } from "../config/prisma.config";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
@@ -14,6 +15,7 @@ class CartRepository {
       where: { customerId },
       update: {},
       create: { customerId },
+      include: {},
     });
   }
 
@@ -53,10 +55,7 @@ class CartRepository {
     });
   }
 
-  async removeItemFromCart({
-    cartId,
-    itemId,
-  }: RemoveCartItemDTO & { cartId: number }) {
+  async removeItemFromCart({ cartId, itemId }: RemoveCartItemDTO & { cartId: number }) {
     return await prisma.cartItem.delete({
       where: { id: itemId, cartId },
     });

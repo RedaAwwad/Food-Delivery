@@ -59,7 +59,7 @@ orderRouter.get("/", orderController.getAllOrders);
  *         description: Internal server error
  */
 
-orderRouter.put('/:id/status' , orderController.updateStatus)
+orderRouter.put("/:id/status", orderController.updateStatus);
 
 /**
  * @swagger
@@ -97,6 +97,10 @@ orderRouter.put('/:id/status' , orderController.updateStatus)
  *       500:
  *         description: Internal server error
  */
-orderRouter.put('/:id/cancel-order' , isAuthorized(['customer' , 'restaurant']) , orderController.cancelOrder)
+orderRouter.put(
+  "/:id/cancel-order",
+  isAuthorized(["customer", "restaurant"]),
+  orderController.cancelOrder
+);
 
 export { orderRouter };
