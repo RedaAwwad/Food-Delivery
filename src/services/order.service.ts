@@ -22,5 +22,17 @@ class OrderService {
     const updateOrder = await orderRepository.updateStatus(orderId, statusId);
     return updateOrder;
   }
+
+  async placeOrder(customerId: number, restaurantId: number) {
+    try {
+      const order = await orderRepository.createOrder(customerId, restaurantId);
+      return order;
+    } catch (err: any) {
+      throw new CustomError({
+        message: err.message || "Failed to place order",
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+      });
+    }
+  }
 }
 export const orderService = new OrderService();
