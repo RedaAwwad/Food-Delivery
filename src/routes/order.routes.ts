@@ -25,7 +25,7 @@ orderRouter.get("/", orderController.getAllOrders);
 /**
  * @swagger
  * /api/v1/orders/{id}/status:
- *   put:
+ *   patch:
  *     summary: Update order status
  *     tags:
  *       - Order
@@ -59,12 +59,12 @@ orderRouter.get("/", orderController.getAllOrders);
  *         description: Internal server error
  */
 
-orderRouter.put('/:id/status' , orderController.updateStatus)
+orderRouter.patch('/:id/status' , orderController.updateStatus)
 
 /**
  * @swagger
- * /api/v1/orders/{id}/cancel-order:
- *   put:
+ * /api/v1/orders/{id}/cancel:
+ *   patch:
  *     summary: cancell order by Customer or restuarent
  *     tags:
  *       - Order
@@ -97,6 +97,6 @@ orderRouter.put('/:id/status' , orderController.updateStatus)
  *       500:
  *         description: Internal server error
  */
-orderRouter.put('/:id/cancel-order' , isAuthorized(['customer' , 'restaurant']) , orderController.cancelOrder)
+orderRouter.patch('/:id/cancel' , isAuthorized(['customer' , 'restaurant']) , orderController.cancelOrder)
 
 export { orderRouter };
