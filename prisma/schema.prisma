@@ -1,8 +1,8 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
+  previewFeatures = ["clientExtensions"]
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
-  
 }
 
 datasource db {
@@ -93,6 +93,7 @@ model Restaurant {
 model Cart {
   id         Int       @id @default(autoincrement()) 
   customerId Int       @unique @map("customer_id")
+  isLocked   Boolean   @default(false) @map("is_locked")
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
@@ -167,34 +168,30 @@ model MenuItem {
   @@map("menu_items")
 }
 
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  PAYMENT_FAILED
+}
+
 model Order {
   id          Int      @id @default(autoincrement()) 
   customerId  Int      @map("customer_id")
   restaurantId Int     @map("restaurant_id")
   totalAmount  Decimal      @map("total_amount")
-  orderStatusId     Int     @map("order_status_id")   
+  status      OrderStatus @default(PENDING)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   customer Customer @relation(fields: [customerId], references: [id])
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
 
-  orderStatus OrderStatus @relation(fields: [orderStatusId], references: [id])
-
   orderItems OrderItem[]
 
   @@map("orders")
-}
-
-model OrderStatus {
-  id        Int      @id @default(autoincrement()) 
-  name      String   
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  orders Order[]
-
-  @@map("order_statuses")
 }
 
 model OrderItem {
