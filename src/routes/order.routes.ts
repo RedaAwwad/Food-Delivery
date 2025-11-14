@@ -80,7 +80,7 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:id/status", orderController.updateStatus);
+orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderController.updateStatus);
 
 /**
  * @swagger
@@ -120,7 +120,7 @@ orderRouter.patch("/:id/status", orderController.updateStatus);
  */
 orderRouter.patch(
   "/:id/cancel",
-  isAuthorized(["customer", "restaurant"]),
+  isAuthorized(["restaurant"]),
   orderController.cancelOrder
 );
 

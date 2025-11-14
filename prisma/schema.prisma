@@ -173,8 +173,8 @@ model Order {
   restaurantId Int     @map("restaurant_id")
   totalAmount  Decimal      @map("total_amount")
   orderStatusId     Int     @map("order_status_id")   
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
 
   customer Customer @relation(fields: [customerId], references: [id])
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
