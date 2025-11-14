@@ -18,6 +18,25 @@ class CartRepository {
     });
   }
 
+  async getCartItemsByCustomerId(customerId: number) {
+    const cart = await prisma.cart.findUnique({
+      where: { customerId },
+      include: {
+        items: {
+          include: {
+            menuItem: true, // Include menuItem details if needed
+          },
+        },
+      },
+    });
+
+    if (!cart) {
+      return [];
+    }
+
+    return cart.items;
+  }
+
   async findByCartAndMenuItem(cartId: number, menuItemId: number) {
     return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
   }
@@ -54,6 +73,13 @@ class CartRepository {
     });
   }
 
+    async clearCartByCustomerId(customerId: number) {
+    const cart = await this.findCartByCustomerId(customerId);
+    if (cart) {
+      return this.clearCart(cart.id);
+    }
+  }
+
   async removeItemFromCart({ cartId, itemId }: RemoveCartItemDTO & { cartId: number }) {
     return await prisma.cartItem.delete({
       where: { id: itemId, cartId },
@@ -63,6 +89,20 @@ class CartRepository {
   async clearCart(cartId: number) {
     return await prisma.cartItem.deleteMany({
       where: { cartId },
+    });
+  }
+
+    async lockCart(customerId: number) {
+    return await prisma.cart.update({
+      where: { customerId },
+      data: { isLocked: true },
+    });
+  }
+
+  async unlockCart(customerId: number) {
+    return await prisma.cart.update({
+      where: { customerId },
+      data: { isLocked: false },
     });
   }
 }
