@@ -22,7 +22,9 @@ model User {
   usersRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
-
+  // Reverse relations
+  createdOrders Order[] @relation("CreatedOrders")
+  updatedOrders Order[] @relation("UpdatedOrders")
   @@map("users")
 }
  
@@ -168,13 +170,21 @@ model MenuItem {
 }
 
 model Order {
-  id          Int      @id @default(autoincrement()) 
+  id          Int      @id @default(autoincrement())
   customerId  Int      @map("customer_id")
   restaurantId Int     @map("restaurant_id")
   totalAmount  Decimal      @map("total_amount")
   orderStatusId     Int     @map("order_status_id")   
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
+  
+    // Foreign keys
+  createdById Int?
+  updatedById Int?
+
+  // Relations
+  createdBy   User? @relation("CreatedOrders", fields: [createdById], references: [id])
+  updatedBy   User? @relation("UpdatedOrders", fields: [updatedById], references: [id]) 
 
   customer Customer @relation(fields: [customerId], references: [id])
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
@@ -211,3 +221,10 @@ model OrderItem {
 
   @@map("order_items")
 }
+
+
+
+
+
+
+
