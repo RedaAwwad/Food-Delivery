@@ -15,11 +15,24 @@ class OrderRepository {
       },
     });
   }
+  async findOrderRestaurantById(orderId: number , userRestaurantId:number ) {
+    return await prisma.order.findUniqueOrThrow({
+      where: {
+        id: orderId,
+        restaurantId:userRestaurantId
+      },
+    });
+  }
+   
+  async updateOrderStatus(orderId: number,restaurantId:number, newStatusId: number, userId:number , updatedAt:Date) {
 
-  async updateStatus(orderId: number, statusId: number) {
-    return await prisma.order.update({
-      where: { id: orderId },
-      data: { orderStatusId: statusId },
+    return await prisma.order.updateMany({
+      where: { id: orderId, restaurantId },
+      data: { 
+        orderStatusId: newStatusId , 
+        // updatedBy : userId,
+        updatedAt 
+      },
     });
   }
 

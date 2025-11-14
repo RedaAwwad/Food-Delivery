@@ -1,6 +1,9 @@
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
 import { orderRepository } from "../repositories/order.repository";
+import { prisma } from "../config/prisma.config";
+import { restaurantRepository, RestaurantRepository } from "../repositories/restaurant.repository";
+import { userRepository } from "../repositories/user.repository";
 
 class OrderService {
   async getAllOrders() {
@@ -11,17 +14,40 @@ class OrderService {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateStatus(orderId: number, statusId: number) {
-    const order = await orderRepository.findOrderById(orderId);
-    if (!order) {
-      throw new CustomError({
-        message: "The order not found",
-        statusCode: StatusCodes.NOT_FOUND,
-      });
-    }
-    const updateOrder = await orderRepository.updateStatus(orderId, statusId);
-    return updateOrder;
+  async updateOrderStatus(
+    orderId: number, 
+    newStatusId: number, 
+    userId : number , 
+    userRole: string 
+  ) {
+    const userWithRestaurant = await userRepository.findUserWithRestaurant(userId , userRole)
+
+  let restaurantId: number | null = null;
+
+  if (userRole === "admin") {
+    const adminRestaurant = await restaurantRepository.findRestaurantByUserId(userId)
+    restaurantId = adminRestaurant?.id ?? null;
+  } else if (userRole === "restaurant") {
+    restaurantId = userWithRestaurant?.restaurant?.id ?? null;
   }
+
+  if (!restaurantId) throw new CustomError({
+    message:"No restaurant found", 
+    statusCode:StatusCodes.NOT_FOUND});
+  
+  const updatedAt = new Date()
+  const updatedOrder = await orderRepository.updateOrderStatus(
+    orderId , restaurantId , newStatusId , userId , updatedAt
+  )
+
+  if (updatedOrder.count === 0) {
+    throw new CustomError({
+      message   : "Order does not belong to your restaurant",
+      statusCode: StatusCodes.FORBIDDEN});
+  }
+
+  return updatedOrder;
+}
 
   async placeOrder(customerId: number, restaurantId: number) {
     try {

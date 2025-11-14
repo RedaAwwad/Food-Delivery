@@ -20,14 +20,23 @@ class OrderController {
 
   async updateStatus(req: Request, res: Response) {
     const orderId = Number(req.params.id);
-    const orderStatus = Number(req.body.statusId);
-    const order = await orderService.updateStatus(orderId, orderStatus);
+    const newOrderStatus = Number(req.body.statusId);
+       
+    const userId   = 1       // req.user.id
+    const userRole = 'admin' // req.user.role 
+    
+    // const user = req.user  // TODO Send in arq instead multi args
+    const order = await orderService.updateOrderStatus(orderId, newOrderStatus, userId , userRole);
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
   async cancelOrder(req: Request, res: Response) {
     const orderId = Number(req.params.id);
     const orderStatus = Number(req.body.statusId);
-    const order = await orderService.updateStatus(orderId, orderStatus);
+    
+    const userId   = 1       // req.user.id
+    const userRole = 'admin' // req.user.role 
+    // const user = req.user  // TODO Send in arq instead multi args
+    const order = await orderService.updateOrderStatus(orderId, orderStatus, userId, userRole);    
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
 
