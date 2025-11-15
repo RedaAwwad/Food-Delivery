@@ -19,12 +19,18 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  isAdmin  Boolean  @default(false) @map("is_admin")
+
   usersRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
   // Reverse relations
   createdOrders Order[] @relation("CreatedOrders")
   updatedOrders Order[] @relation("UpdatedOrders")
+
+  createdCustomers Customer[] @relation("CreatedCustomers")
+  updatedCustomers Customer[] @relation("UpdatedCustomers")
+
   @@map("users")
 }
  
@@ -68,6 +74,13 @@ model Customer {
 
   orders Order[]
 
+  createdById Int?
+  updatedById Int?
+
+  // Relations
+  createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [id])
+  updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [id])
+
   @@map("customers")
 }
 
@@ -78,7 +91,7 @@ model Restaurant {
   name        String   
   description String   
   logo        String?  
-  address     String   
+  address     String  
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
