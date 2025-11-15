@@ -37,6 +37,14 @@ class CustomerController {
 
     // Implementation for fetching specific order details can be added here
   }
+  async deactivateAccount(req: Request, res: Response) {
+    const customerId = Number(req.params.id);
+    const result = await customerService.deactivateAccount(customerId);
+    res.status(200).json({
+      message: "Customer account deactivated successfully",
+      customer: result,
+    });
+  }
 }
 
 export const customerController = new CustomerController();

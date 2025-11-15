@@ -49,4 +49,6 @@ customerRouter.get("/:customer_id/orders", customerController.getCustomerOrders)
  */
 customerRouter.get("/:customer_id/orders/:order_id", customerController.getCustomerOrderDetails);
 
+customerRouter.patch("/:customer_id/deactivate", customerController.deactivateAccount);
+
 export { customerRouter };

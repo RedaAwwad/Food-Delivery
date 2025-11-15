@@ -1,6 +1,6 @@
 import { prisma } from "../config/prisma.config";
 
-class CustomerRepository {
+export class CustomerRepository {
   async findCustomerOrders(customerId: string) {
     return await prisma.customer.findMany({
       where: { id: Number(customerId) },
@@ -26,6 +26,21 @@ class CustomerRepository {
             },
           },
         },
+      },
+    });
+  }
+
+  async getCustomerByCustomerId(customerId: number) {
+    return prisma.customer.findUnique({
+      where: { id: customerId },
+    });
+  }
+  async updateDeactivateAccount(customerId: number) {
+    return await prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        isActive: false,
+        deactivatedAt: new Date(),
       },
     });
   }
