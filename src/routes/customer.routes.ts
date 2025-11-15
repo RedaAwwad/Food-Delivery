@@ -49,4 +49,6 @@ customerRouter.get("/", isAdmin, customerController.getCustomersByAdmin);
  */
 customerRouter.get("/:customer_id", isAdmin, customerController.getCustomerDetailsById);
 
+customerRouter.patch("/:customer_id/deactivate", customerController.deactivateAccount);
+
 export { customerRouter };
