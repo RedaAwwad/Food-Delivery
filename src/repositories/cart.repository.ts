@@ -14,6 +14,7 @@ class CartRepository {
       where: { customerId },
       update: {},
       create: { customerId },
+      include: {},
     });
   }
 
@@ -53,10 +54,7 @@ class CartRepository {
     });
   }
 
-  async removeItemFromCart({
-    cartId,
-    itemId,
-  }: RemoveCartItemDTO & { cartId: number }) {
+  async removeItemFromCart({ cartId, itemId }: RemoveCartItemDTO & { cartId: number }) {
     return await prisma.cartItem.delete({
       where: { id: itemId, cartId },
     });

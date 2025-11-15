@@ -1,9 +1,19 @@
 {
-  "cSpell.words": [
-    "Autogen"
-  ],
-  "conventionalCommits.scopes": [
-    "user",
-    "Cart Mangment"
-  ]
+  // ---------------------------
+  // 🌟 General Editor Settings
+  // ---------------------------
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+
+  // ---------------------------
+  // 💅 Prettier Formatting Rules
+  // ---------------------------
+  "prettier.singleQuote": false,
+  "prettier.trailingComma": "es5",
+  "prettier.semi": true,
+  "prettier.printWidth": 100,
+  "prettier.tabWidth": 2,
+  "prettier.bracketSpacing": true,
+  "prettier.arrowParens": "always",
+  "prettier.endOfLine": "lf"
 }

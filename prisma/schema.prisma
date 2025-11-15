@@ -2,6 +2,7 @@ generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+  
 }
 
 datasource db {
@@ -18,9 +19,17 @@ model User {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  isAdmin  Boolean  @default(false) @map("is_admin")
+
   usersRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
+  // Reverse relations
+  createdOrders Order[] @relation("CreatedOrders")
+  updatedOrders Order[] @relation("UpdatedOrders")
+
+  createdCustomers Customer[] @relation("CreatedCustomers")
+  updatedCustomers Customer[] @relation("UpdatedCustomers")
 
   @@map("users")
 }
@@ -65,6 +74,13 @@ model Customer {
 
   orders Order[]
 
+  createdById Int?
+  updatedById Int?
+
+  // Relations
+  createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [id])
+  updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [id])
+
   @@map("customers")
 }
 
@@ -75,7 +91,7 @@ model Restaurant {
   name        String   
   description String   
   logo        String?  
-  address     String   
+  address     String  
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -167,13 +183,21 @@ model MenuItem {
 }
 
 model Order {
-  id          Int      @id @default(autoincrement()) 
+  id          Int      @id @default(autoincrement())
   customerId  Int      @map("customer_id")
   restaurantId Int     @map("restaurant_id")
   totalAmount  Decimal      @map("total_amount")
   orderStatusId     Int     @map("order_status_id")   
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+  
+    // Foreign keys
+  createdById Int?
+  updatedById Int?
+
+  // Relations
+  createdBy   User? @relation("CreatedOrders", fields: [createdById], references: [id])
+  updatedBy   User? @relation("UpdatedOrders", fields: [updatedById], references: [id]) 
 
   customer Customer @relation(fields: [customerId], references: [id])
   restaurant Restaurant @relation(fields: [restaurantId], references: [id])
@@ -210,3 +234,10 @@ model OrderItem {
 
   @@map("order_items")
 }
+
+
+
+
+
+
+
