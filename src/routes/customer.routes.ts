@@ -12,7 +12,7 @@ const customerRouter = express.Router();
 
 /**
  * @swagger
- * /api/v1/customers/{customer_id}/orders:
+ * /api/v1/customers/orders:
  *   get:
  *     summary: Get customer orders
  *     tags: [Customer]
@@ -20,21 +20,15 @@ const customerRouter = express.Router();
  *       200:
  *         description: List of customer orders
  */
-customerRouter.get("/:customer_id/orders", customerController.getCustomerOrders);
+customerRouter.get("/orders", customerController.getCustomerOrders);
 
 /**
  * @swagger
- * /api/v1/customers/{customer_id}/orders/:order_id:
+ * /api/v1/customers/orders/:order_id:
  *   get:
  *     summary: Get customer order details by orderId
  *     tags: [Customer]
  *     parameters:
- *       - in: path
- *         name: customer_id
- *         required: true
- *         schema:
- *           type: string
- *         description: customer_id of the customer
  *       - in: path
  *         name: order_id
  *         required: true
@@ -47,7 +41,7 @@ customerRouter.get("/:customer_id/orders", customerController.getCustomerOrders)
  *       404:
  *         description: Customer not found
  */
-customerRouter.get("/:customer_id/orders/:order_id", customerController.getCustomerOrderDetails);
+customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
 
 customerRouter.patch("/:customer_id/deactivate", customerController.deactivateAccount);
 

@@ -7,17 +7,17 @@ import { CustomerOrdersDTO } from "../dto/customer-orders.dto";
 
 class CustomerController {
   async getCustomerOrders(req: Request, res: Response) {
-    const customerId = req.params.customer_id;
+    const customerId = 1; // fetch from user auth token
 
     if (!customerId) {
       return new CustomError({
-        message: "Customer ID is required",
+        message: "Customer Id is required",
         statusCode: StatusCodes.BAD_REQUEST,
       });
     }
 
-    const orders = await customerService.getCustomerOrdersById(customerId);
-    res.status(StatusCodes.OK).json(
+    const orders = await customerService.getCustomerOrdersByCustomerId(customerId);
+    return res.status(StatusCodes.OK).json(
       new SuccessResponse({
         data: orders.map((order) => new CustomerOrdersDTO(order)),
       })
@@ -25,17 +25,23 @@ class CustomerController {
   }
 
   async getCustomerOrderDetails(req: Request, res: Response) {
-    const customerId = req.params.customer_id;
-    const orderId = req.params.order_id;
+    const customerId = 1; // fetch from user auth token
+    const orderId = req.params.order_id ? Number(req.params.order_id) : null;
 
     if (!customerId || !orderId) {
       return new CustomError({
-        message: "Customer ID and Order ID are required",
+        message: "Customer Id and Order Id are required",
         statusCode: StatusCodes.BAD_REQUEST,
       });
     }
 
-    // Implementation for fetching specific order details can be added here
+    const order = await customerService.findCustomerOrderByCustomerId(customerId, orderId);
+
+    return res.status(StatusCodes.OK).json(
+      new SuccessResponse({
+        data: new CustomerOrdersDTO(order),
+      })
+    );
   }
   async deactivateAccount(req: Request, res: Response) {
     const customerId = Number(req.params.id);
