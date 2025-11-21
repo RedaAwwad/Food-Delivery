@@ -168,13 +168,15 @@ model MenuItem {
   @@map("menu_items")
 }
 
-enum OrderStatus {
-  PENDING
-  CONFIRMED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-  PAYMENT_FAILED
+model OrderStatus {
+  id        Int      @id @default(autoincrement()) 
+  name      String   
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_statuses")
 }
 
 model Order {
