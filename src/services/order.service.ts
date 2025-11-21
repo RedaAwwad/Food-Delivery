@@ -1,10 +1,6 @@
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
 import { orderRepository } from "../repositories/order.repository";
-import { OrderStatus } from "@prisma-client";
-import { cartRepository } from "../repositories/cart.repository";
-import { inventoryRepository } from "../repositories/inventory.repository";
-import { paymentService } from "./payment.service";
 
 class OrderService {
   async getAllOrders() {
@@ -15,8 +11,7 @@ class OrderService {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateStatus(orderId: number, status: OrderStatus) {
-    // datetime on service layer
+  async updateStatus(orderId: number, statusId: number) {
     const order = await orderRepository.findOrderById(orderId);
     if (!order) {
       throw new CustomError({
@@ -24,8 +19,7 @@ class OrderService {
         statusCode: StatusCodes.NOT_FOUND,
       });
     }
-    // audit on entity level (updatedBy, updatedOn) when update the status
-    const updateOrder = await orderRepository.updateStatus(orderId, status);
+    const updateOrder = await orderRepository.updateStatus(orderId, statusId);
     return updateOrder;
   }
 

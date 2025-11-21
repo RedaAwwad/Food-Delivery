@@ -25,10 +25,10 @@ class OrderRepository {
     });
   }
 
-  async updateStatus(orderId: number, status: OrderStatus) {
+  async updateStatus(orderId: number, statusId: number) {
     return await prisma.order.update({
       where: { id: orderId },
-      data: { status },
+      data: { orderStatusId: statusId },
     });
   }
   async createOrder(payload: CreateOrderPayload) {
