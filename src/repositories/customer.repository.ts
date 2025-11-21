@@ -1,29 +1,34 @@
 import { prisma } from "../config/prisma.config";
 
 export class CustomerRepository {
-  async findCustomerOrders(customerId: string) {
-    return await prisma.customer.findMany({
-      where: { id: Number(customerId) },
+  async findCustomerOrders(customerId: number) {
+    return await prisma.order.findMany({
+      where: { customerId },
       select: {
-        phone: true,
-        avatar: true,
-        user: {
-          select: {
-            name: true,
-            email: true,
-          },
-        },
-        orders: {
+        id: true,
+        totalAmount: true,
+        orderStatus: {
           select: {
             id: true,
-            totalAmount: true,
-            orderStatus: {
-              select: {
-                id: true,
-                name: true,
-                // key: true,
-              },
-            },
+            name: true,
+            // key: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findCustomerOrderByCustomerId(customerId: number, orderId: number) {
+    return await prisma.order.findFirst({
+      where: { id: orderId, customerId },
+      select: {
+        id: true,
+        totalAmount: true,
+        orderStatus: {
+          select: {
+            id: true,
+            name: true,
+            // key: true,
           },
         },
       },
