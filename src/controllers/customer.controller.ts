@@ -1,9 +1,11 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { customerService } from "../services/customer.service";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { CustomError } from "../utils/errors/custom-error";
 import { CustomerOrdersDTO } from "../dto/customer-orders.dto";
+import { CreateCustomerRatingDto } from "../dto/customer.dto";
+import { date } from "joi";
 
 class CustomerController {
   async getCustomerOrders(req: Request, res: Response) {
@@ -33,7 +35,7 @@ class CustomerController {
         message: "Customer Id and Order Id are required",
         statusCode: StatusCodes.BAD_REQUEST,
       });
-    }
+    } 
 
     const order = await customerService.findCustomerOrderByCustomerId(customerId, orderId);
 
@@ -50,6 +52,15 @@ class CustomerController {
       message: "Customer account deactivated successfully",
       customer: result,
     });
+  }
+  async createRatingByCustomer(req:Request<{} ,{},CreateCustomerRatingDto> , res:Response, next:NextFunction) {
+      const customerId = 'd3ee8db3-1d24-4aff-a6ec-2a9b43f0c2ae'  // fetch from auth token Jwt 
+      const ratingCustomer = await 
+      customerService.createRatingByCustomer(customerId , req.body)
+      res.status(StatusCodes.CREATED).json({
+        success:true , 
+        date:ratingCustomer
+      })
   }
 }
 

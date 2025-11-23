@@ -1,5 +1,8 @@
 import express from "express";
 import { customerController } from "../controllers/customer.controller";
+import { validateRequest } from "../middleware/validate-request";
+import { createCustomerRatingSchema } from "../validation/customer.schema";
+import { isAuthorized } from "../middleware/auth.middleware";
 
 const customerRouter = express.Router();
 
@@ -44,5 +47,48 @@ customerRouter.get("/orders", customerController.getCustomerOrders);
 customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
 
 customerRouter.patch("/:customer_id/deactivate", customerController.deactivateAccount);
+
+/**
+ * @swagger
+ * /api/v1/customers/rating:
+ *   post:
+ *     summary: Create rating for a restaurant by customer
+ *     tags: [Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *                 example: "123"
+ *               ratingScore:
+ *                 type: string
+ *                 enum: [ONE, TWO, THREE, FOUR, FIVE]
+ *                 example: FOUR
+ *               review:
+ *                 type: string
+ *                 example: "Great food and service!"
+ *             required:
+ *               - restaurantId
+ *               - ratingScore
+ *     responses:
+ *       201:
+ *         description: Rating created successfully
+ *       400:
+ *         description: Invalid input or missing parameters
+ *       404:
+ *         description: Restaurant not found
+ *       500:
+ *         description: Internal server error
+ */
+customerRouter.post(
+  "/rating",
+  validateRequest(createCustomerRatingSchema),
+  isAuthorized(['Customer']),
+  customerController.createRatingByCustomer
+);
 
 export { customerRouter };
