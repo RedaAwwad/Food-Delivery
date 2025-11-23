@@ -1,16 +1,17 @@
 import { prisma } from "../config/prisma.config";
+import { restaurantRepository } from "./restaurant.repository";
 
 export class CustomerRepository {
-  async findCustomerOrders(customerId: number) {
+  async findCustomerOrders(customerId: string) {
     return await prisma.order.findMany({
       where: { customerId },
       select: {
-        id: true,
+        orderId: true,
         totalAmount: true,
         orderStatus: {
           select: {
-            id: true,
-            name: true,
+            orderStatusId: true,
+            orderStatusName: true,
             // key: true,
           },
         },
@@ -18,16 +19,16 @@ export class CustomerRepository {
     });
   }
 
-  async findCustomerOrderByCustomerId(customerId: number, orderId: number) {
+  async findCustomerOrderByCustomerId(customerId: string, orderId: string) {
     return await prisma.order.findFirst({
-      where: { id: orderId, customerId },
+      where: { orderId, customerId },
       select: {
-        id: true,
+        orderId: true,
         totalAmount: true,
         orderStatus: {
           select: {
-            id: true,
-            name: true,
+            orderStatusId: true,
+            orderStatusName: true,
             // key: true,
           },
         },
@@ -35,19 +36,20 @@ export class CustomerRepository {
     });
   }
 
-  async getCustomerByCustomerId(customerId: number) {
+  async getCustomerByCustomerId(customerId: string) {
     return prisma.customer.findUnique({
-      where: { id: customerId },
+      where: { customerId },
     });
   }
-  async updateDeactivateAccount(customerId: number) {
+  async updateDeactivateAccount(customerId: string) {
     return await prisma.customer.update({
-      where: { id: customerId },
+      where: { customerId },
       data: {
         isActive: false,
         deactivatedAt: new Date(),
       },
     });
   }
+
 }
 export const customerRepository = new CustomerRepository();

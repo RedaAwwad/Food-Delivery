@@ -8,26 +8,26 @@ class OrderRepository {
     return await prisma.order.findMany();
   }
 
-  async findOrderById(orderId: number) {
+  async findOrderById(orderId: string) {
     return await prisma.order.findUniqueOrThrow({
       where: {
-        id: orderId,
+         orderId,
       },
     });
   }
-  async findOrderRestaurantById(orderId: number , userRestaurantId:number ) {
+  async findOrderRestaurantById(orderId: string , userRestaurantId:string ) {
     return await prisma.order.findUniqueOrThrow({
       where: {
-        id: orderId,
+        orderId,
         restaurantId:userRestaurantId
       },
     });
   }
    
-  async updateOrderStatus(orderId: number,restaurantId:number, newStatusId: number, userId:number , updatedAt:Date) {
+  async updateOrderStatus(orderId: string,restaurantId:string, newStatusId: string, userId:string , updatedAt:Date) {
 
     return await prisma.order.updateMany({
-      where: { id: orderId, restaurantId },
+      where: { orderId, restaurantId },
       data: { 
         orderStatusId: newStatusId , 
         // updatedBy : userId,
