@@ -4,12 +4,12 @@ import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
 import { UpdateQuantityDTO } from "../dto/UpdateQuantity.dto";
 
 class CartRepository {
-  async findCartByCustomerId(customerId: number) {
+  async findCartByCustomerId(customerId: string) {
     const cart = await prisma.cart.findUnique({ where: { customerId } });
     return cart;
   }
 
-  async upsertCart(customerId: number) {
+  async upsertCart(customerId: string) {
     return await prisma.cart.upsert({
       where: { customerId },
       update: {},
@@ -18,11 +18,11 @@ class CartRepository {
     });
   }
 
-  async getCartItemsByCustomerId(customerId: number) {
+  async getCartItemsByCustomerId(customerId: string) {
     const cart = await prisma.cart.findUnique({
       where: { customerId },
       include: {
-        items: {
+        cartItems: {
           include: {
             menuItem: true, // Include menuItem details if needed
           },
@@ -30,18 +30,16 @@ class CartRepository {
       },
     });
 
-    if (!cart) {
-      return [];
-    }
+    if (!cart) return [];
 
-    return cart.items;
+    return cart.cartItems;
   }
 
-  async findByCartAndMenuItem(cartId: number, menuItemId: number) {
+  async findByCartAndMenuItem(cartId: string, menuItemId: string) {
     return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
   }
 
-  async createCartItem(cartItem: CreateCartItemDTO, cartId: number) {
+  async createCartItem(cartItem: CreateCartItemDTO, cartId: string) {
     return await prisma.cartItem.upsert({
       where: {
         cartId_menuItemId: {
@@ -66,40 +64,38 @@ class CartRepository {
     cartId,
     cartItemId,
     quantity,
-  }: UpdateQuantityDTO & { cartId: number }) {
+  }: UpdateQuantityDTO & { cartId: string }) {
     return await prisma.cartItem.update({
-      where: { cartId, id: cartItemId },
+      where: { cartId, cartItemId },
       data: { quantity },
     });
   }
 
-    async clearCartByCustomerId(customerId: number) {
+  async clearCartByCustomerId(customerId: string) {
     const cart = await this.findCartByCustomerId(customerId);
     if (cart) {
-      return this.clearCart(cart.id);
+      return this.clearCart(cart.cartId);
     }
   }
 
-  async removeItemFromCart({ cartId, itemId }: RemoveCartItemDTO & { cartId: number }) {
+  async removeItemFromCart({ cartId, cartItemId }: RemoveCartItemDTO & { cartId: string }) {
     return await prisma.cartItem.delete({
-      where: { id: itemId, cartId },
+      where: { cartItemId, cartId },
     });
   }
 
-  async clearCart(cartId: number) {
-    return await prisma.cartItem.deleteMany({
-      where: { cartId },
-    });
+  async clearCart(cartId: string) {
+    return await prisma.cartItem.deleteMany({ where: { cartId } });
   }
 
-    async lockCart(customerId: number) {
+  async lockCart(customerId: string) {
     return await prisma.cart.update({
       where: { customerId },
       data: { isLocked: true },
     });
   }
 
-  async unlockCart(customerId: number) {
+  async unlockCart(customerId: string) {
     return await prisma.cart.update({
       where: { customerId },
       data: { isLocked: false },

@@ -7,7 +7,7 @@ import { CustomerOrdersDTO } from "../dto/customer-orders.dto";
 
 class CustomerController {
   async getCustomerOrders(req: Request, res: Response) {
-    const customerId = 1; // fetch from user auth token
+  const customerId = "1"; // fetch from user auth token (string id)
 
     if (!customerId) {
       return new CustomError({
@@ -25,8 +25,8 @@ class CustomerController {
   }
 
   async getCustomerOrderDetails(req: Request, res: Response) {
-    const customerId = 1; // fetch from user auth token
-    const orderId = req.params.order_id ? Number(req.params.order_id) : null;
+  const customerId = "1"; // fetch from user auth token (string id)
+  const orderId = req.params.order_id ? String(req.params.order_id) : null;
 
     if (!customerId || !orderId) {
       return new CustomError({
@@ -44,8 +44,8 @@ class CustomerController {
     );
   }
   async deactivateAccount(req: Request, res: Response) {
-    const customerId = Number(req.params.id);
-    const result = await customerService.deactivateAccount(customerId);
+  const customerId = req.params.id!;
+  const result = await customerService.deactivateAccount(customerId);
     res.status(200).json({
       message: "Customer account deactivated successfully",
       customer: result,

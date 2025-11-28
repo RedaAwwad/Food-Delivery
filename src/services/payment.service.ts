@@ -7,7 +7,7 @@ class PaymentService {
    * @returns A promise that resolves to an object indicating payment success.
    */
   async processPayment(
-    customerId: number,
+    customerId: string,
     amount: Decimal
   ): Promise<{ success: boolean; transactionId?: string }> {
     console.log(`Processing payment of ${amount} for customer ${customerId}...`);

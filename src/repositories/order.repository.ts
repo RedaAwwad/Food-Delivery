@@ -1,38 +1,31 @@
 import { prisma } from "../config/prisma.config";
+import { CreateOrderDto } from "../dto/createOrderDto";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { CartItem, MenuItem, OrderStatus } from "@prisma-client";
 
-type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
-
-type CreateOrderPayload = {
-  customerId: number;
-  restaurantId: number;
-  cartItems: CartItemWithMenuItem[];
-  status: OrderStatus;
-};
+// type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
 
 class OrderRepository {
   async findAllOrders() {
     return await prisma.order.findMany();
   }
 
-  async findOrderById(orderId: number) {
+  async findOrderById(orderId: string) {
     return await prisma.order.findUniqueOrThrow({
       where: {
-        id: orderId,
+        orderId
       },
     });
   }
 
-  async updateStatus(orderId: number, statusId: number) {
+  async updateOrderStatus(orderId: string, newOrderStatus: string) {
     return await prisma.order.update({
-      where: { id: orderId },
-      data: { orderStatusId: statusId },
+      where: { orderId },
+      data: { orderStatus: newOrderStatus },
     });
   }
-  async createOrder(payload: CreateOrderPayload) {
-    const { customerId, restaurantId, cartItems, status } = payload;
+  async createOrder(createOrderDto: CreateOrderDto) {
+    const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
     const totalAmount = cartItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
@@ -45,8 +38,11 @@ class OrderRepository {
         customerId,
         restaurantId,
         totalAmount,
-        status,
-        items: {
+        orderStatus: status,
+        // createdById/updatedById are required by the schema — set to the customer for now
+        createdById: customerId,
+        updatedById: customerId,
+        orderItems: {
           create: cartItems.map((item) => ({
             menuItemId: item.menuItemId,
             quantity: item.quantity,
@@ -55,7 +51,7 @@ class OrderRepository {
         },
       },
       include: {
-        items: true, // Include items in the returned order object
+        orderItems: true, // Include items in the returned order object
       },
     });
 

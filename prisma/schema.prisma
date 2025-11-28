@@ -1,7 +1,6 @@
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
-  previewFeatures = ["clientExtensions"]
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
@@ -224,23 +223,13 @@ model MenuItem {
   @@map("menu_items")
 }
 
-model OrderStatus {
-  id        Int      @id @default(autoincrement()) 
-  name      String   
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-
-  orders Order[]
-
-  @@map("order_statuses")
-}
-
 model Order {
   orderId        String   @id @default(uuid()) @map("order_id")
   customerId     String      @map("customer_id")
   restaurantId   String     @map("restaurant_id")
   totalAmount    Int      @map("total_amount")
-  orderStatusId  String     @map("order_status_id")
+  orderStatus    String     @map("order_status")
+  trackingStatus String?    @map("tracking_status")
 
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -256,14 +245,15 @@ model Order {
   customer Customer @relation(fields: [customerId], references: [customerId])
   restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
-  orderStatus OrderStatus @relation(fields: [orderStatusId], references: [orderStatusId])
+  orderStatusDetails OrderStatus @relation(fields: [orderStatus], references: [orderStatusKey])
+  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatus], references: [trackingStatusKey])
 
   orderItems OrderItem[]
 
   @@map("orders")
 }
 
-// order payment status & tracking status
+// Payment status (pending, paid, failed, etc.)
 model OrderStatus {
   orderStatusId        String   @id @default(uuid()) @map("order_status_id") 
   orderStatusName      String   @map("order_status_name")
@@ -275,6 +265,20 @@ model OrderStatus {
   orders Order[]
 
   @@map("order_statuses")
+}
+
+// Delivery tracking status (ongoing, out for delivery, delivered, etc.)
+model OrderTracking {
+  trackingStatusId     String   @id @default(uuid()) @map("tracking_status_id") 
+  trackingStatusName   String   @map("tracking_status_name")
+  trackingStatusKey    String   @unique @map("tracking_status_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_tracking_statuses")
 }
 
 model OrderItem {

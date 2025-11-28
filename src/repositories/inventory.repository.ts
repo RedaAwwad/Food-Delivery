@@ -1,9 +1,10 @@
-import { CartItem, MenuItem } from "@prisma-client";
+// import { CartItem, MenuItem } from "@prisma-client";
 import { prisma } from "../config/prisma.config";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
+import { CartItemWithMenuItem } from "../types/cartItemWithMenuItem.type";
 
-type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
+// type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
 
 class InventoryRepository {
     /**
@@ -14,7 +15,7 @@ class InventoryRepository {
         for (const item of items) {
             if (item.quantity > item.menuItem.stockQuantity) {
                 throw new CustomError({
-                    message: `Item '${item.menuItem.name}' is out of stock. Required: ${item.quantity}, Available: ${item.menuItem.stockQuantity}`,
+                    message: `Item '${item.menuItem.menuItemName}' is out of stock. Required: ${item.quantity}, Available: ${item.menuItem.stockQuantity}`,
                     statusCode: StatusCodes.CONFLICT, // 409 Conflict is appropriate here
                 });
             }
@@ -28,7 +29,7 @@ class InventoryRepository {
     async reduceStock(items: CartItemWithMenuItem[]) {
         const stockUpdates = items.map((item) => {
             return prisma.menuItem.update({
-                where: { id: item.menuItemId },
+                where: { menuItemId: item.menuItemId },
                 data: {
                     stockQuantity: {
                         decrement: item.quantity,

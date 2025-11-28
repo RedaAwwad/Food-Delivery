@@ -1,17 +1,21 @@
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
 import { orderRepository } from "../repositories/order.repository";
+import { cartRepository } from "../repositories/cart.repository";
+import { OrderStatus } from "../enums/orderStatus.enum";
+import { OrderHandlerChainBuilder } from "../handlers/OrderHandlerChainBuilder";
+import { OrderContext } from "../types/OrderContext";
 
 class OrderService {
   async getAllOrders() {
     return await orderRepository.findAllOrders();
   }
 
-  async getOrderById(orderId: number) {
+  async getOrderById(orderId: string) {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateStatus(orderId: number, statusId: number) {
+  async updateOrderStatus(orderId: string, newOrderStatus: OrderStatus) {
     const order = await orderRepository.findOrderById(orderId);
     if (!order) {
       throw new CustomError({
@@ -19,89 +23,46 @@ class OrderService {
         statusCode: StatusCodes.NOT_FOUND,
       });
     }
-    const updateOrder = await orderRepository.updateStatus(orderId, statusId);
+    const updateOrder = await orderRepository.updateOrderStatus(orderId, newOrderStatus);
     return updateOrder;
   }
 
-  async placeOrder(customerId: number, restaurantId: number) {
-    await cartRepository.lockCart(customerId);
+  async placeOrder(customerId: string, restaurantId: string) {
+    // Build the handler chain
+    const handlerChain = OrderHandlerChainBuilder.build();
+
+    // Initialize the context
+    const context: OrderContext = {
+      customerId,
+      restaurantId,
+    };
 
     try {
-      // What happend in place order
-      //* move cart items to order --> Lock Cart is_locked */
-      //* items availability check
-      //* reduce cart items from inventory
-      //* create order record with status 'Pending'
-      //* payment process
-      //* update order status to 'Confirmed' or 'Payment Failed'
-      //* unlock cart is_locked = false
+      // Execute the chain
+      console.log(`\n========== Starting Order Processing ==========`);
+      const result = await handlerChain.execute(context);
+      console.log(`========== Order Processing Complete ==========\n`);
 
-      // lockCart(); -- is_locked = true
-      // getCartItemsByCustomerId(customerId);
-      // inventoryCheck();
-      // reduceInventory();
-      // createOrderRecord();
-      // paymentProcess();
-      // updateOrderStatus();
-      // unlockCart();
-
-      /** maintainability , extendable ,
-       * testability , Follow SOLID ,
-       * Design Pattern (chain of responsibility) */
-
-      //* async send notification to restaurant
-      //* async send notification to customer
-      //* async audit log who placed the order and when (createdBy, createdOn)
-
-      const cartItems = await cartRepository.getCartItemsByCustomerId(customerId);
-      if (cartItems.length === 0) {
+      // Return the final order
+      if (!result.finalOrder) {
         throw new CustomError({
-          message: "Cart is empty. Cannot place an order.",
-          statusCode: StatusCodes.BAD_REQUEST,
+          message: "Order processing failed - no final order created",
+          statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
         });
       }
 
-      await inventoryRepository.checkItemsAvailability(cartItems);
-
-      // The following operations should be atomic.
-      // 1. Create the order record.
-      // 2. Reduce stock from inventory.
-      // 3. Clear the user's cart.
-      // These are wrapped in a transaction inside `createOrder`.
-      const order = await orderRepository.createOrder(
-        {
-          customerId,
-          restaurantId,
-          cartItems,
-          status: OrderStatus.PENDING, // Start as PENDING
+      return result.finalOrder;
+    } catch (err: any) {
+      // Ensure cart is unlocked even on error
+      try {
+        if (context.isCartLocked) {
+          await cartRepository.unlockCart(customerId);
+          console.log(`[OrderService] Cart unlocked after error`);
         }
-      );
-
-      const paymentResult = await paymentService.processPayment(
-        customerId,
-        order.totalAmount
-      );
-
-      let finalOrder;
-      if (paymentResult.success) {
-        // Payment was successful, confirm the order and reduce stock.
-        finalOrder = await orderRepository.updateStatus(order.id, OrderStatus.CONFIRMED);
-        // These operations should ideally be part of a transaction with order creation.
-        // Assuming createOrder doesn't handle inventory and cart clearing, we do it here.
-        // For better atomicity, consider moving these into a transactional repository method.
-        await inventoryRepository.reduceStock(cartItems);
-        await cartRepository.clearCartByCustomerId(customerId);
-      } else {
-        // Payment failed, update the order status accordingly.
-        finalOrder = await orderRepository.updateStatus(
-          order.id,
-          OrderStatus.PAYMENT_FAILED
-        );
+      } catch (unlockError) {
+        console.error(`[OrderService] Failed to unlock cart after error:`, unlockError);
       }
 
-      return finalOrder;
-
-    } catch (err: any) {
       // Re-throw custom errors, wrap others
       if (err instanceof CustomError) {
         throw err;
@@ -110,9 +71,6 @@ class OrderService {
         message: err.message || "Failed to place order",
         statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
       });
-    } finally {
-      // 8. Always unlock the cart, regardless of success or failure.
-      await cartRepository.unlockCart(customerId);
     }
   }
 }
