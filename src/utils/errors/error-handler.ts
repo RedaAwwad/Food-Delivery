@@ -4,6 +4,7 @@ import { getErrorMessage } from "../helpers";
 import Joi from "joi";
 import { CustomError } from "./custom-error";
 import { StatusCodes } from "http-status-codes";
+import { ErrorFormat } from "./types";
 
 const errorHandler = (
   error: Error,
@@ -49,6 +50,12 @@ const errorHandler = (
       message: getErrorMessage(error) || "Internal Server Error",
     },
   };
+
+  if (appConfig().debug) {
+    (SERVER_ERROR.error as any).stack = error.stack;
+    (SERVER_ERROR.error as any).original = (error as any).original;
+  }
+
   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(SERVER_ERROR);
 };
 

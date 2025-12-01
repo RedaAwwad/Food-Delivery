@@ -97,7 +97,7 @@ model Customer {
   customerAvatar    String   @map("customer_avatar")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  isActive       Boolean   @default(true)       
+  isActive       Boolean   @default(false)       
   deactivatedAt  DateTime?             
   user User @relation(fields: [userId], references: [userId])
   cart Cart?
