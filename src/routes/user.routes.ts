@@ -3,7 +3,7 @@ import { userController } from "../controllers/user.controller";
 import { signUpSchema } from "../validation/user.signup";
 import { validateRequest } from "../middleware/validate-request";
 import { asyncHandler } from "../utils/errors/async-handler";
-import { logInSchema } from "../validation/user.signin";
+import { logInSchema } from "../validation/user.login";
 
 const userRouter = express.Router();
 

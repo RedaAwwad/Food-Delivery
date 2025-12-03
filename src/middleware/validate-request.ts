@@ -19,7 +19,7 @@ export const generalFields = {
     .string()
     .pattern(new RegExp(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/)) // at least 8 characters, 1 uppercase, 1 lowercase, 1 number
     .required(),
-  cpassword: joi.string().valid(joi.ref("password")).required(),
+  // cpassword: joi.string().valid(joi.ref("password")).required(),
   file: joi.object({
     size: joi.number().positive().required(),
     path: joi.string().required(),

@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch ./src/server.ts",
     "build": "tsc",
-    "start": "node api-first.js",
+    "start": "nodemon ./src/server.ts",
     "swagger": "tsx ./src/lib/swagger/swagger.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "ts-node prisma/seed.ts"

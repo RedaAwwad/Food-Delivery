@@ -30,7 +30,7 @@ const initiateApp = (app: Express) => {
 
     app.use(`${apiPrefix}/cart`, Routers.cartRouter);
     app.use(`${apiPrefix}/orders`, Routers.orderRouter);
-    app.use(`${apiPrefix}/user`, Routers.userRouter);
+    app.use(`${apiPrefix}/users`, Routers.userRouter);
 
     app.use((req, res, next) => {
         throw new CustomError({
