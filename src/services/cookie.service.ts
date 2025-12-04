@@ -52,7 +52,7 @@ class CookieService {
             value,
             options: {
                 ...this.DEFAULT_OPTIONS,
-                maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+                maxAge: (parseInt(process.env.REFRESH_TOKEN_EXPIRY || '15', 10)) * 24 * 60 * 60 * 1000, // 15 days
                 path: `/api/${process.env.API_VERSION || "v1"}/auth/refresh-token`
             }
         };

@@ -61,7 +61,7 @@ export const generateTokenPair = (payload: TokenPayload): TokenPair => {
     // Calculate expiration dates
     const now = new Date();
     const accessTokenExpiresAt = new Date(now.getTime() + parseInt(ACCESS_TOKEN_EXPIRY, 10) * 60 * 1000); // 15 minutes
-    const refreshTokenExpiresAt = new Date(now.getTime() + parseInt(REFRESH_TOKEN_EXPIRY, 10) * 24 * 60 * 60 * 1000); // 7 days
+    const refreshTokenExpiresAt = new Date(now.getTime() + parseInt(REFRESH_TOKEN_EXPIRY, 10) * 24 * 60 * 60 * 1000); // 15 days
     
     return {
         accessToken,
