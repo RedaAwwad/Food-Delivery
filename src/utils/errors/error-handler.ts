@@ -3,6 +3,27 @@ import { StatusCodes } from "http-status-codes";
 import Joi from "joi";
 import { CustomError } from "./custom-error";
 
+/**
+ * Global error handler middleware for Express
+ * 
+ * Handles three types of errors:
+ * 1. Joi validation errors - Returns 422 with validation details
+ * 2. CustomError instances - Returns error with specified status code
+ * 3. Generic errors - Returns 500 Internal Server Error
+ * 
+ * In development mode, includes stack traces and original error details
+ * 
+ * @param {Error | CustomError} err - The error object
+ * @param {Request} req - Express request object
+ * @param {Response} res - Express response object
+ * @param {NextFunction} next - Express next function
+ * 
+ * @example
+ * ```typescript
+ * // In your Express app setup
+ * app.use(errorHandler);
+ * ```
+ */
 export const errorHandler = (
   err: Error | CustomError,
   req: Request,
@@ -72,73 +93,3 @@ export const errorHandler = (
 
   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ error: payload });
 };
-
-
-
-
-
-
-
-
-// import { Request, Response, NextFunction } from "express";
-// import { appConfig } from "../../config/app.config";
-// import { getErrorMessage } from "../helpers";
-// import Joi from "joi";
-// import { CustomError } from "./custom-error";
-// import { StatusCodes } from "http-status-codes";
-// import { ErrorFormat } from "./types";
-
-// const errorHandler = (
-//   error: Error,
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ): void => {
-//   if (res.headersSent || appConfig().debug) {
-//     next(error);
-//     return;
-//   }
-
-//   if (Joi.isError(error)) {
-//     const validationError: { error: ErrorFormat } = {
-//       error: {
-//         statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-//         message: "Validation error!",
-//         errors: error.details.map((detail) => ({
-//           message: detail.message,
-//           path: detail.path,
-//         })),
-//       },
-//     };
-
-//     res.status(StatusCodes.UNPROCESSABLE_ENTITY).json(validationError);
-//     return;
-//   }
-
-//   if (error instanceof CustomError) {
-//     res.status(error.statusCode).json({
-//       error: {
-//         statusCode: error.statusCode,
-//         message: error.message,
-//         errors: error.errors,
-//       },
-//     });
-//     return;
-//   }
-
-//   const SERVER_ERROR: { error: ErrorFormat } = {
-//     error: {
-//       statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-//       message: getErrorMessage(error) || "Internal Server Error",
-//     },
-//   };
-
-//   if (appConfig().debug) {
-//     (SERVER_ERROR.error as any).stack = error.stack;
-//     (SERVER_ERROR.error as any).original = (error as any).original;
-//   }
-
-//   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json(SERVER_ERROR);
-// };
-
-// export { errorHandler };
