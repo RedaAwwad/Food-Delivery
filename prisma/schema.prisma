@@ -25,7 +25,7 @@ model User {
   customer    Customer?
   restaurant  Restaurant?
   userToken  UserToken?
-  userRefreshToken  RefreshToken?
+  userRefreshTokens RefreshToken[]
   // Reverse relations
   createdOrders Order[] @relation("CreatedOrders")
   updatedOrders Order[] @relation("UpdatedOrders")
@@ -77,16 +77,26 @@ model UserToken {
 
 model RefreshToken {
   refreshTokenId String   @id @default(uuid()) @map("refresh_token_id")
-  userId         String   @unique @map("user_id")
+  userId         String   @map("user_id")
   token          String   @map("token")
+  @@unique([token])
   expiresAt      DateTime @map("expires_at")
-
+  
+  // Additional security fields
+  userAgent      String?  @map("user_agent")
+  ipAddress      String?  @map("ip_address")
+  deviceType     String?  @map("device_type") // "mobile", "desktop", "tablet"
+  lastUsedAt     DateTime @default(now()) @map("last_used_at")
+  
+  // Security controls
+  isRevoked      Boolean  @default(false) @map("is_revoked")
+  revokedAt      DateTime? @map("revoked_at")
+  revokedReason  String?  @map("revoked_reason") // "logout", "suspicious", "expired"
+  
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [userId])
-
-  @@map("refresh_tokens")
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 // ====== Customer ======
