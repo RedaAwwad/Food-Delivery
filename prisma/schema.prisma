@@ -2,7 +2,6 @@ generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
-  
 }
 
 datasource db {
@@ -26,7 +25,7 @@ model User {
   customer    Customer?
   restaurant  Restaurant?
   userToken  UserToken?
-  userRefreshToken  RefreshToken?
+  userRefreshTokens RefreshToken[]
   // Reverse relations
   createdOrders Order[] @relation("CreatedOrders")
   updatedOrders Order[] @relation("UpdatedOrders")
@@ -78,16 +77,26 @@ model UserToken {
 
 model RefreshToken {
   refreshTokenId String   @id @default(uuid()) @map("refresh_token_id")
-  userId         String   @unique @map("user_id")
+  userId         String   @map("user_id")
   token          String   @map("token")
+  @@unique([token])
   expiresAt      DateTime @map("expires_at")
-
+  
+  // Additional security fields
+  userAgent      String?  @map("user_agent")
+  ipAddress      String?  @map("ip_address")
+  deviceType     String?  @map("device_type") // "mobile", "desktop", "tablet"
+  lastUsedAt     DateTime @default(now()) @map("last_used_at")
+  
+  // Security controls
+  isRevoked      Boolean  @default(false) @map("is_revoked")
+  revokedAt      DateTime? @map("revoked_at")
+  revokedReason  String?  @map("revoked_reason") // "logout", "suspicious", "expired"
+  
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [userId])
-
-  @@map("refresh_tokens")
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 // ====== Customer ======
@@ -98,7 +107,7 @@ model Customer {
   customerAvatar    String   @map("customer_avatar")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  isActive       Boolean   @default(true)       
+  isActive       Boolean   @default(false)       
   deactivatedAt  DateTime?             
   user User @relation(fields: [userId], references: [userId])
   cart Cart?
@@ -229,7 +238,8 @@ model Order {
   customerId     String      @map("customer_id")
   restaurantId   String     @map("restaurant_id")
   totalAmount    Int      @map("total_amount")
-  orderStatusId  String     @map("order_status_id")
+  orderStatus    String     @map("order_status")
+  trackingStatus String?    @map("tracking_status")
 
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -245,14 +255,15 @@ model Order {
   customer Customer @relation(fields: [customerId], references: [customerId])
   restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
-  orderStatus OrderStatus @relation(fields: [orderStatusId], references: [orderStatusId])
+  orderStatusDetails OrderStatus @relation(fields: [orderStatus], references: [orderStatusKey])
+  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatus], references: [trackingStatusKey])
 
   orderItems OrderItem[]
 
   @@map("orders")
 }
 
-// order payment status & tracking status
+// Payment status (pending, paid, failed, etc.)
 model OrderStatus {
   orderStatusId        String   @id @default(uuid()) @map("order_status_id") 
   orderStatusName      String   @map("order_status_name")
@@ -264,6 +275,20 @@ model OrderStatus {
   orders Order[]
 
   @@map("order_statuses")
+}
+
+// Delivery tracking status (ongoing, out for delivery, delivered, etc.)
+model OrderTracking {
+  trackingStatusId     String   @id @default(uuid()) @map("tracking_status_id") 
+  trackingStatusName   String   @map("tracking_status_name")
+  trackingStatusKey    String   @unique @map("tracking_status_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_tracking_statuses")
 }
 
 model OrderItem {

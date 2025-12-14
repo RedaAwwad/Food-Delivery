@@ -1,12 +1,12 @@
 import { prisma } from "../config/prisma.config";
 
-class RestaurantRepository {
-    async findRestaurantByUserId(userId:string) {
+ class RestaurantRepository {
+    async findRestaurantByUserId(userId: string) {
         return await prisma.restaurant.findUnique({
-            where:{
-                managerId:userId
-            }
-        })
+            where: {
+                managerId: userId,
+            },
+        });
     }
     async findRestaurantByRestaurantId(restaurantId: string) {
         return await prisma.restaurant.findUniqueOrThrow({
@@ -14,4 +14,4 @@ class RestaurantRepository {
         })
     } 
 }
-export const restaurantRepository = new RestaurantRepository()
+export const restaurantRepository = new RestaurantRepository();

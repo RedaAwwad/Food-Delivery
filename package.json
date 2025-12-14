@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch ./src/server.ts",
     "build": "tsc",
-    "start": "node api-first.js",
+    "start": "nodemon ./src/server.ts",
     "swagger": "tsx ./src/lib/swagger/swagger.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "ts-node prisma/seed.ts"
@@ -25,13 +25,21 @@
   "dependencies": {
     "@faker-js/faker": "^10.1.0",
     "@prisma/client": "^6.17.1",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/jsonwebtoken": "^9.0.10",
     "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "http-status-codes": "^2.3.0",
     "joi": "^18.0.1",
+    "jsonwebtoken": "^9.0.2",
     "swagger-jsdoc": "^3.7.0",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@tsconfig/node18": "^18.2.4",

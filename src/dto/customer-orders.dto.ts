@@ -1,5 +1,5 @@
 class CustomerOrdersDTO {
-  id: number = 0;
+  id: string = "";
   phone: string = "";
   avatar: string | null = null;
   user: {
@@ -7,7 +7,7 @@ class CustomerOrdersDTO {
     email: string;
   } = null as any;
   orders: {
-    id: number;
+    id: string;
     totalAmount: number;
     orderStatus: {
       id: number;

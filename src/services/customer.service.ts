@@ -15,14 +15,14 @@ class CustomerService {
   }
 
   async deactivateAccount(customerId: string) {
-    const customer = customerRepository.getCustomerByCustomerId(customerId);
+    const customer = await customerRepository.getCustomerByCustomerId(customerId);
     if (!customer) {
       throw new CustomError({
         message: "NO found customer",
         statusCode: StatusCodes.BAD_REQUEST,
       });
     }
-    const updateCustomer = customerRepository.updateDeactivateAccount;
+    const updateCustomer = await customerRepository.updateDeactivateAccount(customerId);
     return updateCustomer;
   }
   async createRatingByCustomer(customerId:string , createCustomerRatingDto:CreateCustomerRatingDto) {

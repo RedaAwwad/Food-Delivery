@@ -8,7 +8,7 @@ export class CustomerRepository {
       select: {
         orderId: true,
         totalAmount: true,
-        orderStatus: {
+        orderStatusDetails: {
           select: {
             orderStatusId: true,
             orderStatusName: true,
@@ -25,7 +25,7 @@ export class CustomerRepository {
       select: {
         orderId: true,
         totalAmount: true,
-        orderStatus: {
+        orderStatusDetails: {
           select: {
             orderStatusId: true,
             orderStatusName: true,
@@ -37,10 +37,9 @@ export class CustomerRepository {
   }
 
   async getCustomerByCustomerId(customerId: string) {
-    return prisma.customer.findUnique({
-      where: { customerId },
-    });
+    return prisma.customer.findUnique({ where: { customerId } });
   }
+
   async updateDeactivateAccount(customerId: string) {
     return await prisma.customer.update({
       where: { customerId },

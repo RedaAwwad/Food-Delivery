@@ -12,14 +12,14 @@ class CartController {
     res: Response,
     next: NextFunction
   ) {
-    const customerId = 1; // TODO -When create Token , auth
+    const customerId = "1"; // TODO -When create Token , auth
     // TODO make-validation
 
     const cart = await cartService.addToCart(req.body, customerId);
     res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: cart }));
   }
   async viewCart(req: Request, res: Response) {
-    const customerId = 1; // TODO -When create Token , auth
+    const customerId = "1"; // TODO -When create Token , auth
     const cart = await cartService.viewCart(customerId);
 
     res.status(StatusCodes.OK).json(new SuccessResponse({ data: cart }));
@@ -38,7 +38,7 @@ class CartController {
   }
 
   async clearCart(req: Request, res: Response) {
-    const customerId = 1; // TODO - When creating token, get from auth
+    const customerId = "1"; // TODO - When creating token, get from auth
     await cartService.clearCart(customerId);
     res
       .status(StatusCodes.NO_CONTENT)
