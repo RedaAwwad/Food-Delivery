@@ -35,7 +35,7 @@ class OrderController {
   }
 
   async placeOrder(req: Request, res: Response) {
-    const customerId = '1';
+    const customerId = req.user.role!
     const restaurantId  = req.body.restaurantId;
 
     const order = await orderService.placeOrder(customerId, restaurantId);

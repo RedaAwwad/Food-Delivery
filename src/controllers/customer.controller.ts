@@ -9,7 +9,7 @@ import { date } from "joi";
 
 class CustomerController {
   async getCustomerOrders(req: Request, res: Response) {
-  const customerId = "1"; // fetch from user auth token (string id)
+  const customerId = req.user.userId 
 
     if (!customerId) {
       return new CustomError({
@@ -27,7 +27,7 @@ class CustomerController {
   }
 
   async getCustomerOrderDetails(req: Request, res: Response) {
-  const customerId = "1"; // fetch from user auth token (string id)
+  const customerId = req.user.userId 
   const orderId = req.params.order_id ? String(req.params.order_id) : null;
 
     if (!customerId || !orderId) {
@@ -54,7 +54,7 @@ class CustomerController {
     });
   }
   async createRatingByCustomer(req:Request<{} ,{},CreateCustomerRatingDto> , res:Response, next:NextFunction) {
-      const customerId = 'd3ee8db3-1d24-4aff-a6ec-2a9b43f0c2ae'  // fetch from auth token Jwt 
+      const customerId = req.user.userId
       const ratingCustomer = await 
       customerService.createRatingByCustomer(customerId , req.body)
       res.status(StatusCodes.CREATED).json({

@@ -10,7 +10,6 @@ export class RestaurantService {
         })
     }
     async findRestaurantByRestaurantId(restaurantId: string) {
-        console.log("ppppppppppppppppp")
         return await restaurantRepository.findRestaurantByRestaurantId(restaurantId)
     } 
 }
