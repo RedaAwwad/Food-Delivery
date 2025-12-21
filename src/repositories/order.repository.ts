@@ -38,13 +38,7 @@ class OrderRepository {
     });
   }
 
-  async updateOrderStatus(orderId: string, newOrderStatus: string) {
-    return await prisma.order.update({
-      where: { orderId },
-      data: { orderStatus: newOrderStatus },
-    });
-  }
-  async createOrder(createOrderDto: CreateOrderDto) {
+  createOrder(createOrderDto: CreateOrderDto) {
     const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
     const totalAmount = cartItems.reduce(
