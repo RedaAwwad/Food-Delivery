@@ -22,8 +22,13 @@ class CustomerService {
         statusCode: StatusCodes.BAD_REQUEST,
       });
     }
-    const updateCustomer = await customerRepository.updateDeactivateAccount(customerId);
-    return updateCustomer;
+    if (!customer.isActive) {
+       throw new CustomError({
+        message: "The customer has already deactivated",
+        statusCode: StatusCodes.CONFLICT,
+      });
+    }
+    return await customerRepository.deactivateAccount(customerId);
   }
   async createRatingByCustomer(customerId:string , createCustomerRatingDto:CreateCustomerRatingDto) {
      

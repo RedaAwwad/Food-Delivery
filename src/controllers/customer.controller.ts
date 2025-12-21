@@ -46,7 +46,7 @@ class CustomerController {
     );
   }
   async deactivateAccount(req: Request, res: Response) {
-  const customerId = req.params.id!;
+  const customerId = req.user.userId;
   const result = await customerService.deactivateAccount(customerId);
     res.status(200).json({
       message: "Customer account deactivated successfully",

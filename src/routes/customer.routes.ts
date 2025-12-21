@@ -46,7 +46,7 @@ customerRouter.get("/orders", customerController.getCustomerOrders);
  */
 customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
 
-customerRouter.patch("/:customer_id/deactivate", customerController.deactivateAccount);
+customerRouter.patch("/deactivate", customerController.deactivateAccount);
 
 /**
  * @swagger

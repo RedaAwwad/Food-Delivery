@@ -40,7 +40,7 @@ export class CustomerRepository {
     return prisma.customer.findUnique({ where: { customerId } });
   }
 
-  async updateDeactivateAccount(customerId: string) {
+  async deactivateAccount(customerId: string) {
     return await prisma.customer.update({
       where: { customerId },
       data: {
