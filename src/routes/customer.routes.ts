@@ -45,7 +45,40 @@ customerRouter.get("/orders", customerController.getCustomerOrders);
  *         description: Customer not found
  */
 customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
-
+/**
+ * @swagger
+ * /api/v1/customers/deactivate:
+ *   patch:
+ *     summary: Deactivate customer's account
+ *     tags: [Customer]
+ *     responses:
+ *       200:
+ *         description: Account deactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Account deactivated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     customerId:
+ *                       type: string
+ *                       example: "12345"
+ *                     isActive:
+ *                       type: boolean
+ *                       example: false
+ *                     deactivatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Customer not found or already deactivated
+ *       500:
+ *         description: Internal server error
+ */
 customerRouter.patch("/deactivate", customerController.deactivateAccount);
 
 /**

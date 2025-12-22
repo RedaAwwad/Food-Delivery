@@ -28,10 +28,10 @@ class OrderRepository {
    
   async updateOrderStatus(orderId: string,restaurantId:string, newStatusId: string, userId:string , updatedAt:Date) {
 
-    return await prisma.order.updateMany({
+    return await prisma.order.update({
       where: { orderId, restaurantId },
       data: { 
-        orderStatusId: newStatusId , 
+        '': newStatusId , 
         // updatedBy : userId,
         updatedAt 
       },

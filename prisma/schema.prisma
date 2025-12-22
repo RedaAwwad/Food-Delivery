@@ -137,7 +137,7 @@ model Restaurant {
   restaurantLogo        String? @map("restaurant_logo")   
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
-  DateTime DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
@@ -238,9 +238,7 @@ model Order {
   customerId     String      @map("customer_id")
   restaurantId   String     @map("restaurant_id")
   totalAmount    Int      @map("total_amount")
-  orderStatus    String     @map("order_status")
-  trackingStatus String?    @map("tracking_status")
-
+  orderStatusKey    String     @map("order_status_key")
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
   
@@ -255,8 +253,8 @@ model Order {
   customer Customer @relation(fields: [customerId], references: [customerId])
   restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
-  orderStatusDetails OrderStatus @relation(fields: [orderStatus], references: [orderStatusKey])
-  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatus], references: [trackingStatusKey])
+  orderStatusDetails OrderStatus @relation(fields: [orderStatusKey], references: [orderStatusKey])
+   orderTrackings      OrderTracking[] 
 
   orderItems OrderItem[]
 
@@ -279,18 +277,26 @@ model OrderStatus {
 
 // Delivery tracking status (ongoing, out for delivery, delivered, etc.)
 model OrderTracking {
-  trackingStatusId     String   @id @default(uuid()) @map("tracking_status_id") 
-  trackingStatusName   String   @map("tracking_status_name")
-  trackingStatusKey    String   @unique @map("tracking_status_key")
+  orderTrackingId     String              @id @default(uuid()) @map("order_tracking_id") 
+  orderId             String   @map("order_id")
+  trackingStatusName  String              @map("tracking_status_name")
+  trackingStatusKey   TrackingStatusKey   @map("tracking_status_key")
+  createdAt DateTime  @default(now())     @map("created_at")
+  updatedAt DateTime  @updatedAt          @map("updated_at")
+  notes               String?              
+  order               Order    @relation(fields: [orderId], references: [orderId]) // العلاقة
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
 
-  orders Order[]
-
-  @@map("order_tracking_statuses")
+  @@map("order_tracking")
 }
 
+enum TrackingStatusKey {
+  PENDING
+  ACCEPTED
+  PREPARING
+  PICKED_UP
+  DELIVERED
+}
 model OrderItem {
   orderItemId         String   @id @default(uuid()) @map("order_item_id") 
   orderId    String      @map("order_id")
@@ -357,7 +363,7 @@ model PaymentMethod {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [paymentMethodId], references: [preferredPaymentSettingsId])
+  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [preferredPaymentSettingsId], references: [preferredPaymentSettingsId])
 
   @@map("payment_methods")
 }

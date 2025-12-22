@@ -62,6 +62,10 @@ class CustomerController {
         date:ratingCustomer
       })
   }
+  async getOrderTrackingHistory(req:Request , res:Response) {
+      const orderId = req.params.orderId;
+      return await orderTrackingRe
+  }
 }
 
 export const customerController = new CustomerController();
