@@ -15,7 +15,7 @@ model User {
   userName      String @map("user_name")   
   userPassword  String  @map("user_password") 
   userEmail     String   @unique @map("user_email")
-  isActive       Boolean   @default(false)       
+  isActive      Boolean   @default(false)       
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -25,7 +25,7 @@ model User {
   usersRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
-  userToken  UserToken[]
+  userToken   UserToken[]
 
   // Reverse relations
   createdOrders Order[] @relation("CreatedOrders")
@@ -64,8 +64,8 @@ model UserRole {
 
 model UserToken {
   userTokenId String   @id @default(uuid()) @map("user_token_id")
-  userId      String  @unique @map("user_id")
-  token       String   @map("token")
+  userId      String   @map("user_id")
+  token       String   @unique @map("token")
   expiresAt   DateTime @map("expires_at")
 
   tokenType   TokenType @map("token_type")

@@ -2,26 +2,24 @@ import { prisma } from "../config/prisma.config";
 import { CreateRefreshTokenData, RefreshTokenFilter } from "../types/token";
 import { v7 as uuidv7 } from 'uuid';
 import { Request } from "express";
+import { TokenType } from "../generated/prisma";
 
 
 class RefreshTokenRepository {
     async createRefreshToken(data: CreateRefreshTokenData) {
-        return prisma.refreshToken.create({
+        return prisma.userToken.create({
             data: {
-                refreshTokenId: uuidv7(),
+                userTokenId: uuidv7(),
                 userId: data.userId,
                 token: data.token,
                 expiresAt: data.expiresAt,
-                userAgent: data.userAgent ?? null,
-                ipAddress: data.ipAddress ?? null,
-                deviceType: data.deviceType ?? null,
-                lastUsedAt: new Date(),
+                tokenType: TokenType.REFRESH,
             }
         });
     }
 
     async findByToken(token: string) {
-        return prisma.refreshToken.findFirst({
+        return prisma.userToken.findFirst({
             where: { token },
             include: {
                 user: {
@@ -47,23 +45,13 @@ class RefreshTokenRepository {
             }
         }
 
-        return prisma.refreshToken.findMany({
-            where,
-            orderBy: { lastUsedAt: 'desc' }
-        });
-    }
-
-    async updateLastUsed(token: string) {
-        return prisma.refreshToken.update({
-            where: { token },
-            data: { lastUsedAt: new Date() }
-        }).catch(() => {
-            // Silent fail if token doesn't exist
+        return prisma.userToken.findMany({
+            where
         });
     }
 
     async revokeToken(token: string, reason?: string) {
-        return prisma.refreshToken.update({
+        return prisma.userToken.update({
             where: { token },
             data: {
                 isRevoked: true,
@@ -74,7 +62,7 @@ class RefreshTokenRepository {
     }
 
     async revokeAllUserTokens(userId: string, reason?: string) {
-        return prisma.refreshToken.updateMany({
+        return prisma.userToken.updateMany({
             where: {
                 userId,
                 isRevoked: false
@@ -88,7 +76,7 @@ class RefreshTokenRepository {
     }
 
     async revokeAllExceptCurrent(userId: string, currentToken: string, reason?: string) {
-        return prisma.refreshToken.updateMany({
+        return prisma.userToken.updateMany({
             where: {
                 userId,
                 token: { not: currentToken },
@@ -103,7 +91,7 @@ class RefreshTokenRepository {
     }
 
     async deleteExpiredTokens() {
-        return prisma.refreshToken.deleteMany({
+        return prisma.userToken.deleteMany({
             where: {
                 expiresAt: { lt: new Date() }
             }
@@ -111,7 +99,7 @@ class RefreshTokenRepository {
     }
 
     async deleteRevokedTokens() {
-        return prisma.refreshToken.deleteMany({
+        return prisma.userToken.deleteMany({
             where: {
                 isRevoked: true,
                 revokedAt: { lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } // 30 days ago
@@ -132,7 +120,7 @@ class RefreshTokenRepository {
     async getActiveSessionCount(userId: string): Promise<number> {
         const now = new Date();
 
-        return prisma.refreshToken.count({
+        return prisma.userToken.count({
             where: {
                 userId,
                 isRevoked: false,
@@ -141,44 +129,6 @@ class RefreshTokenRepository {
         });
     }
 
-    extractDeviceInfo(req: Request): { userAgent?: string | null; ipAddress?: string | null; deviceType?: string | null } {
-        return {
-            userAgent: req.headers['user-agent'] || null,
-            ipAddress: req.ip || req.socket.remoteAddress || null,
-            deviceType: this.detectDeviceType(req.headers['user-agent'] || '')
-        };
-    }
-
-    private detectDeviceType(userAgent: string): string {
-        const ua = userAgent.toLowerCase();
-
-        if (/mobile|android|iphone|ipad|ipod/.test(ua)) return 'mobile';
-        if (/tablet|ipad/.test(ua)) return 'tablet';
-        if (/smart-tv|smarttv|googletv|appletv/.test(ua)) return 'tv';
-
-        return 'desktop';
-    }
-
-    //     extractDeviceInfo(req: Request): { userAgent?: string | null; ipAddress?: string | null; deviceType?: string | null } {
-    //     const ua = (req.headers['user-agent'] as string) || null;
-    //     const ip = (req.ip as string) || (req.socket.remoteAddress as string) || null;
-
-    //     return {
-    //         userAgent: ua,
-    //         ipAddress: ip,
-    //         deviceType: ua ? this.detectDeviceType(ua) : null,
-    //     };
-    // }
-
-    // private detectDeviceType(userAgent: string): string {
-    //     const ua = userAgent.toLowerCase();
-
-    //     if (/mobile|android|iphone|ipad|ipod/.test(ua)) return 'mobile';
-    //     if (/tablet|ipad/.test(ua)) return 'tablet';
-    //     if (/smart-tv|smarttv|googletv|appletv/.test(ua)) return 'tv';
-
-    //     return 'desktop';
-    // }
 }
 
 export const refreshTokenRepository = new RefreshTokenRepository();

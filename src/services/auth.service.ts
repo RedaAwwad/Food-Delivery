@@ -6,8 +6,10 @@ import { AuthResponse, CookieData, CookieOptions, DeviceInfo } from "../types/to
 import { CustomError } from "../utils/errors/custom-error";
 import { refreshTokenRepository } from "../repositories/refresh-token.repository";
 import { StatusCodes } from "http-status-codes";
-import { generateRefreshToken } from "../utils/generateAndVerifyToken";
+import { generateAccessToken, generateRefreshToken, generateTokenPair, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
+import { compare } from "../utils/HashAndCompare";
+import { prisma } from "../config/prisma.config";
 
 class AuthService {
     private readonly REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
@@ -16,8 +18,8 @@ class AuthService {
         return await authRepository.signup(signupDto);
     }
 
-    async login(loginDto: loginDTO, req?: Request): Promise<AuthResponse> {
-        const loginResponse = await authRepository.login(loginDto);
+    async login(loginDto: loginDTO): Promise<AuthResponse> {
+        const user = await authRepository.login(loginDto);
 
         // const refreshTokenCookie: CookieData = {
         //     name: this.REFRESH_TOKEN_COOKIE_NAME,
@@ -25,13 +27,46 @@ class AuthService {
         //     options: this.COOKIE_OPTIONS
         // };
 
-        const refreshTokenCookie = cookieService.createRefreshTokenCookie(loginResponse.refreshToken)
+        const match = await compare(loginDto.password, user.userPassword);
+        if (!match) {
+            throw new CustomError({
+                message: "Invalid email or password",
+                statusCode: StatusCodes.UNAUTHORIZED,
+            });
+        }
+
+        const activeUser = await prisma.user.update({
+            where: { userId: user.userId },
+            data: { isActive: true },
+        });
+
+        const tokenPair = generateTokenPair({
+            userId: user.userId,
+            userName: user.userName,
+            userEmail: user.userEmail,
+        });
+
+        // Store refresh token in separate table
+        await refreshTokenRepository.createRefreshToken({
+            userId: user.userId,
+            token: tokenPair.refreshToken,
+            expiresAt: tokenPair.refreshTokenExpiresAt,
+        });
+
+        const refreshTokenCookie = cookieService.createRefreshTokenCookie(tokenPair.refreshToken)
+
+        // Optional: Revoke old tokens if you want single session
+        // await refreshTokenRepository.revokeAllExceptCurrent(
+        //     user.userId, 
+        //     tokenPair.refreshToken,
+        //     'new_login'
+        // );
 
         return {
             data: {
-                accessToken: loginResponse.accessToken,
-                accessTokenExpiresAt: loginResponse.accessTokenExpiresAt,
-                user: loginResponse.user
+                accessToken: tokenPair.accessToken,
+                accessTokenExpiresAt: tokenPair.accessTokenExpiresAt,
+                user: activeUser
             },
             cookies: [refreshTokenCookie],
         };
@@ -59,10 +94,7 @@ class AuthService {
         }
 
         // Generate new access token
-        const result = await authRepository.refreshAccessToken(refreshToken);
-
-        // Update last used timestamp
-        await refreshTokenRepository.updateLastUsed(refreshToken);
+        const result = await this.refreshAccessToken(refreshToken);
 
         // Generate new refresh token (optional: token rotation)
         const newRefreshToken = generateRefreshToken({
@@ -79,9 +111,6 @@ class AuthService {
                 userId: tokenData.userId,
                 token: newRefreshToken,
                 expiresAt: new Date(Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 24 * 60 * 60 * 1000), // 15 days
-                userAgent: tokenData.userAgent,
-                ipAddress: tokenData.ipAddress,
-                deviceType: tokenData.deviceType
             });
         }
 
@@ -97,6 +126,47 @@ class AuthService {
         }
 
         return response;
+    }
+
+    async refreshAccessToken(refreshToken: string) {
+        // Verify JWT
+        const decoded = verifyRefreshToken(refreshToken);
+
+        if (typeof decoded === 'string' || !decoded.userId) {
+            throw new CustomError({
+                message: "Invalid refresh token",
+                statusCode: StatusCodes.UNAUTHORIZED,
+            });
+        }
+
+        // Validate against database
+        const isValid = await refreshTokenRepository.isValid(refreshToken);
+
+        if (!isValid) {
+            throw new CustomError({
+                message: "Refresh token is invalid or expired",
+                statusCode: StatusCodes.UNAUTHORIZED,
+            });
+        }
+
+        // Generate new access token
+        const accessToken = generateAccessToken({
+            userId: decoded.userId,
+            userName: decoded.userName,
+            userEmail: decoded.userEmail,
+        });
+
+        const accessTokenExpiresAt = new Date(Date.now() + (parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 60 * 1000));
+
+        return {
+            accessToken,
+            accessTokenExpiresAt,
+            user: {
+                userId: decoded.userId,
+                userName: decoded.userName,
+                userEmail: decoded.userEmail,
+            }
+        };
     }
 
     async logout(refreshToken?: string): Promise<AuthResponse> {
@@ -155,11 +225,7 @@ class AuthService {
         await refreshTokenRepository.deleteRevokedTokens();
     }
 
-    extractDeviceInfo(req: Request): DeviceInfo {
-        return refreshTokenRepository.extractDeviceInfo(req);
-    }
-
-    extractRefreshToken(req: Request)  {
+    extractRefreshToken(req: Request) {
         // 1. Check cookies first (primary method)
         const cookieToken = cookieService.getCookieValue(req, this.REFRESH_TOKEN_COOKIE_NAME);
         if (cookieToken) return cookieToken;

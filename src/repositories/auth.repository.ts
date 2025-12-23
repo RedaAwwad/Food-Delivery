@@ -75,7 +75,7 @@ class AuthRepository {
         // res.status(201).json({ message: "signed up, please confirm your email & Login" });
     };
 
-    async login(loginDto: loginDTO, req?: Request) {
+    async login(loginDto: loginDTO) {
         const { email, password } = loginDto;
 
         if (!email || !password) {
@@ -87,6 +87,7 @@ class AuthRepository {
 
         const user = await prisma.user.findUnique({
             where: { userEmail: email },
+            // select: { userId: true, userName: true, userEmail: true, userPassword: true, isActive: true }
         });
 
         if (!user) {
@@ -96,37 +97,39 @@ class AuthRepository {
             });
         }
 
-        const match = await compare(password, user.userPassword);
-        if (!match) {
-            throw new CustomError({
-                message: "Invalid email or password",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        return user;
 
-        await prisma.customer.update({
-            where: { userId: user.userId },
-            data: { isActive: true },
-        });
+        // const match = await compare(password, user.userPassword);
+        // if (!match) {
+        //     throw new CustomError({
+        //         message: "Invalid email or password",
+        //         statusCode: StatusCodes.UNAUTHORIZED,
+        //     });
+        // }
 
-        const tokenPair = generateTokenPair({
-            userId: user.userId,
-            userName: user.userName,
-            userEmail: user.userEmail,
-        });
+        // await prisma.user.update({
+        //     where: { userId: user.userId },
+        //     data: { isActive: true },
+        // });
+
+        // const tokenPair = generateTokenPair({
+        //     userId: user.userId,
+        //     userName: user.userName,
+        //     userEmail: user.userEmail,
+        // });
 
         // Extract device info
-        const deviceInfo = req ? refreshTokenRepository.extractDeviceInfo(req) : {};
+        // const deviceInfo = req ? refreshTokenRepository.extractDeviceInfo(req) : {};
 
         // Store refresh token in separate table
-        await refreshTokenRepository.createRefreshToken({
-            userId: user.userId,
-            token: tokenPair.refreshToken,
-            expiresAt: tokenPair.refreshTokenExpiresAt,
-            userAgent: (deviceInfo as any)?.userAgent ?? null,
-            ipAddress: (deviceInfo as any)?.ipAddress ?? null,
-            deviceType: (deviceInfo as any)?.deviceType ?? null,
-        });
+        // await refreshTokenRepository.createRefreshToken({
+        //     userId: user.userId,
+        //     token: tokenPair.refreshToken,
+        //     expiresAt: tokenPair.refreshTokenExpiresAt,
+        //     userAgent: (deviceInfo as any)?.userAgent ?? null,
+        //     ipAddress: (deviceInfo as any)?.ipAddress ?? null,
+        //     deviceType: (deviceInfo as any)?.deviceType ?? null,
+        // });
 
         // Optional: Revoke old tokens if you want single session
         // await refreshTokenRepository.revokeAllExceptCurrent(
@@ -135,19 +138,19 @@ class AuthRepository {
         //     'new_login'
         // );
 
-        const loginResponse: LoginResponse = {
-            accessToken: tokenPair.accessToken,
-            accessTokenExpiresAt: tokenPair.accessTokenExpiresAt,
-            refreshToken: tokenPair.refreshToken,
-            refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
-            user: {
-                userId: user.userId,
-                userName: user.userName,
-                userEmail: user.userEmail,
-            }
-        };
+        // const loginResponse: LoginResponse = {
+        //     accessToken: tokenPair.accessToken,
+        //     accessTokenExpiresAt: tokenPair.accessTokenExpiresAt,
+        //     refreshToken: tokenPair.refreshToken,
+        //     refreshTokenExpiresAt: tokenPair.refreshTokenExpiresAt,
+        //     user: {
+        //         userId: user.userId,
+        //         userName: user.userName,
+        //         userEmail: user.userEmail,
+        //     }
+        // };
 
-        return loginResponse;
+        // return loginResponse;
     }
 
     async validateRefreshToken(token: string) {
@@ -157,20 +160,14 @@ class AuthRepository {
         if (tokenData.isRevoked) return null;
         if (tokenData.expiresAt < new Date()) return null;
 
-        // Update last used timestamp
-        await refreshTokenRepository.updateLastUsed(token);
-
         return {
             userId: tokenData.userId,
             userName: tokenData.user.userName,
             userEmail: tokenData.user.userEmail,
             tokenData: {
-                refreshTokenId: tokenData.refreshTokenId,
-                userAgent: tokenData.userAgent,
-                deviceType: tokenData.deviceType,
-                lastUsedAt: tokenData.lastUsedAt
+                refreshTokenId: tokenData.userTokenId,
             }
-        };
+        }
     }
 
     async refreshAccessToken(refreshToken: string) {
@@ -201,7 +198,7 @@ class AuthRepository {
             userEmail: decoded.userEmail,
         });
 
-        const accessTokenExpiresAt = new Date(Date.now() + (parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10)  * 60 * 1000));
+        const accessTokenExpiresAt = new Date(Date.now() + (parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 60 * 1000));
 
         return {
             accessToken,

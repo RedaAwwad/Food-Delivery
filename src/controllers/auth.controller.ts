@@ -17,7 +17,7 @@ class AuthController {
     async login(req: Request, res: Response) {
         const loginDto = req.body;
 
-        const result = await authService.login(loginDto, req);
+        const result = await authService.login(loginDto);
 
         authService.applyCookies(res, result);
 
