@@ -71,6 +71,30 @@ class AuthController {
             .status(StatusCodes.OK)
             .json(new SuccessResponse({ data: result.data }));
     }
+
+    async forgetPassword(req: Request, res: Response) {
+        const { email } = req.body;
+
+        await authService.forgetPassword(email);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "If an account with that email exists, a password reset link has been sent."
+            }));
+    }
+
+    async resetPassword(req: Request, res: Response) {
+        const { token, newPassword } = req.body;
+
+        await authService.resetPassword(token, newPassword);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "Password has been reset successfully. Please login with your new password."
+            }));
+    }
 }
 
 export const authController = new AuthController();

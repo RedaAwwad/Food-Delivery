@@ -8,8 +8,11 @@ import { refreshTokenRepository } from "../repositories/refresh-token.repository
 import { StatusCodes } from "http-status-codes";
 import { generateAccessToken, generateRefreshToken, generateTokenPair, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
-import { compare } from "../utils/HashAndCompare";
+import { compare, hash } from "../utils/HashAndCompare";
 import { prisma } from "../config/prisma.config";
+import { userTokenRepository } from "../repositories/user-token.repository";
+import { emailService } from "./email.service";
+import { TokenType } from "../generated/prisma";
 
 class AuthService {
     private readonly REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
@@ -283,5 +286,87 @@ class AuthService {
     async getSessionCount(userId: string): Promise<number> {
         return refreshTokenRepository.getActiveSessionCount(userId);
     }
+
+    // ============ PASSWORD RESET METHODS ============
+
+    async forgetPassword(email: string): Promise<void> {
+        console.log(`🔐 Password reset requested for email: ${email}`);
+
+        const user = await prisma.user.findUnique({
+            where: { userEmail: email }
+        });
+
+        // Security: Always return success to prevent email enumeration
+        if (!user) {
+            console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
+            return;
+        }
+
+        // Revoke any existing forgot password tokens for this user
+        await userTokenRepository.revokeAllUserTokensByType(
+            user.userId,
+            TokenType.FORGOT_PASSWORD,
+            'new_reset_requested'
+        );
+
+        // Generate new forgot password token
+        const expiryHours = parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || '3600000', 10) / (1000 * 60 * 60); // Convert ms to hours
+        const expiresAt = new Date(Date.now() + parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || '3600000', 10)); // Default 1 hour
+
+        const tokenData = await userTokenRepository.createToken({
+            userId: user.userId,
+            tokenType: TokenType.FORGOT_PASSWORD,
+            expiresAt,
+        });
+
+        // Construct reset link
+        const resetLink = `${process.env.PASSWORD_RESET_URL}?token=${tokenData.token}`;
+
+        // Send password reset email
+        await emailService.sendPasswordResetEmail(user.userEmail, {
+            userName: user.userName,
+            resetLink,
+            expiryHours
+        });
+
+        console.log(`✅ Password reset email sent to: ${email}`);
+    }
+
+    async validateResetToken(token: string): Promise<boolean> {
+        return await userTokenRepository.isValid(token, TokenType.FORGOT_PASSWORD);
+    }
+
+    async resetPassword(token: string, newPassword: string): Promise<void> {
+        console.log(`🔐 Password reset attempt with token`);
+
+        const tokenData = await userTokenRepository.findValidToken(token, TokenType.FORGOT_PASSWORD);
+
+        if (!tokenData) {
+            console.log(`❌ Invalid or expired reset token`);
+            throw new CustomError({
+                message: "Invalid or expired reset token",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
+
+        const hashedPassword = await hash(newPassword);
+
+        await prisma.user.update({
+            where: { userId: tokenData.userId },
+            data: { userPassword: hashedPassword }
+        });
+
+        await userTokenRepository.revokeToken(token, 'password_reset_completed');
+
+        // Security: Revoke all refresh tokens (logout from all devices)
+        await userTokenRepository.revokeAllUserTokensByType(
+            tokenData.userId,
+            TokenType.REFRESH,
+            'password_changed'
+        );
+
+        console.log(`✅ Password reset successful for user ${tokenData.userId}`);
+    }
 }
+
 export const authService = new AuthService();
