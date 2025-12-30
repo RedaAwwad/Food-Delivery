@@ -81,6 +81,8 @@ model Customer {
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [id])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [id])
 
+  addresses Address[]
+
   @@map("customers")
 }
 
@@ -91,7 +93,8 @@ model Restaurant {
   name        String   
   description String   
   logo        String?  
-  address     String  
+  // address     String  // Replaced by relation
+  address Address?
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -241,3 +244,27 @@ model OrderItem {
 
 
 
+
+model Address {
+  id         Int      @id @default(autoincrement())
+  customerId Int      @map("customer_id")
+  restaurantId Int?   @unique @map("restaurant_id")
+  street     String   
+  city       String   
+  area       String   
+  zipCode    Int      @map("zip_code")
+  block      String
+  apartmentNumber String
+  floor      String  
+  latitude   Float
+  longitude  Float
+  isPrimary  Boolean   @default(false) @map("is_primary")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
+  
+  @@map("addresses")
+}

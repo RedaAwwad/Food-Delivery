@@ -24,10 +24,11 @@ export const isAuthorized = (roles: string[]): RequestHandler => {
       });
     }
 
-    // Verify the token & decode it to extract the user 'roles'
+    // Verify the token & decode it to extract the user data
     const secret = process.env.JWT_SECRET || "default_secret";
     try {
       const decoded = jwt.verify(token, secret) as any;
+      // Attach the decoded user data to the request object
       (req as any).user = decoded;
 
       if (roles.length > 0) {
