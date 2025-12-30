@@ -9,6 +9,7 @@ import { Request } from "express";
 import { generateAccessToken, generateTokenPair, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { refreshTokenRepository } from "./refresh-token.repository";
 import { LoginResponse } from "../types/token";
+import { TokenType } from "../generated/prisma";
 
 
 class AuthRepository {

@@ -7,12 +7,17 @@ import { forgetPasswordSchema } from "../validation/forget-password.validation";
 import { resetPasswordSchema } from "../validation/reset-password.validation";
 import { authController } from "../controllers/auth.controller";
 import { authenticate } from "../middleware/auth.middleware";
+import { confirmEmailSchema, requireEmailSchema } from "../validation/user.confirmEmail";
 
 const authRouter = express.Router();
 
 authRouter.post("/signup", validateRequest(signUpSchema), asyncHandler(authController.signup));
 authRouter.put("/login", validateRequest(logInSchema), asyncHandler(authController.login));
 authRouter.post("/refresh-token", asyncHandler(authController.refreshToken));
+
+// Verify Email Routes
+authRouter.get("/verify-email", validateRequest(confirmEmailSchema), asyncHandler(authController.verifyEmail));
+authRouter.post("/resend-verification", validateRequest(requireEmailSchema), asyncHandler(authController.resendVerification));
 
 // Protected routes
 authRouter.post("/logout", authenticate, asyncHandler(authController.logout));

@@ -175,6 +175,22 @@ class UserTokenRepository {
             }
         });
     }
+
+    
+    async findRecentVerificationTokens(userId: string, timeFrameInHours: number = 1): Promise<any[]> {
+    const oneHourAgo = new Date(Date.now() - (timeFrameInHours * 60 * 60 * 1000));
+    
+    return await prisma.userToken.findMany({
+        where: {
+            userId,
+            tokenType: TokenType.VERIFICATION,
+            revokedAt: null,
+            createdAt: {
+                gte: oneHourAgo
+            }
+        }
+    });
+}
 }
 
 export const userTokenRepository = new UserTokenRepository();

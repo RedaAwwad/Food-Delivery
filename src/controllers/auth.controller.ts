@@ -27,6 +27,29 @@ class AuthController {
             .json(new SuccessResponse({ data: result.data }));
     }
 
+    async verifyEmail(req: Request, res: Response) {
+        const { token } = req.query;
+        await authService.verifyEmail(token as string);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "Email verified successfully! You can now login to your account."
+            }));
+    }
+
+    async resendVerification(req: Request, res: Response) {
+        const { email } = req.body;
+
+        await authService.resendVerification(email);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "If an account with that email exists and is not verified, a new verification email has been sent."
+            }));
+    }
+
     async refreshToken(req: Request, res: Response) {
         const refreshToken = authService.extractRefreshToken(req);
 

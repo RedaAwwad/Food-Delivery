@@ -16,6 +16,7 @@ model User {
   userPassword  String  @map("user_password") 
   userEmail     String   @unique @map("user_email")
   isActive      Boolean   @default(false)       
+  isConfirmed   Boolean   @default(false)       
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

@@ -68,10 +68,100 @@ class AuthService {
             });
         }
 
+        // Generate verification token
+        const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '86400000', 10); // Default 24 hours
+        const expiresAt = new Date(Date.now() + expiryTime);
+
+        const tokenData = await userTokenRepository.createToken({
+            userId: newUser.userId,
+            tokenType: TokenType.VERIFICATION,
+            expiresAt,
+        });
+
+        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${tokenData.token}`;
+
+        // Send verification email
+        await emailService.sendVerificationEmail(newUser.userEmail, verificationLink, newUser.userName);
+
         const returnedUser = { userId: newUser.userId, userName: newUser.userName, userEmail: newUser.userEmail };
         const returnedCustomer = { customerId: newCustomer.customerId, customerPhone: newCustomer.customerPhone, customerAvatar: newCustomer.customerAvatar };
 
-        return { user: returnedUser, customer: returnedCustomer };
+        return { user: returnedUser, customer: returnedCustomer, message: "Signup successful. Please verify your email." };
+    }
+
+    async verifyEmail(token: string): Promise<void> {
+        const tokenData = await userTokenRepository.findValidToken(token, TokenType.VERIFICATION);
+
+        if (!tokenData) {
+            throw new CustomError({
+                message: "Invalid or expired verification token",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
+
+        // Update user to confirmed
+        await userRepository.update(tokenData.userId, { isConfirmed: true });
+
+        // Revoke the token
+        await userTokenRepository.revokeToken(token, 'email_verified');
+
+        console.log(`✅ Email verified for user ${tokenData.userId}`);
+    }
+
+    async resendVerification(email: string): Promise<void> {
+        console.log(`📧 Resending verification email to: ${email}`);
+
+        const user = await userRepository.findByEmail(email);
+
+        if (!user) {
+            console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
+            return;
+        }
+
+        // Check if user is already verified
+        if (user.isConfirmed) {
+            throw new CustomError({
+                message: "Email is already verified",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
+
+        // Check rate limiting
+        const recentTokens = await userTokenRepository.findRecentVerificationTokens(user.userId);
+        if (recentTokens.length > 3) { // Limit to 3 attempts per hour
+            throw new CustomError({
+                message: "Too many verification requests. Please try again later.",
+                statusCode: StatusCodes.TOO_MANY_REQUESTS,
+            });
+        }
+
+        // Revoke any existing verification tokens for this user
+        await userTokenRepository.revokeAllUserTokensByType(
+            user.userId,
+            TokenType.VERIFICATION,
+            'resending_verification'
+        );
+
+        // Create new verification token
+        const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '86400000', 10);
+        const expiresAt = new Date(Date.now() + expiryTime);
+
+        const tokenData = await userTokenRepository.createToken({
+            userId: user.userId,
+            tokenType: TokenType.VERIFICATION,
+            expiresAt,
+        });
+
+        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${tokenData.token}`;
+
+        // Send verification email
+        await emailService.sendVerificationEmail(
+            user.userEmail,
+            verificationLink,
+            user.userName
+        );
+
+        console.log(`✅ Verification email resent to: ${email}`);
     }
 
     async login(loginDto: loginDTO): Promise<AuthResponse> {
