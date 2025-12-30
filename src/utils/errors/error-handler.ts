@@ -4,13 +4,9 @@ import { getErrorMessage } from "../helpers";
 import Joi from "joi";
 import { CustomError } from "./custom-error";
 import { StatusCodes } from "http-status-codes";
+import { ErrorFormat } from "./types";
 
-const errorHandler = (
-  error: Error,
-  req: Request,
-  res: Response,
-  next: NextFunction
-): void => {
+const errorHandler = (error: Error, req: Request, res: Response, next: NextFunction): void => {
   if (res.headersSent || appConfig().debug) {
     next(error);
     return;

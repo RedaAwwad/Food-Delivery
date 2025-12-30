@@ -4,8 +4,7 @@ import { CustomError } from "../utils/errors/custom-error";
 
 const isAdmin = () => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const checkedRole = "admin"; // TODO req.user?.role
-    if (checkedRole !== "admin") {
+    if (!req.user?.isAdmin) {
       return res.status(StatusCodes.FORBIDDEN).json(
         new CustomError({
           message: "Access denied. Admins only.",

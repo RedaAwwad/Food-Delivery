@@ -1,59 +1,72 @@
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
 import { orderRepository } from "../repositories/order.repository";
-import { prisma } from "../config/prisma.config";
-import { restaurantRepository, RestaurantRepository } from "../repositories/restaurant.repository";
-import { userRepository } from "../repositories/user.repository";
+import { cartRepository } from "../repositories/cart.repository";
+import { OrderStatus } from "../enums/orderStatus.enum";
+import { OrderHandlerChainBuilder } from "../handlers/OrderHandlerChainBuilder";
+import { OrderContext } from "../types/OrderContext";
 
 class OrderService {
   async getAllOrders() {
     return await orderRepository.findAllOrders();
   }
 
-  async getOrderById(orderId: number) {
+  async getOrderById(orderId: string) {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateOrderStatus(
-    orderId: number, 
-    newStatusId: number, 
-    userId : number , 
-    userRole: string 
-  ) {
-    const userWithRestaurant = await userRepository.findUserWithRestaurant(userId , userRole)
-
-  let restaurantId: number | null = null;
-
-  if (userRole === "admin") {
-    const adminRestaurant = await restaurantRepository.findRestaurantByUserId(userId)
-    restaurantId = adminRestaurant?.id ?? null;
-  } else if (userRole === "restaurant") {
-    restaurantId = userWithRestaurant?.restaurant?.id ?? null;
+  async updateOrderStatus(orderId: string, newOrderStatus: OrderStatus) {
+    const order = await orderRepository.findOrderById(orderId);
+    if (!order) {
+      throw new CustomError({
+        message: "The order not found",
+        statusCode: StatusCodes.NOT_FOUND,
+      });
+    }
+    const updateOrder = await orderRepository.updateOrderStatus(orderId, newOrderStatus);
+    return updateOrder;
   }
 
-  if (!restaurantId) throw new CustomError({
-    message:"No restaurant found", 
-    statusCode:StatusCodes.NOT_FOUND});
-  
-  const updatedAt = new Date()
-  const updatedOrder = await orderRepository.updateOrderStatus(
-    orderId , restaurantId , newStatusId , userId , updatedAt
-  )
+  async placeOrder(customerId: string, restaurantId: string) {
+    // Build the handler chain
+    const handlerChain = OrderHandlerChainBuilder.build();
 
-  if (updatedOrder.count === 0) {
-    throw new CustomError({
-      message   : "Order does not belong to your restaurant",
-      statusCode: StatusCodes.FORBIDDEN});
-  }
+    // Initialize the context
+    const context: OrderContext = {
+      customerId,
+      restaurantId,
+    };
 
-  return updatedOrder;
-}
-
-  async placeOrder(customerId: number, restaurantId: number) {
     try {
-      const order = await orderRepository.createOrder(customerId, restaurantId);
-      return order;
+      // Execute the chain
+      console.log(`\n========== Starting Order Processing ==========`);
+      const result = await handlerChain.execute(context);
+      console.log(`========== Order Processing Complete ==========\n`);
+
+      // Return the final order
+      if (!result.finalOrder) {
+        throw new CustomError({
+          message: "Order processing failed - no final order created",
+          statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
+        });
+      }
+
+      return result.finalOrder;
     } catch (err: any) {
+      // Ensure cart is unlocked even on error
+      try {
+        if (context.isCartLocked) {
+          await cartRepository.unlockCart(customerId);
+          console.log(`[OrderService] Cart unlocked after error`);
+        }
+      } catch (unlockError) {
+        console.error(`[OrderService] Failed to unlock cart after error:`, unlockError);
+      }
+
+      // Re-throw custom errors, wrap others
+      if (err instanceof CustomError) {
+        throw err;
+      }
       throw new CustomError({
         message: err.message || "Failed to place order",
         statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
@@ -61,4 +74,5 @@ class OrderService {
     }
   }
 }
+
 export const orderService = new OrderService();

@@ -2,7 +2,6 @@ generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
   binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
-  
 }
 
 datasource db {
@@ -12,10 +11,13 @@ datasource db {
 
 // ====== User ======
 model User {
-  id        Int      @id @default(autoincrement()) 
-  name      String   
-  password  String   
-  email     String   @unique 
+  userId        String   @id @default(uuid()) @map("user_id")
+  userName      String @map("user_name")   
+  userPassword  String  @map("user_password") 
+  userEmail     String   @unique @map("user_email")
+  isActive      Boolean   @default(false)       
+  isConfirmed   Boolean   @default(false)       
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -24,6 +26,8 @@ model User {
   usersRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
+  userToken   UserToken[]
+
   // Reverse relations
   createdOrders Order[] @relation("CreatedOrders")
   updatedOrders Order[] @relation("UpdatedOrders")
@@ -36,9 +40,9 @@ model User {
  
 // ====== Role ======
 model Role {
-  id          Int      @id @default(autoincrement()) 
-  name        String   
-  description String?  
+  roleId      String   @id @default(uuid()) @map("role_id")
+  roleName    String   @unique  @map("role_name")
+  roleDesc    String?  @map("role_desc")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -48,38 +52,61 @@ model Role {
 }
 
 // ====== UserRole ======
-model UserRole {
-  id     Int @id @default(autoincrement()) 
-  userId Int @map("user_id")
-  roleId Int @map("role_id")
+model UserRole { 
+  userId String @map("user_id")
+  roleId String @map("role_id")
 
-  user User @relation(fields: [userId], references: [id])
-  role Role @relation(fields: [roleId], references: [id])
+  user User @relation(fields: [userId], references: [userId])
+  role Role @relation(fields: [roleId], references: [roleId])
 
   @@unique([userId, roleId])
   @@map("users_roles")
 }
 
+model UserToken {
+  userTokenId String   @id @default(uuid()) @map("user_token_id")
+  userId      String   @map("user_id")
+  token       String   @unique @map("token")
+  expiresAt   DateTime @map("expires_at")
+
+  tokenType   TokenType @map("token_type")
+
+  // Security controls
+  isRevoked      Boolean  @default(false) @map("is_revoked")
+  revokedAt      DateTime? @map("revoked_at")
+  revokedReason  String?  @map("revoked_reason") // "logout", "suspicious", "expired"
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("user_tokens")
+}
+
 // ====== Customer ======
 model Customer {
-  id        Int      @id @default(autoincrement()) 
-  userId    Int      @unique
-  phone     String   @map("phone")
-  avatar    String   @map("avatar")
+  customerId  String   @id @default(uuid()) @map("customer_id")
+  userId    String      @unique
+  customerPhone     String   @map("customer_phone")
+  customerAvatar    String   @map("customer_avatar")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [id])
+  deactivatedAt  DateTime?             
+  user User @relation(fields: [userId], references: [userId])
   cart Cart?
-
+  preferredPaymentSettings PreferredPaymentSettings?
+ 
   orders Order[]
+  addresses Address[]
+  rating Rating[]
 
-  createdById Int?
-  updatedById Int?
+  createdById String
+  updatedById String
 
   // Relations
-  createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [id])
-  updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [id])
+  createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
+  updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
 
   addresses Address[]
 
@@ -88,19 +115,20 @@ model Customer {
 
 // ====== Restaurant ======
 model Restaurant {
-  id          Int      @id @default(autoincrement())
-  managerId   Int      @unique @map("manager_id")
-  name        String   
-  description String   
-  logo        String?  
-  // address     String  // Replaced by relation
-  address Address?
+  restaurantId   String   @id @default(uuid()) @map("restaurant_id")
+  managerId      String      @unique @map("manager_id")
+  addressId      String      @unique @map("address_id")
+  restaurantName String   
+  restaurantBio  String  @map("restaurant_bio") 
+  restaurantLogo        String? @map("restaurant_logo")   
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  DateTime DateTime @updatedAt @map("updated_at")
 
-  manager User @relation(fields: [managerId], references: [id])
+  manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
+  address Address?
+  rating Rating[]
 
   orders Order[]
 
@@ -109,12 +137,14 @@ model Restaurant {
 
 // ====== Cart ======
 model Cart {
-  id         Int       @id @default(autoincrement()) 
-  customerId Int       @unique @map("customer_id")
+  cartId     String   @id @default(uuid()) @map("cart_id")
+  customerId String       @unique @map("customer_id")
+  isLocked   Boolean    @default(false) @map("is_locked")
+
   createdAt  DateTime  @default(now()) @map("created_at")
   updatedAt  DateTime  @updatedAt @map("updated_at")
 
-  customer  Customer   @relation(fields: [customerId], references: [id])
+  customer  Customer   @relation(fields: [customerId], references: [customerId])
   cartItems CartItem[]
 
   @@map("carts")
@@ -122,30 +152,32 @@ model Cart {
 
 // ====== CartItem ======
 model CartItem {
-  id         Int      @id @default(autoincrement())
-  cartId     Int      @map("cart_id")
-  menuItemId Int      @map("menu_item_id")
+  cartItemId String   @id @default(uuid()) @map("cart_item_id")
+  cartId     String      @map("cart_id")
+  menuItemId String      @map("menu_item_id")
   quantity   Int      @map("quantity")
   price      Int      @map("price")
+
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  cart     Cart     @relation(fields: [cartId], references: [id])
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  cart     Cart     @relation(fields: [cartId], references: [cartId])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
   @@unique([cartId , menuItemId])
   @@map("cart_items")
 }
 
 // ====== Menu ======
 model Menu {
-  id              Int          @id @default(autoincrement()) 
-  restaurantId    Int          @unique @map("restaurant_id")
-  menuDescription String       @map("menu_description")
+  menuId          String   @id @default(uuid()) @map("menu_id")
+  restaurantId    String          @unique @map("restaurant_id")
+  menuDesc String       @map("menu_desc")
   isActive        Boolean      @default(true) @map("is_active")
+
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
-  restaurant      Restaurant   @relation(fields: [restaurantId], references: [id])
+  restaurant      Restaurant   @relation(fields: [restaurantId], references: [restaurantId])
   menuCategories  MenuCategory[]
 
   @@map("menus")
@@ -153,14 +185,15 @@ model Menu {
 
 // ====== MenuCategory ======
 model MenuCategory {
-  id                   Int       @id @default(autoincrement()) 
-  menuId               Int       @map("menu_id")
-  name                 String   
+  menuCategoryId       String   @id @default(uuid()) @map("menu_category_id")
+  menuId               String   @map("menu_id")
+  menuCategoryName     String   @map("menu_category_name")
   menuCategoryImageUrl String    @map("menu_category_image_url")
+
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  menu      Menu      @relation(fields: [menuId], references: [id])
+  menu      Menu      @relation(fields: [menuId], references: [menuId])
   menuItems MenuItem[]
 
   @@map("menu_categories")
@@ -168,53 +201,60 @@ model MenuCategory {
 
 // ====== MenuItem ======
 model MenuItem {
-  id            Int       @id @default(autoincrement()) 
-  menuCategoryId Int      @map("menu_category_id")
-  name          String    
-  description   String    
-  imageUrl      String    @map("image_url")
+  menuItemId     String   @id @default(uuid()) @map("menu_item_id")
+  menuCategoryId String      @map("menu_category_id")
+  menuItemName          String    
+  menuItemDesc   String  @map("menu_item_desc")  
+  menuItemImageUrl      String    @map("menu_item_image_url")
   price         Int    
   stockQuantity Int       @map("stock_quantity")
   isActive      Boolean   @default(true) @map("is_active")
+
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [id])
+  menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [menuCategoryId])
   cartItems     CartItem[]
   orderItems   OrderItem[]
   @@map("menu_items")
 }
 
 model Order {
-  id          Int      @id @default(autoincrement())
-  customerId  Int      @map("customer_id")
-  restaurantId Int     @map("restaurant_id")
-  totalAmount  Decimal      @map("total_amount")
-  orderStatusId     Int     @map("order_status_id")   
+  orderId        String   @id @default(uuid()) @map("order_id")
+  customerId     String      @map("customer_id")
+  restaurantId   String     @map("restaurant_id")
+  totalAmount    Int      @map("total_amount")
+  orderStatus    String     @map("order_status")
+  trackingStatus String?    @map("tracking_status")
+
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
   
     // Foreign keys
-  createdById Int?
-  updatedById Int?
+  createdById String
+  updatedById String
 
   // Relations
-  createdBy   User? @relation("CreatedOrders", fields: [createdById], references: [id])
-  updatedBy   User? @relation("UpdatedOrders", fields: [updatedById], references: [id]) 
+  createdBy   User? @relation("CreatedOrders", fields: [createdById], references: [userId])
+  updatedBy   User? @relation("UpdatedOrders", fields: [updatedById], references: [userId]) 
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
-  orderStatus OrderStatus @relation(fields: [orderStatusId], references: [id])
+  orderStatusDetails OrderStatus @relation(fields: [orderStatus], references: [orderStatusKey])
+  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatus], references: [trackingStatusKey])
 
   orderItems OrderItem[]
 
   @@map("orders")
 }
 
+// Payment status (pending, paid, failed, etc.)
 model OrderStatus {
-  id        Int      @id @default(autoincrement()) 
-  name      String   
+  orderStatusId        String   @id @default(uuid()) @map("order_status_id") 
+  orderStatusName      String   @map("order_status_name")
+  orderStatusKey       String   @unique @map("order_status_key")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -223,27 +263,106 @@ model OrderStatus {
   @@map("order_statuses")
 }
 
+// Delivery tracking status (ongoing, out for delivery, delivered, etc.)
+model OrderTracking {
+  trackingStatusId     String   @id @default(uuid()) @map("tracking_status_id") 
+  trackingStatusName   String   @map("tracking_status_name")
+  trackingStatusKey    String   @unique @map("tracking_status_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_tracking_statuses")
+}
+
 model OrderItem {
-  id         Int      @id @default(autoincrement()) 
-  orderId    Int      @map("order_id")
-  menuItemId Int      @map("menu_item_id")
+  orderItemId         String   @id @default(uuid()) @map("order_item_id") 
+  orderId    String      @map("order_id")
+  menuItemId String      @map("menu_item_id")
   quantity   Int      @map("quantity")
-  price      Decimal      @map("price")
+  price      Int      @map("price")
+
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  order    Order    @relation(fields: [orderId], references: [id])
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  order    Order    @relation(fields: [orderId], references: [orderId])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
 
   @@map("order_items")
 }
 
 
+model Address {
+  addressId  String      @id @default(uuid()) @map("address_id")
+  customerId String      @map("customer_id")
+  restaurantId String    @unique @map("restaurant_id")
+  street     String   
+  city       String   
+  area      String   
+  zipCode    Int   @map("zip_code")
+  block    String
+  apartmentNumber  String
+  floor      String  
+  latitude   Float
+  longitude  Float
+  isPrimary  Boolean   @default(false) @map("is_primary")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  customer Customer @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+  
+  @@map("addresses")
+}
 
 
+model PreferredPaymentSettings {
+  preferredPaymentSettingsId String   @id @default(uuid()) @map("preferred_payment_settings_id")
+  customerId                 String   @unique @map("customer_id")
+  paymentMethodId            String   @map("payment_method_id")
 
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
+  paymentMethods PaymentMethod[]
 
+  customer Customer @relation(fields: [customerId], references: [customerId])
+
+  @@map("preferred_payment_settings")
+}
+
+model PaymentMethod {
+  paymentMethodId     String   @id @default(uuid()) @map("payment_method_id")
+  paymentMethodName   String   @map("payment_method_name")
+  paymentMethodData   Json     @map("payment_method_data")
+  preferredPaymentSettingsId String   @map("preferred_payment_settings_id")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [paymentMethodId], references: [preferredPaymentSettingsId])
+
+  @@map("payment_methods")
+}
+
+model Rating {
+  ratingId    String   @id @default(uuid()) @map("rating_id")
+  customerId  String   @map("customer_id")
+  restaurantId String  @map("restaurant_id")
+  ratingScore        RatingScore  @map("rating_score")
+  review      String?  @map("review")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer   Customer   @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+
+  @@map("ratings")
+}
 
 model Address {
   id         Int      @id @default(autoincrement())

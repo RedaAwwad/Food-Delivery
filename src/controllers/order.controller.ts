@@ -14,34 +14,28 @@ class OrderController {
   }
 
   async getOrderDetails(req: Request, res: Response) {
-    const order = await orderService.getOrderById(Number(req.params.id));
+    const order = await orderService.getOrderById(req.params.id!);
     res.status(StatusCodes.OK).json(new SuccessResponse({ data: order }));
   }
 
   async updateStatus(req: Request, res: Response) {
-    const orderId = Number(req.params.id);
-    const newOrderStatus = Number(req.body.statusId);
+    const orderId = req.params.id!;
+    const newOrderStatus = req.body.status;
        
-    const userId   = 1       // req.user.id
-    const userRole = 'admin' // req.user.role 
-    
-    // const user = req.user  // TODO Send in arq instead multi args
-    const order = await orderService.updateOrderStatus(orderId, newOrderStatus, userId , userRole);
+    const order = await orderService.updateOrderStatus(orderId, newOrderStatus);
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
+
   async cancelOrder(req: Request, res: Response) {
-    const orderId = Number(req.params.id);
-    const orderStatus = Number(req.body.statusId);
+    const orderId = req.params.id!;
+    const orderStatus = req.body.status;
     
-    const userId   = 1       // req.user.id
-    const userRole = 'admin' // req.user.role 
-    // const user = req.user  // TODO Send in arq instead multi args
-    const order = await orderService.updateOrderStatus(orderId, orderStatus, userId, userRole);    
+    const order = await orderService.updateOrderStatus(orderId, orderStatus);    
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
 
   async placeOrder(req: Request, res: Response) {
-    const customerId = 1;
+    const customerId = req.user.role!
     const restaurantId  = req.body.restaurantId;
 
     const order = await orderService.placeOrder(customerId, restaurantId);

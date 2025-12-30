@@ -1,5 +1,5 @@
-class RemoveCartItemDTO {
-  itemId!: number;
+export interface RemoveCartItemDTO {
+  cartItemId: string;
 }
 
-export { RemoveCartItemDTO };
+
