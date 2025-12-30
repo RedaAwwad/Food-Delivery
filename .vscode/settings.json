@@ -15,5 +15,6 @@
   "prettier.tabWidth": 2,
   "prettier.bracketSpacing": true,
   "prettier.arrowParens": "always",
-  "prettier.endOfLine": "lf"
+  "prettier.endOfLine": "lf",
+  "editor.fontSize": 18
 }
