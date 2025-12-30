@@ -6,13 +6,13 @@ export const signUpSchema = {
         userName: generalFields.userName,
         userEmail: generalFields.email,
         userPassword: generalFields.password,
-                userConfirmPassword: Joi.string()
-                    .valid(Joi.ref("userPassword"))
-                    .required()
-                    .messages({
-                        "any.only": "Passwords do not match",
-                        "any.required": "Confirm password is required",
-                    }),
-        userPhoneNumber: Joi.number(),
+        userConfirmPassword: Joi.string()
+            .valid(Joi.ref("userPassword"))
+            .required()
+            .messages({
+                "any.only": "Passwords do not match",
+                "any.required": "Confirm password is required",
+            }),
+        userPhoneNumber: Joi.string().required(),
     }),
 };

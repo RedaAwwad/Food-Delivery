@@ -9,7 +9,7 @@ services:
     env_file:
       - ./.env
     environment:
-      - DATABASE_URL=postgresql://postgres:0000@postgres:5433/food-delivery?schema=public
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/food-delivery?schema=public
 
     depends_on:
       - postgres

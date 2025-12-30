@@ -7,4 +7,4 @@ const userRouter = express.Router();
 
 // userRouter.get("/", validateRequest(), asyncHandler(userController.findUserWithRestaurant));
 
-export default userRouter;
+export { userRouter };

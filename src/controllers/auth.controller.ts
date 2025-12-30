@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
+import { CustomError } from "../utils/errors/custom-error";
 
 class AuthController {
     async signup(req: Request, res: Response) {
@@ -17,7 +18,7 @@ class AuthController {
     async login(req: Request, res: Response) {
         const loginDto = req.body;
 
-        const result = await authService.login(loginDto, req);
+        const result = await authService.login(loginDto);
 
         authService.applyCookies(res, result);
 
@@ -26,8 +27,31 @@ class AuthController {
             .json(new SuccessResponse({ data: result.data }));
     }
 
+    async verifyEmail(req: Request, res: Response) {
+        const { token } = req.query;
+        await authService.verifyEmail(token as string);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "Email verified successfully! You can now login to your account."
+            }));
+    }
+
+    async resendVerification(req: Request, res: Response) {
+        const { email } = req.body;
+
+        await authService.resendVerification(email);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "If an account with that email exists and is not verified, a new verification email has been sent."
+            }));
+    }
+
     async refreshToken(req: Request, res: Response) {
-        const refreshToken = req.refreshToken; // From tokenExtractor middleware
+        const refreshToken = authService.extractRefreshToken(req);
 
         const result = await authService.refreshToken(refreshToken);
 
@@ -63,6 +87,12 @@ class AuthController {
     }
 
     async getActiveSessions(req: Request, res: Response) {
+        if (!req.user) {
+            throw new CustomError({
+                message: "User context not found",
+                statusCode: StatusCodes.UNAUTHORIZED
+            });
+        }
         const userId = req.user.userId;
 
         const result = await authService.getActiveSessions(userId);
@@ -70,6 +100,30 @@ class AuthController {
         return res
             .status(StatusCodes.OK)
             .json(new SuccessResponse({ data: result.data }));
+    }
+
+    async forgetPassword(req: Request, res: Response) {
+        const { email } = req.body;
+
+        await authService.forgetPassword(email);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "If an account with that email exists, a password reset link has been sent."
+            }));
+    }
+
+    async resetPassword(req: Request, res: Response) {
+        const { token, newPassword } = req.body;
+
+        await authService.resetPassword(token, newPassword);
+
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({
+                message: "Password has been reset successfully. Please login with your new password."
+            }));
     }
 }
 

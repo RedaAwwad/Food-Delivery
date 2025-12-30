@@ -1,4 +1,4 @@
-import { Request } from "express";
+import { TokenType } from "../generated/prisma";
 
 export interface TokenPayload {
   userId: string;
@@ -33,6 +33,13 @@ export interface CreateRefreshTokenData {
   userAgent?: string | null;
   ipAddress?: string | null;
   deviceType?: string | null;
+}
+
+export interface CreateTokenData {
+    userId: string;
+    tokenType: TokenType;
+    expiresAt: Date;
+    token?: string; // Optional - will be generated if not provided
 }
 
 export interface RefreshTokenFilter {

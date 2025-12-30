@@ -15,6 +15,8 @@ model User {
   userName      String @map("user_name")   
   userPassword  String  @map("user_password") 
   userEmail     String   @unique @map("user_email")
+  isActive      Boolean   @default(false)       
+  isConfirmed   Boolean   @default(false)       
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -24,8 +26,8 @@ model User {
   usersRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
-  userToken  UserToken?
-  userRefreshTokens RefreshToken[]
+  userToken   UserToken[]
+
   // Reverse relations
   createdOrders Order[] @relation("CreatedOrders")
   updatedOrders Order[] @relation("UpdatedOrders")
@@ -38,9 +40,9 @@ model User {
  
 // ====== Role ======
 model Role {
-  roleId         String   @id @default(uuid()) @map("role_id")
-  roleName        String   @map("role_name")
-  roleDesc String?  @map("role_desc")
+  roleId      String   @id @default(uuid()) @map("role_id")
+  roleName    String   @unique  @map("role_name")
+  roleDesc    String?  @map("role_desc")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -63,9 +65,16 @@ model UserRole {
 
 model UserToken {
   userTokenId String   @id @default(uuid()) @map("user_token_id")
-  userId      String  @unique @map("user_id")
-  token       String   @map("token")
+  userId      String   @map("user_id")
+  token       String   @unique @map("token")
   expiresAt   DateTime @map("expires_at")
+
+  tokenType   TokenType @map("token_type")
+
+  // Security controls
+  isRevoked      Boolean  @default(false) @map("is_revoked")
+  revokedAt      DateTime? @map("revoked_at")
+  revokedReason  String?  @map("revoked_reason") // "logout", "suspicious", "expired"
 
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -73,30 +82,6 @@ model UserToken {
   user User @relation(fields: [userId], references: [userId])
 
   @@map("user_tokens")
-}
-
-model RefreshToken {
-  refreshTokenId String   @id @default(uuid()) @map("refresh_token_id")
-  userId         String   @map("user_id")
-  token          String   @map("token")
-  @@unique([token])
-  expiresAt      DateTime @map("expires_at")
-  
-  // Additional security fields
-  userAgent      String?  @map("user_agent")
-  ipAddress      String?  @map("ip_address")
-  deviceType     String?  @map("device_type") // "mobile", "desktop", "tablet"
-  lastUsedAt     DateTime @default(now()) @map("last_used_at")
-  
-  // Security controls
-  isRevoked      Boolean  @default(false) @map("is_revoked")
-  revokedAt      DateTime? @map("revoked_at")
-  revokedReason  String?  @map("revoked_reason") // "logout", "suspicious", "expired"
-  
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
 }
 
 // ====== Customer ======
@@ -107,7 +92,6 @@ model Customer {
   customerAvatar    String   @map("customer_avatar")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
-  isActive       Boolean   @default(false)       
   deactivatedAt  DateTime?             
   user User @relation(fields: [userId], references: [userId])
   cart Cart?
@@ -384,4 +368,10 @@ enum RatingScore {
   THREE
   FOUR
   FIVE
+}
+
+enum TokenType {
+  VERIFICATION
+  FORGOT_PASSWORD
+  REFRESH
 }
