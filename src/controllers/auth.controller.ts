@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
+import { CustomError } from "../utils/errors/custom-error";
 
 class AuthController {
     async signup(req: Request, res: Response) {
@@ -63,6 +64,12 @@ class AuthController {
     }
 
     async getActiveSessions(req: Request, res: Response) {
+        if (!req.user) {
+            throw new CustomError({
+                message: "User context not found",
+                statusCode: StatusCodes.UNAUTHORIZED
+            });
+        }
         const userId = req.user.userId;
 
         const result = await authService.getActiveSessions(userId);

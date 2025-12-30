@@ -109,18 +109,3 @@ export const tokenExtractor = (req: Request, res: Response, next: NextFunction) 
     next();
 };
 
-declare global {
-    namespace Express {
-        interface Request {
-            accessToken?: string;
-            refreshToken?: string;
-            user: {
-                userId: string;
-                userName: string;
-                userEmail: string;
-                isAdmin?: boolean;
-                roles: string[];
-            }
-        }
-    }
-}
