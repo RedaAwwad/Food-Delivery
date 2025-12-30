@@ -1,52 +1,48 @@
 import express from "express";
 import { customerController } from "../controllers/customer.controller";
-import { isAdmin } from "../middleware/is-admin";
 
 const customerRouter = express.Router();
 
 /**
  * @swagger
  * tags:
- *   name: Order
+ *   name: Customer
  *   description: Order management APIs
  */
 
-/*
- - all customer => for admin
- - restaurant customers => for restaurant
-*/
-
 /**
  * @swagger
- * /api/v1/customers:
+ * /api/v1/customers/orders:
  *   get:
- *     summary: Get all customers by admin
+ *     summary: Get customer orders
  *     tags: [Customer]
  *     responses:
  *       200:
- *         description: List of all customers
+ *         description: List of customer orders
  */
-customerRouter.get("/", isAdmin, customerController.getCustomersByAdmin);
+customerRouter.get("/orders", customerController.getCustomerOrders);
 
 /**
  * @swagger
- * /api/v1/customers/{customer_id}:
+ * /api/v1/customers/orders/:order_id:
  *   get:
- *     summary: Get customer details by ID
+ *     summary: Get customer order details by orderId
  *     tags: [Customer]
  *     parameters:
  *       - in: path
- *         name: customer_id
+ *         name: order_id
  *         required: true
  *         schema:
  *           type: string
- *         description: customer_id of the customer to retrieve
+ *         description: order_id of the customer order
  *     responses:
  *       200:
  *         description: Customer details retrieved successfully
  *       404:
  *         description: Customer not found
  */
-customerRouter.get("/:customer_id", isAdmin, customerController.getCustomerDetailsById);
+customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
+
+customerRouter.patch("/:customer_id/deactivate", customerController.deactivateAccount);
 
 export { customerRouter };

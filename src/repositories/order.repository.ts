@@ -1,98 +1,61 @@
 import { prisma } from "../config/prisma.config";
+import { CreateOrderDto } from "../dto/createOrderDto";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
 
+// type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
 
 class OrderRepository {
   async findAllOrders() {
     return await prisma.order.findMany();
   }
 
-  async findOrderById(orderId: number) {
+  async findOrderById(orderId: string) {
     return await prisma.order.findUniqueOrThrow({
       where: {
-        id: orderId,
-      },
-    });
-  }
-  async findOrderRestaurantById(orderId: number , userRestaurantId:number ) {
-    return await prisma.order.findUniqueOrThrow({
-      where: {
-        id: orderId,
-        restaurantId:userRestaurantId
-      },
-    });
-  }
-   
-  async updateOrderStatus(orderId: number,restaurantId:number, newStatusId: number, userId:number , updatedAt:Date) {
-
-    return await prisma.order.updateMany({
-      where: { id: orderId, restaurantId },
-      data: { 
-        orderStatusId: newStatusId , 
-        // updatedBy : userId,
-        updatedAt 
+        orderId
       },
     });
   }
 
-  async createOrder(customerId: number, restaurantId: number) {
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
-      include: {
-        cartItems: true,
-      },
+  async updateOrderStatus(orderId: string, newOrderStatus: string) {
+    return await prisma.order.update({
+      where: { orderId },
+      data: { orderStatus: newOrderStatus },
     });
-
-    if (!cart || cart.cartItems.length === 0) {
-      throw new CustomError({
-        message: "Cart is empty",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
-
-
+  }
+  async createOrder(createOrderDto: CreateOrderDto) {
+    const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
-    const totalAmount = cart.cartItems.reduce(
+    const totalAmount = cartItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
     );
 
-    const pendingStatus = await prisma.orderStatus.findFirst({
-      where: { name: "Pending" },
-    });
-
-    if (!pendingStatus) {
-      throw new Error("OrderStatus 'Pending' not found");
-    }
-
-    const order = await prisma.$transaction(async (tx) => {
-      const newOrder = await tx.order.create({
-        data: {
-          customerId,
-          restaurantId,
-          totalAmount,
-          orderStatusId: pendingStatus.id,
+    // Create the order and its items in a single transaction
+    const newOrder = await prisma.order.create({
+      data: {
+        customerId,
+        restaurantId,
+        totalAmount,
+        orderStatus: status,
+        // createdById/updatedById are required by the schema — set to the customer for now
+        createdById: customerId,
+        updatedById: customerId,
+        orderItems: {
+          create: cartItems.map((item) => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            price: item.price,
+          })),
         },
-      });
-
-      await tx.orderItem.createMany({
-        data: cart.cartItems.map((item) => ({
-          orderId: newOrder.id,
-          menuItemId: item.menuItemId,
-          quantity: item.quantity,
-          price: item.price,
-        })),
-      });
-
-      await tx.cartItem.deleteMany({
-        where: { cartId: cart.id },
-      });
-
-      return newOrder;
+      },
+      include: {
+        orderItems: true, // Include items in the returned order object
+      },
     });
 
-    return order;
+    return newOrder;
   }
 }
 export const orderRepository = new OrderRepository();

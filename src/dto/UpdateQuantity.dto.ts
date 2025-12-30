@@ -1,6 +1,6 @@
 class UpdateQuantityDTO {
   quantity: number = 1;
-  cartItemId!: number;
+  cartItemId!: string;
 }
 
 export { UpdateQuantityDTO };
