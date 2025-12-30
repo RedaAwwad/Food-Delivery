@@ -16,8 +16,16 @@ authRouter.put("/login", validateRequest(logInSchema), asyncHandler(authControll
 authRouter.post("/refresh-token", asyncHandler(authController.refreshToken));
 
 // Verify Email Routes
-authRouter.get("/verify-email", validateRequest(confirmEmailSchema), asyncHandler(authController.verifyEmail));
-authRouter.post("/resend-verification", validateRequest(requireEmailSchema), asyncHandler(authController.resendVerification));
+authRouter.get(
+  "/verify-email",
+  validateRequest(confirmEmailSchema),
+  asyncHandler(authController.verifyEmail)
+);
+authRouter.post(
+  "/resend-verification",
+  validateRequest(requireEmailSchema),
+  asyncHandler(authController.resendVerification)
+);
 
 // Protected routes
 authRouter.post("/logout", authenticate, asyncHandler(authController.logout));
@@ -25,7 +33,15 @@ authRouter.post("/logout-all", authenticate, asyncHandler(authController.logoutA
 authRouter.get("/sessions", authenticate, asyncHandler(authController.getActiveSessions));
 
 // Password Reset Routes
-authRouter.post("/forgot-password", validateRequest(forgetPasswordSchema), asyncHandler(authController.forgetPassword));
-authRouter.post("/reset-password", validateRequest(resetPasswordSchema), asyncHandler(authController.resetPassword));
+authRouter.post(
+  "/forgot-password",
+  validateRequest(forgetPasswordSchema),
+  asyncHandler(authController.forgetPassword)
+);
+authRouter.post(
+  "/reset-password",
+  validateRequest(resetPasswordSchema),
+  asyncHandler(authController.resetPassword)
+);
 
-export default authRouter;
+export { authRouter };

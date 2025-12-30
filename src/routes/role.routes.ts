@@ -9,40 +9,28 @@ const roleRouter = Router();
 roleRouter.use(asyncHandler(authenticate));
 
 // Only Admins can manage roles
-roleRouter.post(
-    "/",
-    isAuthorized(["Admin"]),
-    asyncHandler(roleController.createRole)
-);
+roleRouter.post("/", isAuthorized(["Admin"]), asyncHandler(roleController.createRole));
 
-roleRouter.get(
-    "/",
-    isAuthorized(["Admin"]),
-    asyncHandler(roleController.getAllRoles)
-);
+roleRouter.get("/", isAuthorized(["Admin"]), asyncHandler(roleController.getAllRoles));
 
-roleRouter.post(
-    "/assign",
-    isAuthorized(["Admin"]),
-    asyncHandler(roleController.assignRole)
+roleRouter.post("/assign", isAuthorized(["Admin"]), asyncHandler(roleController.assignRole));
+
+roleRouter.delete(
+  "/delete-by-id",
+  isAuthorized(["Admin"]),
+  asyncHandler(roleController.removeRoleById)
 );
 
 roleRouter.delete(
-    "/delete-by-id",
-    isAuthorized(["Admin"]),
-    asyncHandler(roleController.removeRoleById)
+  "/delete-by-name",
+  isAuthorized(["Admin"]),
+  asyncHandler(roleController.removeRoleByName)
 );
 
 roleRouter.delete(
-    "/delete-by-name",
-    isAuthorized(["Admin"]),
-    asyncHandler(roleController.removeRoleByName)
+  "/demote-user",
+  isAuthorized(["Admin"]),
+  asyncHandler(roleController.removeRoleFromUser)
 );
 
-roleRouter.delete(
-    "/demote-user",
-    isAuthorized(["Admin"]),
-    asyncHandler(roleController.removeRoleFromUser)
-);
-
-export default roleRouter;
+export { roleRouter };
