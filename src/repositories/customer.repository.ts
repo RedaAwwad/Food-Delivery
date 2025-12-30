@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.config";
+import { restaurantRepository } from "./restaurant.repository";
 
 export class CustomerRepository {
   async findCustomerOrders(customerId: string) {
@@ -11,6 +12,7 @@ export class CustomerRepository {
           select: {
             orderStatusId: true,
             orderStatusName: true,
+            // key: true,
           },
         },
       },
@@ -27,6 +29,7 @@ export class CustomerRepository {
           select: {
             orderStatusId: true,
             orderStatusName: true,
+            // key: true,
           },
         },
       },
@@ -49,5 +52,6 @@ export class CustomerRepository {
       },
     });
   }
+
 }
 export const customerRepository = new CustomerRepository();

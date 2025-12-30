@@ -1,13 +1,15 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import { customerService } from "../services/customer.service";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { CustomError } from "../utils/errors/custom-error";
 import { CustomerOrdersDTO } from "../dto/customer-orders.dto";
+import { CreateCustomerRatingDto } from "../dto/customer.dto";
+import { date } from "joi";
 
 class CustomerController {
   async getCustomerOrders(req: Request, res: Response) {
-  const customerId = "1"; // fetch from user auth token (string id)
+  const customerId = req.user.userId 
 
     if (!customerId) {
       return new CustomError({
@@ -25,7 +27,7 @@ class CustomerController {
   }
 
   async getCustomerOrderDetails(req: Request, res: Response) {
-  const customerId = "1"; // fetch from user auth token (string id)
+  const customerId = req.user.userId 
   const orderId = req.params.order_id ? String(req.params.order_id) : null;
 
     if (!customerId || !orderId) {
@@ -33,7 +35,7 @@ class CustomerController {
         message: "Customer Id and Order Id are required",
         statusCode: StatusCodes.BAD_REQUEST,
       });
-    }
+    } 
 
     const order = await customerService.findCustomerOrderByCustomerId(customerId, orderId);
 
@@ -44,12 +46,21 @@ class CustomerController {
     );
   }
   async deactivateAccount(req: Request, res: Response) {
-  const customerId = req.params.id!;
+  const customerId = req.user.userId;
   const result = await customerService.deactivateAccount(customerId);
     res.status(200).json({
       message: "Customer account deactivated successfully",
       customer: result,
     });
+  }
+  async createRatingByCustomer(req:Request<{} ,{},CreateCustomerRatingDto> , res:Response, next:NextFunction) {
+      const customerId = req.user.userId
+      const ratingCustomer = await 
+      customerService.createRatingByCustomer(customerId , req.body)
+      res.status(StatusCodes.CREATED).json({
+        success:true , 
+        date:ratingCustomer
+      })
   }
 }
 

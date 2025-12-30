@@ -6,6 +6,7 @@ import {
   RemoveCartItemSchema,
   UpdateQuantitySchema,
 } from "../validation/cart.schema";
+import { authenticate } from "../middleware/auth.middleware";
 
 const cartRouter = express.Router();
 
@@ -57,7 +58,7 @@ const cartRouter = express.Router();
  *                   type: string
  *                   example: Cart not found!
  */
-cartRouter.get("/", cartController.viewCart);
+cartRouter.get("/", authenticate, cartController.viewCart);
 
 /**
  * @swagger
