@@ -2,22 +2,10 @@ import { Address } from "../generated/prisma";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
 import { addressRepository } from "../repositories/address.repository";
+import { CreateAddressDTO, UpdateAddressDTO } from "../dto/address.dto";
 
 class AddressService {
-  async createAddress(data: {
-    customerId: number;
-    street: string;
-    city: string;
-    area: string;
-    zipCode: number;
-    block: string;
-    apartmentNumber: string;
-    floor: string;
-    latitude: number;
-    longitude: number;
-    isPrimary?: boolean;
-    restaurantId?: number;
-  }): Promise<Address> {
+  async createAddress(data: CreateAddressDTO & { customerId: number }): Promise<Address> {
     if (data.isPrimary) {
       await addressRepository.unsetPrimaryAddresses(data.customerId);
     }
@@ -39,7 +27,7 @@ class AddressService {
   async updateAddress(
     addressId: number,
     customerId: number,
-    data: Partial<Address>
+    data: UpdateAddressDTO
   ): Promise<Address> {
     const existingAddress = await addressRepository.findAddressById(addressId);
 
