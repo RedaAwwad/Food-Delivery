@@ -5,8 +5,9 @@ import { StatusCodes } from "http-status-codes";
 import * as Routers from "../routes/index.routes";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { prisma } from "../config/prisma.config";
 
-const initiateApp = (app: Express) => {
+const initiateApp = async (app: Express) => {
     const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
 
     app.use(express.json());
@@ -30,6 +31,7 @@ const initiateApp = (app: Express) => {
     app.use(`${apiPrefix}/orders`, Routers.orderRouter);
     app.use(`${apiPrefix}/users`, Routers.userRouter);
     app.use(`${apiPrefix}/auth`, Routers.authRouter);
+    app.use(`${apiPrefix}/roles`, Routers.roleRouter);
 
     app.use((req, res, next) => {
         throw new CustomError({
@@ -40,10 +42,33 @@ const initiateApp = (app: Express) => {
 
     app.use(errorHandler);
 
-    app.listen(process.env.PORT, () => {
-        console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
-        console.log(`📖 API docs: ${process.env.APP_BASE_URL}/api-docs`);
-    });
+    try {
+        await prisma.$connect();
+        console.log("✅ Database connected successfully");
+
+        const server = app.listen(process.env.PORT, () => {
+            console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
+            console.log(`📖 API docs: ${process.env.APP_BASE_URL}/api-docs`);
+        });
+
+        // Graceful shutdown
+        const shutdown = async () => {
+            console.log('🛑 Shutting down server...');
+            server.close(() => {
+                console.log('HTTTP server closed.');
+            });
+            await prisma.$disconnect();
+            console.log('Database disconnected.');
+            process.exit(0);
+        };
+
+        process.on('SIGTERM', shutdown);
+        process.on('SIGINT', shutdown);
+
+    } catch (error) {
+        console.error("❌ Failed to connect to database:", error);
+        process.exit(1);
+    }
 };
 
 export { initiateApp };

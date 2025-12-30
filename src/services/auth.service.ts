@@ -13,6 +13,7 @@ import { compare, hash } from "../utils/HashAndCompare";
 import { emailService } from "./email.service";
 import { TokenType } from "../generated/prisma";
 import { v7 as uuidv7 } from 'uuid';
+import { roleService } from "./role.service";
 
 class AuthService {
     private readonly REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
@@ -26,10 +27,10 @@ class AuthService {
         }
 
         const hashedPassword = await hash(userPassword);
-        const userId = uuidv7();
 
+        // Transactional feeling, but manual for now
         const newUser = await userRepository.create({
-            userId,
+            userId: uuidv7(),
             userName,
             userEmail,
             userPassword: hashedPassword,
@@ -54,6 +55,15 @@ class AuthService {
         if (!newCustomer) {
             throw new CustomError({
                 message: "Failed to Create Customer",
+                statusCode: StatusCodes.BAD_REQUEST,
+            })
+        };
+
+        // Assign default 'Customer' role
+        const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "Customer");
+        if (!isRoleAssigned) {
+            throw new CustomError({
+                message: "Failed to assign default Customer role",
                 statusCode: StatusCodes.BAD_REQUEST,
             });
         }

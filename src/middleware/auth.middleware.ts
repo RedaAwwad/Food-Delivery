@@ -6,10 +6,12 @@ import { prisma } from "../config/prisma.config";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
     return (req, res, next) => {
-        const userRole = req.user?.role;
+        const userRoles = req.user?.roles || [];
 
-        // If user has no role or role is not in the allowed list
-        if (!userRole || !roles.includes(userRole)) {
+        // Check if user has at least one of the required roles
+        const hasRole = userRoles.some(role => roles.includes(role));
+
+        if (!hasRole) {
             throw new CustomError({
                 message: 'The Role is Unauthorized',
                 statusCode: StatusCodes.FORBIDDEN
@@ -56,7 +58,11 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
                 userName: true,
                 userEmail: true,
                 isAdmin: true,
-                // Add other fields if necessary to map to req.user
+                usersRoles: {
+                    include: {
+                        role: true
+                    }
+                }
             }
         });
 
@@ -67,13 +73,15 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             });
         }
 
-        // TODO: Fetch role from DB if it's not in the User model directly
-        // For now, we'll assume a default role or fetch it if it exists in a relation
-        // const role = ... 
+        // Map UserRoles to role names
+        const roles = user.usersRoles.map(ur => ur.role.roleName);
 
         req.user = {
-            ...user,
-            role: 'customer' // Placeholder: You should fetch the actual role
+            userId: user.userId,
+            userName: user.userName,
+            userEmail: user.userEmail,
+            isAdmin: user.isAdmin,
+            roles: roles
         };
 
         next();
@@ -111,7 +119,7 @@ declare global {
                 userName: string;
                 userEmail: string;
                 isAdmin?: boolean;
-                role?: string;
+                roles: string[];
             }
         }
     }

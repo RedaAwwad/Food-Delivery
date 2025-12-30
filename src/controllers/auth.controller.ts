@@ -27,7 +27,7 @@ class AuthController {
     }
 
     async refreshToken(req: Request, res: Response) {
-        const refreshToken = req.refreshToken; // From tokenExtractor middleware
+        const refreshToken = authService.extractRefreshToken(req);
 
         const result = await authService.refreshToken(refreshToken);
 
