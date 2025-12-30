@@ -2,25 +2,16 @@ import { prisma } from "../config/prisma.config";
 import { TokenType } from "../generated/prisma";
 import { v7 as uuidv7 } from 'uuid';
 import crypto from 'crypto';
-
-export interface CreateTokenData {
-    userId: string;
-    tokenType: TokenType;
-    expiresAt: Date;
-    token?: string; // Optional - will be generated if not provided
-}
+import { CreateTokenData } from "../types/token";
 
 class UserTokenRepository {
-    /**
-     * Generate a cryptographically secure random token
-     */
+
+    // Generate a cryptographically secure random token
     private generateSecureToken(): string {
         return crypto.randomBytes(32).toString('hex');
     }
 
-    /**
-     * Create a new token for a user
-     */
+    // Create a new token for a user
     async createToken(data: CreateTokenData) {
         const token = data.token || this.generateSecureToken();
 
@@ -35,9 +26,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Find a valid token by token string and type
-     */
+    // Find a valid token by token string and type
     async findValidToken(token: string, tokenType: TokenType) {
         const now = new Date();
 
@@ -61,9 +50,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Find any token by token string (regardless of validity)
-     */
+    // Find any token by token string (regardless of validity)
     async findByToken(token: string) {
         return prisma.userToken.findFirst({
             where: { token },
@@ -79,9 +66,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Find all tokens for a user by type
-     */
+    // Find all tokens for a user by type
     async findByUserIdAndType(userId: string, tokenType: TokenType, onlyValid: boolean = false) {
         const where: any = { userId, tokenType };
 
@@ -97,9 +82,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Revoke a specific token
-     */
+    // Revoke a specific token
     async revokeToken(token: string, reason?: string) {
         return prisma.userToken.update({
             where: { token },
@@ -111,9 +94,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Revoke all tokens of a specific type for a user
-     */
+    // Revoke all tokens of a specific type for a user
     async revokeAllUserTokensByType(userId: string, tokenType: TokenType, reason?: string) {
         return prisma.userToken.updateMany({
             where: {
@@ -129,9 +110,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Revoke all tokens for a user (all types)
-     */
+    // Revoke all tokens for a user (all types)
     async revokeAllUserTokens(userId: string, reason?: string) {
         return prisma.userToken.updateMany({
             where: {
@@ -146,9 +125,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Check if a token is valid
-     */
+    // Check if a token is valid
     async isValid(token: string, tokenType?: TokenType): Promise<boolean> {
         const where: any = { token };
         if (tokenType) {
@@ -164,9 +141,7 @@ class UserTokenRepository {
         return true;
     }
 
-    /**
-     * Delete expired tokens (cleanup)
-     */
+    // Delete expired tokens (cleanup)
     async deleteExpiredTokens() {
         return prisma.userToken.deleteMany({
             where: {
@@ -175,9 +150,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Delete old revoked tokens (cleanup)
-     */
+    // Delete old revoked tokens (cleanup)
     async deleteOldRevokedTokens(daysOld: number = 30) {
         const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
 
@@ -189,9 +162,7 @@ class UserTokenRepository {
         });
     }
 
-    /**
-     * Get count of active tokens by type for a user
-     */
+    // Get count of active tokens by type for a user
     async getActiveTokenCount(userId: string, tokenType: TokenType): Promise<number> {
         const now = new Date();
 

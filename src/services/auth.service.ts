@@ -1,36 +1,89 @@
 import { loginDTO } from "../dto/login.dto";
 import { SignupDTO } from "../dto/signup.dto";
-import { authRepository } from "../repositories/auth.repository";
+import { userRepository } from "../repositories/user.repository";
+import { customerRepository } from "../repositories/customer.repository";
+import { userTokenRepository } from "../repositories/user-token.repository";
 import { Request, Response } from "express";
-import { AuthResponse, CookieData, CookieOptions, DeviceInfo } from "../types/token";
+import { AuthResponse } from "../types/token";
 import { CustomError } from "../utils/errors/custom-error";
-import { refreshTokenRepository } from "../repositories/refresh-token.repository";
 import { StatusCodes } from "http-status-codes";
 import { generateAccessToken, generateRefreshToken, generateTokenPair, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { compare, hash } from "../utils/HashAndCompare";
-import { prisma } from "../config/prisma.config";
-import { userTokenRepository } from "../repositories/user-token.repository";
 import { emailService } from "./email.service";
 import { TokenType } from "../generated/prisma";
+import { v7 as uuidv7 } from 'uuid';
 
 class AuthService {
     private readonly REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
 
     async signup(signupDto: SignupDTO) {
-        return await authRepository.signup(signupDto);
+        const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
+
+        const userCheck = await userRepository.findByEmail(userEmail);
+        if (userCheck) {
+            throw (new CustomError({ message: "Email already exists", statusCode: StatusCodes.CONFLICT }));
+        }
+
+        const hashedPassword = await hash(userPassword);
+        const userId = uuidv7();
+
+        const newUser = await userRepository.create({
+            userId,
+            userName,
+            userEmail,
+            userPassword: hashedPassword,
+        });
+
+        if (!newUser) {
+            throw new CustomError({
+                message: "Failed to Create User",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
+
+        const newCustomer = await customerRepository.create({
+            customerId: uuidv7(),
+            userId: newUser.userId,
+            customerPhone: String(userPhoneNumber || ""),
+            customerAvatar: "",
+            createdById: newUser.userId,
+            updatedById: newUser.userId,
+        });
+
+        if (!newCustomer) {
+            throw new CustomError({
+                message: "Failed to Create Customer",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
+
+        const returnedUser = { userId: newUser.userId, userName: newUser.userName, userEmail: newUser.userEmail };
+        const returnedCustomer = { customerId: newCustomer.customerId, customerPhone: newCustomer.customerPhone, customerAvatar: newCustomer.customerAvatar };
+
+        return { user: returnedUser, customer: returnedCustomer };
     }
 
     async login(loginDto: loginDTO): Promise<AuthResponse> {
-        const user = await authRepository.login(loginDto);
+        const { email, password } = loginDto;
 
-        // const refreshTokenCookie: CookieData = {
-        //     name: this.REFRESH_TOKEN_COOKIE_NAME,
-        //     value: loginResponse.refreshToken,
-        //     options: this.COOKIE_OPTIONS
-        // };
+        if (!email || !password) {
+            throw new CustomError({
+                message: "Email and password are required",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
 
-        const match = await compare(loginDto.password, user.userPassword);
+        const user = await userRepository.findByEmail(email);
+
+        if (!user) {
+            throw new CustomError({
+                message: "Invalid email or password",
+                statusCode: StatusCodes.UNAUTHORIZED,
+            });
+        }
+
+        const match = await compare(password, user.userPassword);
         if (!match) {
             throw new CustomError({
                 message: "Invalid email or password",
@@ -38,10 +91,7 @@ class AuthService {
             });
         }
 
-        const activeUser = await prisma.user.update({
-            where: { userId: user.userId },
-            data: { isActive: true },
-        });
+        const activeUser = await userRepository.updateIsActive(user.userId, true);
 
         const tokenPair = generateTokenPair({
             userId: user.userId,
@@ -49,11 +99,12 @@ class AuthService {
             userEmail: user.userEmail,
         });
 
-        // Store refresh token in separate table
-        await refreshTokenRepository.createRefreshToken({
+        // Store refresh token
+        await userTokenRepository.createToken({
             userId: user.userId,
             token: tokenPair.refreshToken,
             expiresAt: tokenPair.refreshTokenExpiresAt,
+            tokenType: TokenType.REFRESH
         });
 
         const refreshTokenCookie = cookieService.createRefreshTokenCookie(tokenPair.refreshToken)
@@ -76,7 +127,6 @@ class AuthService {
     }
 
     async refreshToken(requestRefreshToken?: string): Promise<AuthResponse> {
-        // Use provided token or throw error
         const refreshToken = requestRefreshToken;
 
         if (!refreshToken) {
@@ -86,8 +136,7 @@ class AuthService {
             });
         }
 
-        // Validate refresh token against database
-        const isValid = await refreshTokenRepository.isValid(refreshToken);
+        const isValid = await userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
 
         if (!isValid) {
             throw new CustomError({
@@ -106,14 +155,14 @@ class AuthService {
             userEmail: result.user.userEmail,
         });
 
-        // Update refresh token in database
-        const tokenData = await refreshTokenRepository.findByToken(refreshToken);
+        const tokenData = await userTokenRepository.findByToken(refreshToken);
         if (tokenData) {
-            await refreshTokenRepository.revokeToken(refreshToken, 'token_rotated');
-            await refreshTokenRepository.createRefreshToken({
+            await userTokenRepository.revokeToken(refreshToken, 'token_rotated');
+            await userTokenRepository.createToken({
                 userId: tokenData.userId,
                 token: newRefreshToken,
                 expiresAt: new Date(Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 24 * 60 * 60 * 1000), // 15 days
+                tokenType: TokenType.REFRESH
             });
         }
 
@@ -142,8 +191,7 @@ class AuthService {
             });
         }
 
-        // Validate against database
-        const isValid = await refreshTokenRepository.isValid(refreshToken);
+        const isValid = await userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
 
         if (!isValid) {
             throw new CustomError({
@@ -174,7 +222,7 @@ class AuthService {
 
     async logout(refreshToken?: string): Promise<AuthResponse> {
         if (refreshToken) {
-            await refreshTokenRepository.revokeToken(refreshToken, 'user_logout');
+            await userTokenRepository.revokeToken(refreshToken, 'user_logout');
         }
 
         // Prepare cookie clearance
@@ -194,8 +242,7 @@ class AuthService {
             });
         }
 
-        // Get user from token
-        const tokenData = await refreshTokenRepository.findByToken(refreshToken);
+        const tokenData = await userTokenRepository.findByToken(refreshToken);
 
         if (!tokenData) {
             throw new CustomError({
@@ -204,7 +251,7 @@ class AuthService {
             });
         }
 
-        await authRepository.logoutAll(tokenData.userId);
+        await userTokenRepository.revokeAllUserTokens(tokenData.userId);
 
         // Prepare cookie clearance
         const clearCookies = [this.REFRESH_TOKEN_COOKIE_NAME];
@@ -216,7 +263,7 @@ class AuthService {
     }
 
     async getActiveSessions(userId: string): Promise<AuthResponse> {
-        const sessions = await authRepository.getActiveSessions(userId);
+        const sessions = await userTokenRepository.findByUserIdAndType(userId, TokenType.REFRESH, true);
 
         return {
             data: { sessions },
@@ -224,8 +271,8 @@ class AuthService {
     }
 
     async cleanupExpiredTokens(): Promise<void> {
-        await refreshTokenRepository.deleteExpiredTokens();
-        await refreshTokenRepository.deleteRevokedTokens();
+        await userTokenRepository.deleteExpiredTokens();
+        await userTokenRepository.deleteOldRevokedTokens();
     }
 
     extractRefreshToken(req: Request) {
@@ -270,7 +317,7 @@ class AuthService {
     // Get user ID from refresh token
     async getUserIdFromRefreshToken(refreshToken: string): Promise<string | null> {
         try {
-            const tokenData = await refreshTokenRepository.findByToken(refreshToken);
+            const tokenData = await userTokenRepository.findByToken(refreshToken);
             return tokenData?.userId || null;
         } catch (error) {
             return null;
@@ -279,12 +326,12 @@ class AuthService {
 
     // Validate session is still active
     async validateSession(refreshToken: string): Promise<boolean> {
-        return refreshTokenRepository.isValid(refreshToken);
+        return userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
     }
 
     // Get session count for user
     async getSessionCount(userId: string): Promise<number> {
-        return refreshTokenRepository.getActiveSessionCount(userId);
+        return userTokenRepository.getActiveTokenCount(userId, TokenType.REFRESH);
     }
 
     // ============ PASSWORD RESET METHODS ============
@@ -292,9 +339,7 @@ class AuthService {
     async forgetPassword(email: string): Promise<void> {
         console.log(`🔐 Password reset requested for email: ${email}`);
 
-        const user = await prisma.user.findUnique({
-            where: { userEmail: email }
-        });
+        const user = await userRepository.findByEmail(email);
 
         // Security: Always return success to prevent email enumeration
         if (!user) {
@@ -351,10 +396,7 @@ class AuthService {
 
         const hashedPassword = await hash(newPassword);
 
-        await prisma.user.update({
-            where: { userId: tokenData.userId },
-            data: { userPassword: hashedPassword }
-        });
+        await userRepository.update(tokenData.userId, { userPassword: hashedPassword });
 
         await userTokenRepository.revokeToken(token, 'password_reset_completed');
 
