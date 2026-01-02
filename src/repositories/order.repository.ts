@@ -13,31 +13,17 @@ class OrderRepository {
   async findOrderById(orderId: string) {
     return await prisma.order.findUniqueOrThrow({
       where: {
-         orderId,
-      },
-    });
-  }
-  async findOrderRestaurantById(orderId: string , userRestaurantId:string ) {
-    return await prisma.order.findUniqueOrThrow({
-      where: {
-        orderId,
-        restaurantId:userRestaurantId
-      },
-    });
-  }
-   
-  async updateOrderStatus(orderId: string, restaurantId: string, newStatusId: string, userId: string , updatedAt:Date) {
-
-    return await prisma.order.updateMany({
-      where: { orderId, restaurantId },
-      data: { 
-        orderStatus: newStatusId , 
-        // updatedBy : userId,
-        updatedAt 
+        orderId
       },
     });
   }
 
+  async updateOrderStatus(orderId: string, newOrderStatus: string) {
+    return await prisma.order.update({
+      where: { orderId },
+      data: { orderStatus: newOrderStatus },
+    });
+  }
   async createOrder(createOrderDto: CreateOrderDto) {
     const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total

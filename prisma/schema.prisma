@@ -108,22 +108,20 @@ model Customer {
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
 
-  addresses Address[]
-
   @@map("customers")
 }
 
 // ====== Restaurant ======
 model Restaurant {
-  restaurantId   String   @id @default(uuid()) @map("restaurant_id")
-  managerId      String      @unique @map("manager_id")
-  addressId      String      @unique @map("address_id")
-  restaurantName String   
-  restaurantBio  String  @map("restaurant_bio") 
+  restaurantId String   @id @default(uuid()) @map("restaurant_id")
+  managerId    String      @unique @map("manager_id")
+  addressId    String      @unique @map("address_id")
+  restaurantName        String   
+  restaurantBio String  @map("restaurant_bio") 
   restaurantLogo        String? @map("restaurant_logo")   
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
-  DateTime DateTime @updatedAt @map("updated_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
@@ -364,26 +362,16 @@ model Rating {
   @@map("ratings")
 }
 
-model Address {
-  id         Int      @id @default(autoincrement())
-  customerId Int      @map("customer_id")
-  restaurantId Int?   @unique @map("restaurant_id")
-  street     String   
-  city       String   
-  area       String   
-  zipCode    Int      @map("zip_code")
-  block      String
-  apartmentNumber String
-  floor      String  
-  latitude   Float
-  longitude  Float
-  isPrimary  Boolean   @default(false) @map("is_primary")
+enum RatingScore {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}
 
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  customer Customer @relation(fields: [customerId], references: [id])
-  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
-  
-  @@map("addresses")
+enum TokenType {
+  VERIFICATION
+  FORGOT_PASSWORD
+  REFRESH
 }
