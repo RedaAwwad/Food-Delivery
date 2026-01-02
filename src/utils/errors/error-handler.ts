@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express";
-import { appConfig } from "../../config/app.config";
-import { getErrorMessage } from "../helpers";
 import Joi from "joi";
 import { CustomError } from "./custom-error";
+import { StatusCodes } from "http-status-codes";
 
 export const errorHandler = (
   err: Error | CustomError,
