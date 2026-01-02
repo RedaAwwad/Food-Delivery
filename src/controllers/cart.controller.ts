@@ -12,13 +12,13 @@ class CartController {
     res: Response,
     next: NextFunction
   ) {
-    const customerId =  req.user.userId
+    const customerId =  req.user!.userId
 
     const cart = await cartService.addToCart(req.body, customerId);
     res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: cart }));
   }
   async viewCart(req: Request, res: Response) {
-    const customerId = req.user.userId
+    const customerId = req.user!.userId
     const cart = await cartService.viewCart(customerId);
 
     res.status(StatusCodes.OK).json(new SuccessResponse({ data: cart }));
@@ -37,7 +37,7 @@ class CartController {
   }
 
   async clearCart(req: Request, res: Response) {
-    const customerId = req.user.userId
+    const customerId = req.user!.userId
     await cartService.clearCart(customerId);
     res
       .status(StatusCodes.NO_CONTENT)

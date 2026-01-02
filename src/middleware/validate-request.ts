@@ -1,9 +1,8 @@
 import { Request, Response, NextFunction } from "express";
-import Joi, { ObjectSchema } from "joi";
+import Joi from "joi";
 import joi from "joi";
 import { ValidationSchemas } from "../types/validationSchemas.type";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
+import { UnprocessableEntityError } from "../utils/errors";
 
 export const generalFields = {
   userName: joi.string().required(),
@@ -31,21 +30,6 @@ export const generalFields = {
     fieldname: joi.string().required(),
   }),
 };
-
-
-// const validateRequest = (schema: ObjectSchema) => {
-//   return async (req: Request, res: Response, next: NextFunction) => {
-//     const validated = await schema.validateAsync(req.body, {
-//       abortEarly: false,
-//     });
-//     req.body = validated;
-
-//     next();
-//   };
-// };
-
-// export { validateRequest };
-
 
 export const validateRequest =
   (schemas: ValidationSchemas) =>
@@ -84,19 +68,13 @@ export const validateRequest =
           }));
 
           return next(
-            new CustomError({
-              message: "Validation error",
-              statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-              errors,
-            })
+            UnprocessableEntityError("Validation failed", errors)
           );
         }
 
         return next(err);
       }
     };
-
-
 
 //  ============================================================  //
 

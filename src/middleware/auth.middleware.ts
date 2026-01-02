@@ -1,8 +1,7 @@
 import { RequestHandler, Request, Response, NextFunction } from "express";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
 import { verifyAccessToken } from "../utils/generateAndVerifyToken";
 import { prisma } from "../config/prisma.config";
+import { ForbiddenError, UnauthorizedError } from "../utils/errors";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
     return (req, res, next) => {
@@ -11,12 +10,9 @@ export const isAuthorized = (roles: string[]): RequestHandler => {
         // Check if user has at least one of the required roles
         const hasRole = userRoles.some(role => roles.includes(role));
 
-        if (!hasRole) {
-            throw new CustomError({
-                message: 'The Role is Unauthorized',
-                statusCode: StatusCodes.FORBIDDEN
-            });
-        }
+        if (!hasRole)
+            throw ForbiddenError("The Role is Unauthorized");
+
         next();
     }
 }
@@ -25,29 +21,18 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     try {
         const authHeader = req.headers.authorization;
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            throw new CustomError({
-                message: "Authorization header required",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!authHeader || !authHeader.startsWith("Bearer "))
+            throw UnauthorizedError("Authorization header required");
+
 
         const token = authHeader.split(" ")[1];
-        if (!token) {
-            throw new CustomError({
-                message: "Access token is missing",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!token)
+            throw UnauthorizedError("Access token is missing");
 
         const decoded = verifyAccessToken(token);
 
-        if (typeof decoded === 'string') {
-            throw new CustomError({
-                message: "Invalid access token",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (typeof decoded === 'string')
+            throw UnauthorizedError("Invalid access token");
 
         req.accessToken = token;
 
@@ -66,12 +51,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             }
         });
 
-        if (!user) {
-            throw new CustomError({
-                message: "User not found",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!user)
+            throw UnauthorizedError("User not found");
 
         // Map UserRoles to role names
         const roles = user.usersRoles.map(ur => ur.role.roleName);
@@ -85,6 +66,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         };
 
         next();
+
     } catch (error) {
         next(error);
     }
