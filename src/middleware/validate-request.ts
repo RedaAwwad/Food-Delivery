@@ -5,16 +5,31 @@ import { ValidationSchemas } from "../types/validationSchemas.type";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
 
-const validateRequest = (schema: ObjectSchema) => {
-
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const validated = await schema.validateAsync(req.body, {
-      abortEarly: false,
-    });
-    req.body = validated;
-    console.log('middleware-1')
-    next();
-  };
+export const generalFields = {
+  userName: joi.string().required(),
+  email: joi
+    .string()
+    .email({
+      minDomainSegments: 2,
+      maxDomainSegments: 4,
+      tlds: { allow: ["com", "net"] },
+    })
+    .required(),
+  password: joi
+    .string()
+    .pattern(new RegExp(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/)) // at least 8 characters, 1 uppercase, 1 lowercase, 1 number
+    .required(),
+  // cpassword: joi.string().valid(joi.ref("password")).required(),
+  file: joi.object({
+    size: joi.number().positive().required(),
+    path: joi.string().required(),
+    filename: joi.string().required(),
+    destination: joi.string().required(),
+    mimetype: joi.string().required(),
+    encoding: joi.string().required(),
+    originalname: joi.string().required(),
+    fieldname: joi.string().required(),
+  }),
 };
 
 
@@ -32,54 +47,54 @@ const validateRequest = (schema: ObjectSchema) => {
 // export { validateRequest };
 
 
-// export const validateRequest =
-//   (schemas: ValidationSchemas) =>
-//     async (req: Request, res: Response, next: NextFunction) => {
-//       try {
-//         if (schemas.body) {
-//           const validatedBody = await schemas.body.validateAsync(req.body, {
-//             abortEarly: false,
-//             convert: true,
-//           });
-//           req.body = validatedBody;
-//         }
+export const validateRequest =
+  (schemas: ValidationSchemas) =>
+    async (req: Request, res: Response, next: NextFunction) => {
+      try {
+        if (schemas.body) {
+          const validatedBody = await schemas.body.validateAsync(req.body, {
+            abortEarly: false,
+            convert: true,
+          });
+          req.body = validatedBody;
+        }
 
-//         if (schemas.params) {
-//           const validatedParams = await schemas.params.validateAsync(req.params, {
-//             abortEarly: false,
-//             convert: true,
-//           });
-//           req.params = validatedParams;
-//         }
+        if (schemas.params) {
+          const validatedParams = await schemas.params.validateAsync(req.params, {
+            abortEarly: false,
+            convert: true,
+          });
+          req.params = validatedParams;
+        }
 
-//         if (schemas.query) {
-//           const validatedQuery = await schemas.query.validateAsync(req.query, {
-//             abortEarly: false,
-//             convert: true,
-//           });
-//           req.query = validatedQuery;
-//         }
+        if (schemas.query) {
+          const validatedQuery = await schemas.query.validateAsync(req.query, {
+            abortEarly: false,
+            convert: true,
+          });
+          req.query = validatedQuery;
+        }
 
-//         return next();
-//       } catch (err: any) {
-//         if (Joi.isError(err)) {
-//           const errors = err.details.map((d) => ({
-//             message: d.message,
-//             path: d.path,
-//           }));
+        return next();
+      } catch (err: any) {
+        if (Joi.isError(err)) {
+          const errors = err.details.map((d) => ({
+            message: d.message,
+            path: d.path,
+          }));
 
-//           return next(
-//             new CustomError({
-//               message: "Validation error",
-//               statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-//               errors,
-//             })
-//           );
-//         }
+          return next(
+            new CustomError({
+              message: "Validation error",
+              statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
+              errors,
+            })
+          );
+        }
 
-//         return next(err);
-//       }
-//     };
+        return next(err);
+      }
+    };
 
 
 
