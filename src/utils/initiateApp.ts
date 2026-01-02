@@ -27,8 +27,6 @@ const initiateApp = async (app: Express) => {
         });
     });
 
-    app.use(`${apiPrefix}/cart`, Routers.cartRouter);
-    app.use(`${apiPrefix}/orders`, Routers.orderRouter);
     app.use(`${apiPrefix}/users`, Routers.userRouter);
     app.use(`${apiPrefix}/auth`, Routers.authRouter);
     app.use(`${apiPrefix}/roles`, Routers.roleRouter);

@@ -1,5 +1,4 @@
 import { prisma } from "../config/prisma.config";
-import { restaurantRepository } from "./restaurant.repository";
 
 export class CustomerRepository {
   async findCustomerOrders(customerId: string) {
