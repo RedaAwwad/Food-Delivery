@@ -4,6 +4,7 @@ import joi from "joi";
 import { ValidationSchemas } from "../types/validationSchemas.type";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
+import { logInSchema } from "../validation/user.login";
 
 export const generalFields = {
   userName: joi.string().required(),
