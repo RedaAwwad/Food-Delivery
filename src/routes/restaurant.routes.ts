@@ -1,12 +1,8 @@
-import express from 'express';
-import { validateRequest } from '../middleware/validate-request';
-import { searchMenuItemSchema } from '../validation/restautant.schema';
-import { restaurantController } from '../controllers/restaurant.controller';
-export const restaurantRouter = express.Router()
-
-
-
-
+import express from "express";
+import { validateRequest } from "../middleware/validate-request";
+import { getRestaurantSchema, searchMenuItemSchema } from "../validation/restaurant.schema";
+import { restaurantController } from "../controllers/restaurant.controller";
+export const restaurantRouter = express.Router();
 
 /**
  * @swagger
@@ -45,5 +41,15 @@ export const restaurantRouter = express.Router()
  *       200:
  *         description: List of menu items matching filters
  */
+restaurantRouter.get(
+  "/menu-item/search",
+  validateRequest(searchMenuItemSchema),
+  restaurantController.searchMenuItems
+);
 
-restaurantRouter.get('/menu-item/search' , validateRequest(searchMenuItemSchema), restaurantController.searchMenuItems)
+
+restaurantRouter.get(
+  "/:restaurantId",
+  validateRequest(getRestaurantSchema),
+  restaurantController.findRestaurantByRestaurantId
+);

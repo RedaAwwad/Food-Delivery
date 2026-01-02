@@ -12,6 +12,7 @@ export class RestaurantService {
         })
     }
     async findRestaurantByRestaurantId(restaurantId: string) {
+        
         return await restaurantRepository.findRestaurantByRestaurantId(restaurantId)
     }
     async searchMenuItems(query: searchMenuItemsFilterDto) {

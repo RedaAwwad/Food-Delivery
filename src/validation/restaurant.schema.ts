@@ -10,4 +10,9 @@ export const searchMenuItemSchema = {
         then:Joi.number().integer().min(Joi.ref('minPrice'))
        }),    
     })
+}
+export const getRestaurantSchema = {
+    params:Joi.object().keys({
+        restaurantId : Joi.string().required()
+    })
 } 
