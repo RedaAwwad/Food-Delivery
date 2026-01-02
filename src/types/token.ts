@@ -1,7 +1,7 @@
 import { TokenType } from "../generated/prisma";
 
 export interface TokenPayload {
-  userId: string;
+  userId?: string;
   userName?: string;
   userEmail?: string;
   role?: string;
@@ -68,12 +68,6 @@ export interface RefreshResponse {
     userName: string;
     userEmail: string;
   };
-}
-
-export interface DeviceInfo {
-  userAgent?: string | null;
-  ipAddress?: string | null;
-  deviceType?: string | null;
 }
 
 export interface CookieOptions {

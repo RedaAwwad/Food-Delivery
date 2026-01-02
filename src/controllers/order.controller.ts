@@ -21,7 +21,7 @@ class OrderController {
   async updateStatus(req: Request, res: Response) {
     const orderId = req.params.id!;
     const newOrderStatus = req.body.status;
-       
+
     const order = await orderService.updateOrderStatus(orderId, newOrderStatus);
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
@@ -29,13 +29,13 @@ class OrderController {
   async cancelOrder(req: Request, res: Response) {
     const orderId = req.params.id!;
     const orderStatus = req.body.status;
-    
-    const order = await orderService.updateOrderStatus(orderId, orderStatus);    
+
+    const order = await orderService.updateOrderStatus(orderId, orderStatus);
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
 
   async placeOrder(req: Request, res: Response) {
-    const customerId = req.user.role!
+    const customerId = '1';
     const restaurantId  = req.body.restaurantId;
 
     const order = await orderService.placeOrder(customerId, restaurantId);

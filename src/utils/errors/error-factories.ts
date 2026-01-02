@@ -158,3 +158,13 @@ export const ServiceUnavailableError = (
         code: "ERR_SERVICE_UNAVAILABLE",
     });
 };
+
+export const TooManyRequestsError = (
+    message: string = "Too many requests"
+): CustomError => {
+    return new CustomError({
+        message,
+        statusCode: StatusCodes.TOO_MANY_REQUESTS,
+        code: "ERR_TOO_MANY_REQUESTS",
+    });
+};

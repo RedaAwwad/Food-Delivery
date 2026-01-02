@@ -10,7 +10,8 @@ export type ErrorCode =
     | "ERR_CONFLICT"
     | "ERR_VALIDATION"
     | "ERR_INTERNAL"
-    | "ERR_SERVICE_UNAVAILABLE";
+    | "ERR_SERVICE_UNAVAILABLE"
+    | "ERR_TOO_MANY_REQUESTS";
 
 /**
  * Detailed error information for validation or field-specific errors

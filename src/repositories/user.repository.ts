@@ -36,5 +36,12 @@ export class UserRepository {
             },
         });
     }
+
+    async findAndUpdateUserByEmail(email: string, data: any) {
+        return prisma.user.update({
+            where: { userEmail: email },
+            data
+        });
+    }
 }
 export const userRepository = new UserRepository();

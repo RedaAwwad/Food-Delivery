@@ -47,6 +47,7 @@ export {
     UnprocessableEntityError,
     InternalServerError,
     ServiceUnavailableError,
+    TooManyRequestsError,
 } from "./error-factories";
 
 // Types

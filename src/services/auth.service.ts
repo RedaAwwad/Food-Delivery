@@ -7,13 +7,14 @@ import { Request, Response } from "express";
 import { AuthResponse } from "../types/token";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { generateAccessToken, generateRefreshToken, generateTokenPair, verifyRefreshToken } from "../utils/generateAndVerifyToken";
+import { generateAccessToken, generateJwtTokenForGeneralUse, generateRefreshToken, generateTokenPair, verifyJwtTokenForGeneralUse, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { compare, hash } from "../utils/HashAndCompare";
 import { emailService } from "./email.service";
 import { TokenType } from "../generated/prisma";
 import { v7 as uuidv7 } from 'uuid';
 import { roleService } from "./role.service";
+import { BadRequestError, ConflictError, TooManyRequestsError, UnauthorizedError } from "../utils/errors";
 
 class AuthService {
     private readonly REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
@@ -22,9 +23,8 @@ class AuthService {
         const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
 
         const userCheck = await userRepository.findByEmail(userEmail);
-        if (userCheck) {
-            throw (new CustomError({ message: "Email already exists", statusCode: StatusCodes.CONFLICT }));
-        }
+        if (userCheck)
+            throw ConflictError("Email already exists");
 
         const hashedPassword = await hash(userPassword);
 
@@ -36,12 +36,8 @@ class AuthService {
             userPassword: hashedPassword,
         });
 
-        if (!newUser) {
-            throw new CustomError({
-                message: "Failed to Create User",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
-        }
+        if (!newUser)
+            throw BadRequestError("Failed to Create User");
 
         const newCustomer = await customerRepository.create({
             customerId: uuidv7(),
@@ -52,33 +48,26 @@ class AuthService {
             updatedById: newUser.userId,
         });
 
-        if (!newCustomer) {
-            throw new CustomError({
-                message: "Failed to Create Customer",
-                statusCode: StatusCodes.BAD_REQUEST,
-            })
-        };
+        if (!newCustomer)
+            throw BadRequestError("Failed to Create Customer");
+
 
         // Assign default 'Customer' role
         const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "Customer");
-        if (!isRoleAssigned) {
-            throw new CustomError({
-                message: "Failed to assign default Customer role",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
-        }
+        if (!isRoleAssigned)
+            throw BadRequestError("Failed to assign default Customer role");
 
         // Generate verification token
         const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '86400000', 10); // Default 24 hours
         const expiresAt = new Date(Date.now() + expiryTime);
 
-        const tokenData = await userTokenRepository.createToken({
+        const token = generateJwtTokenForGeneralUse({
             userId: newUser.userId,
+            userEmail: newUser.userEmail,
             tokenType: TokenType.VERIFICATION,
-            expiresAt,
-        });
+        }, expiryTime / 1000);
 
-        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${tokenData.token}`;
+        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
 
         // Send verification email
         await emailService.sendVerificationEmail(newUser.userEmail, verificationLink, newUser.userName);
@@ -90,20 +79,16 @@ class AuthService {
     }
 
     async verifyEmail(token: string): Promise<void> {
-        const tokenData = await userTokenRepository.findValidToken(token, TokenType.VERIFICATION);
+        const tokenData = verifyJwtTokenForGeneralUse(token);
 
-        if (!tokenData) {
-            throw new CustomError({
-                message: "Invalid or expired verification token",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
+        if (!tokenData || typeof tokenData === 'string' || !tokenData.userId || !tokenData.userEmail)
+            throw BadRequestError("Invalid or expired verification token");
+
+        try {
+            await userRepository.findAndUpdateUserByEmail(tokenData.userEmail, { isConfirmed: true });
+        } catch (error) {
+            throw BadRequestError("User not found");
         }
-
-        // Update user to confirmed
-        await userRepository.update(tokenData.userId, { isConfirmed: true });
-
-        // Revoke the token
-        await userTokenRepository.revokeToken(token, 'email_verified');
 
         console.log(`✅ Email verified for user ${tokenData.userId}`);
     }
@@ -119,40 +104,20 @@ class AuthService {
         }
 
         // Check if user is already verified
-        if (user.isConfirmed) {
-            throw new CustomError({
-                message: "Email is already verified",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
-        }
-
-        // Check rate limiting
-        const recentTokens = await userTokenRepository.findRecentVerificationTokens(user.userId);
-        if (recentTokens.length > 3) { // Limit to 3 attempts per hour
-            throw new CustomError({
-                message: "Too many verification requests. Please try again later.",
-                statusCode: StatusCodes.TOO_MANY_REQUESTS,
-            });
-        }
-
-        // Revoke any existing verification tokens for this user
-        await userTokenRepository.revokeAllUserTokensByType(
-            user.userId,
-            TokenType.VERIFICATION,
-            'resending_verification'
-        );
+        if (user.isConfirmed)
+            throw BadRequestError("Email is already verified");
 
         // Create new verification token
         const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '86400000', 10);
         const expiresAt = new Date(Date.now() + expiryTime);
 
-        const tokenData = await userTokenRepository.createToken({
+        const token = generateJwtTokenForGeneralUse({
             userId: user.userId,
+            userEmail: user.userEmail,
             tokenType: TokenType.VERIFICATION,
-            expiresAt,
-        });
+        }, expiryTime / 1000);
 
-        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${tokenData.token}`;
+        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
 
         // Send verification email
         await emailService.sendVerificationEmail(
@@ -168,28 +133,17 @@ class AuthService {
         const { email, password } = loginDto;
 
         if (!email || !password) {
-            throw new CustomError({
-                message: "Email and password are required",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
+            throw BadRequestError("Email and password are required");
         }
 
         const user = await userRepository.findByEmail(email);
 
-        if (!user) {
-            throw new CustomError({
-                message: "Invalid email or password",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!user)
+            throw UnauthorizedError("Invalid email or password");
 
         const match = await compare(password, user.userPassword);
-        if (!match) {
-            throw new CustomError({
-                message: "Invalid email or password",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!match)
+            throw UnauthorizedError("Invalid email or password");
 
         const activeUser = await userRepository.updateIsActive(user.userId, true);
 
@@ -229,21 +183,13 @@ class AuthService {
     async refreshToken(requestRefreshToken?: string): Promise<AuthResponse> {
         const refreshToken = requestRefreshToken;
 
-        if (!refreshToken) {
-            throw new CustomError({
-                message: "Refresh token is required",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!refreshToken)
+            throw UnauthorizedError("Refresh token is required");
 
         const isValid = await userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
 
-        if (!isValid) {
-            throw new CustomError({
-                message: "Invalid or expired refresh token",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!isValid)
+            throw UnauthorizedError("Invalid or expired refresh token");
 
         // Generate new access token
         const result = await this.refreshAccessToken(refreshToken);
@@ -284,21 +230,13 @@ class AuthService {
         // Verify JWT
         const decoded = verifyRefreshToken(refreshToken);
 
-        if (typeof decoded === 'string' || !decoded.userId) {
-            throw new CustomError({
-                message: "Invalid refresh token",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (typeof decoded === 'string' || !decoded.userId)
+            throw UnauthorizedError("Invalid Refresh Token")
 
         const isValid = await userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
 
-        if (!isValid) {
-            throw new CustomError({
-                message: "Refresh token is invalid or expired",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!isValid)
+            throw UnauthorizedError("Invalid or expired refresh token")
 
         // Generate new access token
         const accessToken = generateAccessToken({
@@ -335,21 +273,13 @@ class AuthService {
     }
 
     async logoutAll(refreshToken?: string): Promise<AuthResponse> {
-        if (!refreshToken) {
-            throw new CustomError({
-                message: "No active session",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
-        }
+        if (!refreshToken)
+            throw BadRequestError("Refresh token is required")
 
         const tokenData = await userTokenRepository.findByToken(refreshToken);
 
-        if (!tokenData) {
-            throw new CustomError({
-                message: "Invalid token",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!tokenData)
+            throw UnauthorizedError("Invalid token")
 
         await userTokenRepository.revokeAllUserTokens(tokenData.userId);
 
@@ -455,17 +385,25 @@ class AuthService {
         );
 
         // Generate new forgot password token
-        const expiryHours = parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || '3600000', 10) / (1000 * 60 * 60); // Convert ms to hours
-        const expiresAt = new Date(Date.now() + parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || '3600000', 10)); // Default 1 hour
+        const expiryMs = parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || '3600000', 10); // Default 1 hour
+        const expiryHours = expiryMs / (1000 * 60 * 60);
+        const expiresAt = new Date(Date.now() + expiryMs);
 
-        const tokenData = await userTokenRepository.createToken({
+        const token = generateJwtTokenForGeneralUse({
             userId: user.userId,
+            userEmail: user.userEmail,
+            tokenType: TokenType.FORGOT_PASSWORD,
+        }, expiryMs / 1000);
+
+        await userTokenRepository.createToken({
+            userId: user.userId,
+            token: token,
             tokenType: TokenType.FORGOT_PASSWORD,
             expiresAt,
         });
 
         // Construct reset link
-        const resetLink = `${process.env.PASSWORD_RESET_URL}?token=${tokenData.token}`;
+        const resetLink = `${process.env.PASSWORD_RESET_URL}?token=${token}`;
 
         // Send password reset email
         await emailService.sendPasswordResetEmail(user.userEmail, {
@@ -478,20 +416,28 @@ class AuthService {
     }
 
     async validateResetToken(token: string): Promise<boolean> {
-        return await userTokenRepository.isValid(token, TokenType.FORGOT_PASSWORD);
+        try {
+            const decoded = verifyJwtTokenForGeneralUse(token);
+            if (!decoded || typeof decoded === 'string' || !decoded.userId) return false;
+
+            return await userTokenRepository.isValid(token, TokenType.FORGOT_PASSWORD);
+        } catch (error) {
+            return false;
+        }
     }
 
     async resetPassword(token: string, newPassword: string): Promise<void> {
         console.log(`🔐 Password reset attempt with token`);
 
+        const decoded = verifyJwtTokenForGeneralUse(token);
+        if (!decoded || typeof decoded === 'string' || !decoded.userId)
+            throw BadRequestError("Invalid or expired reset token")
+
         const tokenData = await userTokenRepository.findValidToken(token, TokenType.FORGOT_PASSWORD);
 
         if (!tokenData) {
             console.log(`❌ Invalid or expired reset token`);
-            throw new CustomError({
-                message: "Invalid or expired reset token",
-                statusCode: StatusCodes.BAD_REQUEST,
-            });
+            throw BadRequestError("Invalid or expired reset token")
         }
 
         const hashedPassword = await hash(newPassword);
