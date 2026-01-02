@@ -1,88 +1,38 @@
 import { RequestHandler, Request, Response, NextFunction } from "express";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
 import { verifyAccessToken } from "../utils/generateAndVerifyToken";
 import { prisma } from "../config/prisma.config";
-import jwt from "jsonwebtoken";
+import { ForbiddenError, UnauthorizedError } from "../utils/errors";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
-  return (req, res, next) => {
-    const authHeader = req.headers.authorization;
+    return (req, res, next) => {
+        const userRoles = req.user?.roles || [];
 
-    // Check if there is a 'Bearer token' provided in headers
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new CustomError({
-        message: "No token provided",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
+        // Check if user has at least one of the required roles
+        const hasRole = userRoles.some(role => roles.includes(role));
+
+        if (!hasRole)
+            throw ForbiddenError("The Role is Unauthorized");
+
+        next();
     }
-
-    // If there is no token provided send 403 (unauthorized) status code
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      throw new CustomError({
-        message: "No token provided",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    // Verify the token & decode it to extract the user data
-    const secret = process.env.JWT_SECRET || "default_secret";
-    try {
-      const decoded = jwt.verify(token, secret) as any;
-      // Attach the decoded user data to the request object
-      (req as any).user = decoded;
-
-      if (roles.length > 0) {
-        const userRoles = Array.isArray(decoded.roles) ? decoded.roles || [] : [decoded.role];
-
-        const hasPermission = userRoles.some((role: string) => roles.includes(role));
-
-        if (!hasPermission) {
-          throw new CustomError({
-            message: "The Role is Unauthorized",
-            statusCode: StatusCodes.FORBIDDEN,
-          });
-        }
-      }
-
-      next();
-    } catch (error) {
-      throw new CustomError({
-        message: "Invalid token",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-  };
-};
+}
 
 export const authenticate = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const authHeader = req.headers.authorization;
 
-        if (!authHeader || !authHeader.startsWith("Bearer ")) {
-            throw new CustomError({
-                message: "Authorization header required",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!authHeader || !authHeader.startsWith("Bearer "))
+            throw UnauthorizedError("Authorization header required");
+
 
         const token = authHeader.split(" ")[1];
-        if (!token) {
-            throw new CustomError({
-                message: "Access token is missing",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!token)
+            throw UnauthorizedError("Access token is missing");
 
         const decoded = verifyAccessToken(token);
 
-        if (typeof decoded === 'string') {
-            throw new CustomError({
-                message: "Invalid access token",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (typeof decoded === 'string')
+            throw UnauthorizedError("Invalid access token");
 
         req.accessToken = token;
 
@@ -101,12 +51,8 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             }
         });
 
-        if (!user) {
-            throw new CustomError({
-                message: "User not found",
-                statusCode: StatusCodes.UNAUTHORIZED,
-            });
-        }
+        if (!user)
+            throw UnauthorizedError("User not found");
 
         // Map UserRoles to role names
         const roles = user.usersRoles.map(ur => ur.role.roleName);
@@ -120,6 +66,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         };
 
         next();
+
     } catch (error) {
         next(error);
     }
