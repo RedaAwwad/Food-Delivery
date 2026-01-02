@@ -5,8 +5,6 @@ import { customerRepository } from "../repositories/customer.repository";
 import { userTokenRepository } from "../repositories/user-token.repository";
 import { Request, Response } from "express";
 import { AuthResponse } from "../types/token";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
 import { generateAccessToken, generateJwtTokenForGeneralUse, generateRefreshToken, generateTokenPair, verifyJwtTokenForGeneralUse, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { compare, hash } from "../utils/HashAndCompare";
@@ -59,7 +57,6 @@ class AuthService {
 
         // Generate verification token
         const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '86400000', 10); // Default 24 hours
-        const expiresAt = new Date(Date.now() + expiryTime);
 
         const token = generateJwtTokenForGeneralUse({
             userId: newUser.userId,

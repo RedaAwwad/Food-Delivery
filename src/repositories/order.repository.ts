@@ -26,19 +26,19 @@ class OrderRepository {
     });
   }
    
-  async updateOrderStatus(orderId: string,restaurantId:string, newStatusId: string, userId:string , updatedAt:Date) {
+  async updateOrderStatus(orderId: string, restaurantId: string, newStatusId: string, userId: string , updatedAt:Date) {
 
     return await prisma.order.updateMany({
       where: { orderId, restaurantId },
       data: { 
-        orderStatusId: newStatusId , 
+        orderStatus: newStatusId , 
         // updatedBy : userId,
         updatedAt 
       },
     });
   }
 
-  createOrder(createOrderDto: CreateOrderDto) {
+  async createOrder(createOrderDto: CreateOrderDto) {
     const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
     const totalAmount = cartItems.reduce(
