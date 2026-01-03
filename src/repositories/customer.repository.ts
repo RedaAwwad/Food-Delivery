@@ -40,11 +40,14 @@ export class CustomerRepository {
     return prisma.customer.findUnique({ where: { customerId } });
   }
 
-  async deactivateAccount(customerId: string) {
+  async create(data: any) {
+    return prisma.customer.create({ data });
+  }
+
+  async updateDeactivateAccount(customerId: string) {
     return await prisma.customer.update({
       where: { customerId },
       data: {
-        isActive: false,
         deactivatedAt: new Date(),
       },
     });

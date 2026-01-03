@@ -1,10 +1,9 @@
 import express from "express";
-import { validateRequest } from "../middleware/validate-request";
-import { asyncHandler } from "../utils/errors/async-handler";
-import { userController } from "../controllers/user.controller";
+import { isAuthenticated } from "../middleware/auth.middleware";
 
 const userRouter = express.Router();
 
-// userRouter.get("/", validateRequest(), asyncHandler(userController.findUserWithRestaurant));
+// Apply auth to all role routes
+userRouter.use(isAuthenticated);
 
-export default userRouter;
+export { userRouter };

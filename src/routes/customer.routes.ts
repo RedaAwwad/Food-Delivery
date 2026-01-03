@@ -2,9 +2,12 @@ import express from "express";
 import { customerController } from "../controllers/customer.controller";
 import { validateRequest } from "../middleware/validate-request";
 import { createCustomerRatingSchema } from "../validation/customer.schema";
-import { isAuthorized } from "../middleware/auth.middleware";
+import { isAuthorized, isAuthenticated } from "../middleware/auth.middleware";
 
 const customerRouter = express.Router();
+
+// Apply auth to all role routes
+customerRouter.use(isAuthenticated);
 
 /**
  * @swagger
@@ -120,7 +123,7 @@ customerRouter.patch("/deactivate", customerController.deactivateAccount);
 customerRouter.post(
   "/rating",
   validateRequest(createCustomerRatingSchema),
-  isAuthorized(['Customer']),
+  isAuthorized(["Customer"]),
   customerController.createRatingByCustomer
 );
 

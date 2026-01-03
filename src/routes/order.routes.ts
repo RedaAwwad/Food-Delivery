@@ -1,8 +1,11 @@
 import express from "express";
 import { orderController } from "../controllers/order.controller";
-import { isAuthorized } from "../middleware/auth.middleware";
+import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 
 const orderRouter = express.Router();
+
+// Apply auth to all role routes
+orderRouter.use(isAuthenticated);
 
 /**
  * @swagger
@@ -80,7 +83,11 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderController.updateStatus);
+orderRouter.patch(
+  "/:id/status",
+  isAuthorized(["restaurant", "admin"]),
+  orderController.updateStatus
+);
 
 /**
  * @swagger
@@ -118,15 +125,8 @@ orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderCo
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch(
-  "/:id/cancel",
-  isAuthorized(["restaurant"]),
-  orderController.cancelOrder
-);
+orderRouter.patch("/:id/cancel", isAuthorized(["restaurant"]), orderController.cancelOrder);
 
-orderRouter.post(
-  "/check-out",
-  orderController.placeOrder
-);
+orderRouter.post("/check-out", orderController.placeOrder);
 
 export { orderRouter };

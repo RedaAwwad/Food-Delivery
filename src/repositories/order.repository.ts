@@ -38,7 +38,7 @@ class OrderRepository {
     });
   }
 
-  createOrder(createOrderDto: CreateOrderDto) {
+  async createOrder(createOrderDto: CreateOrderDto) {
     const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
     const totalAmount = cartItems.reduce(
