@@ -108,6 +108,7 @@ model Customer {
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
 
+
   @@map("customers")
 }
 
@@ -331,7 +332,6 @@ model Rating {
 
   @@map("ratings")
 }
-
 
 enum RatingScore {
   ONE
