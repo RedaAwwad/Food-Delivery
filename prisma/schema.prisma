@@ -108,7 +108,6 @@ model Customer {
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
 
-  addresses Address[]
 
   @@map("customers")
 }
@@ -364,26 +363,13 @@ model Rating {
   @@map("ratings")
 }
 
-model Address {
-  id         Int      @id @default(autoincrement())
-  customerId Int      @map("customer_id")
-  restaurantId Int?   @unique @map("restaurant_id")
-  street     String   
-  city       String   
-  area       String   
-  zipCode    Int      @map("zip_code")
-  block      String
-  apartmentNumber String
-  floor      String  
-  latitude   Float
-  longitude  Float
-  isPrimary  Boolean   @default(false) @map("is_primary")
-
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  customer Customer @relation(fields: [customerId], references: [id])
-  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
-  
-  @@map("addresses")
+enum RatingScore {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}
+enum TokenType {
+  REFRESH_TOKEN
 }
