@@ -11,7 +11,7 @@ datasource db {
 
 // ====== User ======
 model User {
-  userId        String   @id @default(uuid()) @map("user_id")
+  userId        String  @id @default(uuid()) @map("user_id")
   userName      String @map("user_name")   
   userPassword  String  @map("user_password") 
   userEmail     String   @unique @map("user_email")
@@ -41,8 +41,9 @@ model User {
 // ====== Role ======
 model Role {
   roleId      String   @id @default(uuid()) @map("role_id")
-  roleName    String   @unique  @map("role_name")
+  roleName    String   @map("role_name")
   roleDesc    String?  @map("role_desc")
+  roleKey     RoleKey   @unique  @map("role_key")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -95,7 +96,6 @@ model Customer {
   deactivatedAt  DateTime?             
   user User @relation(fields: [userId], references: [userId])
   cart Cart?
-  preferredPaymentSettings PreferredPaymentSettings?
  
   orders Order[]
   addresses Address[]
@@ -107,8 +107,6 @@ model Customer {
   // Relations
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
-
-  addresses Address[]
 
   @@map("customers")
 }
@@ -318,36 +316,6 @@ model Address {
   @@map("addresses")
 }
 
-
-model PreferredPaymentSettings {
-  preferredPaymentSettingsId String   @id @default(uuid()) @map("preferred_payment_settings_id")
-  customerId                 String   @unique @map("customer_id")
-  paymentMethodId            String   @map("payment_method_id")
-
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  paymentMethods PaymentMethod[]
-
-  customer Customer @relation(fields: [customerId], references: [customerId])
-
-  @@map("preferred_payment_settings")
-}
-
-model PaymentMethod {
-  paymentMethodId     String   @id @default(uuid()) @map("payment_method_id")
-  paymentMethodName   String   @map("payment_method_name")
-  paymentMethodData   Json     @map("payment_method_data")
-  preferredPaymentSettingsId String   @map("preferred_payment_settings_id")
-
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-
-  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [paymentMethodId], references: [preferredPaymentSettingsId])
-
-  @@map("payment_methods")
-}
-
 model Rating {
   ratingId    String   @id @default(uuid()) @map("rating_id")
   customerId  String   @map("customer_id")
@@ -364,26 +332,23 @@ model Rating {
   @@map("ratings")
 }
 
-model Address {
-  id         Int      @id @default(autoincrement())
-  customerId Int      @map("customer_id")
-  restaurantId Int?   @unique @map("restaurant_id")
-  street     String   
-  city       String   
-  area       String   
-  zipCode    Int      @map("zip_code")
-  block      String
-  apartmentNumber String
-  floor      String  
-  latitude   Float
-  longitude  Float
-  isPrimary  Boolean   @default(false) @map("is_primary")
 
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+enum RatingScore {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}
 
-  customer Customer @relation(fields: [customerId], references: [id])
-  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
-  
-  @@map("addresses")
+enum TokenType {
+  VERIFICATION
+  REFRESH
+  FORGOT_PASSWORD
+}
+
+enum RoleKey {
+  ADMIN
+  CUSTOMER
+  RESTAURANT_MANAGER
 }

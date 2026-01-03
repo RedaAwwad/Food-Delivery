@@ -6,9 +6,12 @@ import {
   RemoveCartItemSchema,
   UpdateQuantitySchema,
 } from "../validation/cart.schema";
-import { authenticate } from "../middleware/auth.middleware";
+import { isAuthenticated } from "../middleware/auth.middleware";
 
 const cartRouter = express.Router();
+
+// Apply auth to all role routes
+cartRouter.use(isAuthenticated);
 
 /**
  * @swagger
@@ -58,7 +61,7 @@ const cartRouter = express.Router();
  *                   type: string
  *                   example: Cart not found!
  */
-cartRouter.get("/", authenticate, cartController.viewCart);
+cartRouter.get("/", cartController.viewCart);
 
 /**
  * @swagger
@@ -159,11 +162,7 @@ cartRouter.get("/", authenticate, cartController.viewCart);
  *                             type: string
  *                             example: quantity
  */
-cartRouter.post(
-  "/add-to-cart",
-  validateRequest(AddToCartSchema),
-  cartController.addToCart
-);
+cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController.addToCart);
 
 /**
  * @swagger
