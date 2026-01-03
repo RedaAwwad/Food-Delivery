@@ -7,6 +7,7 @@ declare global {
             refreshToken?: string;
             user?: {
                 userId: string;
+                customerId?: string;
                 userName: string;
                 userEmail: string;
                 isAdmin?: boolean;

@@ -11,7 +11,7 @@ export const isAuthorized = (roles: string[]): RequestHandler => {
         const hasRole = userRoles.some(role => roles.includes(role));
 
         if (!hasRole)
-            throw ForbiddenError("The Role is Unauthorized");
+            throw ForbiddenError("Unauthorized");
 
         next();
     }
@@ -59,6 +59,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
         req.user = {
             userId: user.userId,
+            customerId: decoded.customerId,
             userName: user.userName,
             userEmail: user.userEmail,
             isAdmin: user.isAdmin,

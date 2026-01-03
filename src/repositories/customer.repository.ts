@@ -1,12 +1,16 @@
 import { prisma } from "../config/prisma.config";
 
 export class CustomerRepository {
+  async createCustomer(data: any) {
+    return prisma.customer.create({ data });
+  }
+
   async getCustomerByCustomerId(customerId: string) {
     return prisma.customer.findUnique({ where: { customerId } });
   }
 
-  async createCustomer(data: any) {
-    return prisma.customer.create({ data });
+  async getCustomerByUserId(userId: string) {
+    return prisma.customer.findUnique({ where: { userId } });
   }
 
   async updateDeactivateAccount(customerId: string) {
