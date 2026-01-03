@@ -1,36 +1,24 @@
 import { Router } from "express";
 import { roleController } from "../controllers/role.controller";
-import { authenticate, isAuthorized } from "../middleware/auth.middleware";
-import { asyncHandler } from "../utils/errors/async-handler";
+import { isAuthenticated } from "../middleware/auth.middleware";
+import { isAdmin } from "../middleware/admin.middleware";
 
 const roleRouter = Router();
 
 // Apply auth to all role routes
-roleRouter.use(asyncHandler(authenticate));
+roleRouter.use(isAuthenticated);
 
 // Only Admins can manage roles
-roleRouter.post("/", isAuthorized(["Admin"]), asyncHandler(roleController.createRole));
+roleRouter.post("/", isAdmin, roleController.createRole);
 
-roleRouter.get("/", isAuthorized(["Admin"]), asyncHandler(roleController.getAllRoles));
+roleRouter.get("/", isAdmin, roleController.getAllRoles);
 
-roleRouter.post("/assign", isAuthorized(["Admin"]), asyncHandler(roleController.assignRole));
+roleRouter.post("/assign", isAdmin, roleController.assignRole);
 
-roleRouter.delete(
-  "/delete-by-id",
-  isAuthorized(["Admin"]),
-  asyncHandler(roleController.removeRoleById)
-);
+roleRouter.delete("/delete-by-id", isAdmin, roleController.removeRoleById);
 
-roleRouter.delete(
-  "/delete-by-name",
-  isAuthorized(["Admin"]),
-  asyncHandler(roleController.removeRoleByName)
-);
+roleRouter.delete("/delete-by-name", isAdmin, roleController.removeRoleByName);
 
-roleRouter.delete(
-  "/demote-user",
-  isAuthorized(["Admin"]),
-  asyncHandler(roleController.removeRoleFromUser)
-);
+roleRouter.delete("/demote-user", isAdmin, roleController.removeRoleFromUser);
 
 export { roleRouter };
