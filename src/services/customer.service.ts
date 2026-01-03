@@ -2,7 +2,6 @@ import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
 import { customerRepository } from "../repositories/customer.repository";
 import { CreateCustomerRatingDto } from "../dto/customer.dto";
-import { removeFields } from "../utils/object.utils";
 import { ratingService } from "./rating.service";
 
 class CustomerService {
@@ -23,16 +22,18 @@ class CustomerService {
       });
     }
     if (!customer.isActive) {
-       throw new CustomError({
+      throw new CustomError({
         message: "The customer has already deactivated",
         statusCode: StatusCodes.CONFLICT,
       });
     }
     return await customerRepository.deactivateAccount(customerId);
   }
-  async createRatingByCustomer(customerId:string , createCustomerRatingDto:CreateCustomerRatingDto) {
-     
-   return await ratingService.createRatingByCustomer(customerId , createCustomerRatingDto)
+  async createRatingByCustomer(
+    customerId: string,
+    createCustomerRatingDto: CreateCustomerRatingDto
+  ) {
+    return await ratingService.createRatingByCustomer(customerId, createCustomerRatingDto);
   }
 }
 export const customerService = new CustomerService();
