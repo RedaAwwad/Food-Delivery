@@ -222,8 +222,8 @@ model Order {
   customerId     String      @map("customer_id")
   restaurantId   String     @map("restaurant_id")
   totalAmount    Int      @map("total_amount")
-  orderStatus    String     @map("order_status")
-  trackingStatus String?    @map("tracking_status")
+  orderStatusId    String     @map("order_status")
+  trackingStatusId String?    @map("tracking_status")
 
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -239,8 +239,8 @@ model Order {
   customer Customer @relation(fields: [customerId], references: [customerId])
   restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
-  orderStatusDetails OrderStatus @relation(fields: [orderStatus], references: [orderStatusKey])
-  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatus], references: [trackingStatusKey])
+  orderStatusDetails OrderStatus @relation(fields: [orderStatusId], references: [orderStatusKey])
+  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatusId], references: [trackingStatusKey])
 
   orderItems OrderItem[]
 
