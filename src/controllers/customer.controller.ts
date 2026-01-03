@@ -6,6 +6,8 @@ import { CustomError } from "../utils/errors/custom-error";
 import { CustomerOrdersDTO } from "../dto/customer-orders.dto";
 import { CreateCustomerRatingDto } from "../dto/customer.dto";
 import { date } from "joi";
+import { orderTrackingService } from "../services/orderTracking.service";
+import { Customer } from '../generated/prisma/index';
 
 class CustomerController {
   async getCustomerOrders(req: Request, res: Response) {
@@ -54,18 +56,21 @@ class CustomerController {
     });
   }
   async createRatingByCustomer(req:Request<{} ,{},CreateCustomerRatingDto> , res:Response, next:NextFunction) {
-      const customerId = req.user.userId
+      const customerId = req.user?.userId
+
       const ratingCustomer = await 
-      customerService.createRatingByCustomer(customerId , req.body)
+      customerService.createRatingByCustomer(customerId! , req.body)
       res.status(StatusCodes.CREATED).json({
         success:true , 
         date:ratingCustomer
       })
   }
-  async getOrderTrackingHistory(req:Request , res:Response) {
-      const orderId = req.params.orderId;
-      return await orderTrackingRe
-  }
+  async getOrderTrackingStatus(req:Request , res:Response) {
+      const orderId = req.params.orderId!;
+      const customerId = req.user?.userId
+      const orderTracking = await orderTrackingService.getOrderTrackingStatus(orderId, customerId)
+      return res.status(StatusCodes.OK).json(new SuccessResponse({data:orderTracking}))
+    }
 }
 
 export const customerController = new CustomerController();

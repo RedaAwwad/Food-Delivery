@@ -11,7 +11,7 @@ class OrderService {
     return await orderRepository.findAllOrders();
   }
 
-  async getOrderById(orderId: string) {
+  async getOrderByOrderId(orderId: string) {
     return orderRepository.findOrderById(orderId);
   }
 

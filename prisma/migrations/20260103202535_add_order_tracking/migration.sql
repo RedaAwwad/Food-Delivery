@@ -1,5 +1,14 @@
 -- CreateEnum
+CREATE TYPE "TrackingStatusKey" AS ENUM ('PENDING', 'ACCEPTED', 'PREPARING', 'PICKED_UP', 'DELIVERED');
+
+-- CreateEnum
 CREATE TYPE "RatingScore" AS ENUM ('ONE', 'TWO', 'THREE', 'FOUR', 'FIVE');
+
+-- CreateEnum
+CREATE TYPE "TokenType" AS ENUM ('VERIFICATION', 'REFRESH', 'FORGOT_PASSWORD');
+
+-- CreateEnum
+CREATE TYPE "RoleKey" AS ENUM ('ADMIN', 'CUSTOMER', 'RESTAURANT_MANAGER');
 
 -- CreateTable
 CREATE TABLE "users" (
@@ -7,6 +16,8 @@ CREATE TABLE "users" (
     "user_name" TEXT NOT NULL,
     "user_password" TEXT NOT NULL,
     "user_email" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT false,
+    "isConfirmed" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "is_admin" BOOLEAN NOT NULL DEFAULT false,
@@ -19,6 +30,7 @@ CREATE TABLE "roles" (
     "role_id" TEXT NOT NULL,
     "role_name" TEXT NOT NULL,
     "role_desc" TEXT,
+    "role_key" "RoleKey" NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -37,22 +49,14 @@ CREATE TABLE "user_tokens" (
     "user_id" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "expires_at" TIMESTAMP(3) NOT NULL,
+    "token_type" "TokenType" NOT NULL,
+    "is_revoked" BOOLEAN NOT NULL DEFAULT false,
+    "revoked_at" TIMESTAMP(3),
+    "revoked_reason" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "user_tokens_pkey" PRIMARY KEY ("user_token_id")
-);
-
--- CreateTable
-CREATE TABLE "refresh_tokens" (
-    "refresh_token_id" TEXT NOT NULL,
-    "user_id" TEXT NOT NULL,
-    "token" TEXT NOT NULL,
-    "expires_at" TIMESTAMP(3) NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("refresh_token_id")
 );
 
 -- CreateTable
@@ -63,7 +67,6 @@ CREATE TABLE "customers" (
     "customer_avatar" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "deactivatedAt" TIMESTAMP(3),
     "createdById" TEXT NOT NULL,
     "updatedById" TEXT NOT NULL,
@@ -156,7 +159,7 @@ CREATE TABLE "orders" (
     "customer_id" TEXT NOT NULL,
     "restaurant_id" TEXT NOT NULL,
     "total_amount" INTEGER NOT NULL,
-    "order_status_id" TEXT NOT NULL,
+    "order_status" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "createdById" TEXT NOT NULL,
@@ -174,6 +177,18 @@ CREATE TABLE "order_statuses" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "order_statuses_pkey" PRIMARY KEY ("order_status_id")
+);
+
+-- CreateTable
+CREATE TABLE "order_tracking" (
+    "order_tracking_id" TEXT NOT NULL,
+    "order_id" TEXT NOT NULL,
+    "customer_id" TEXT NOT NULL,
+    "tracking_status" JSONB NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "order_tracking_pkey" PRIMARY KEY ("order_tracking_id")
 );
 
 -- CreateTable
@@ -211,33 +226,12 @@ CREATE TABLE "addresses" (
 );
 
 -- CreateTable
-CREATE TABLE "preferred_payment_settings" (
-    "preferred_payment_settings_id" TEXT NOT NULL,
-    "customer_id" TEXT NOT NULL,
-    "payment_method_id" TEXT NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "preferred_payment_settings_pkey" PRIMARY KEY ("preferred_payment_settings_id")
-);
-
--- CreateTable
-CREATE TABLE "payment_methods" (
-    "payment_method_id" TEXT NOT NULL,
-    "payment_method_name" TEXT NOT NULL,
-    "payment_method_data" JSONB NOT NULL,
-    "preferred_payment_settings_id" TEXT NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "payment_methods_pkey" PRIMARY KEY ("payment_method_id")
-);
-
--- CreateTable
 CREATE TABLE "ratings" (
     "rating_id" TEXT NOT NULL,
     "customer_id" TEXT NOT NULL,
     "restaurant_id" TEXT NOT NULL,
+    "rating_score" "RatingScore" NOT NULL,
+    "review" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -248,13 +242,13 @@ CREATE TABLE "ratings" (
 CREATE UNIQUE INDEX "users_user_email_key" ON "users"("user_email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "roles_role_key_key" ON "roles"("role_key");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "users_roles_user_id_role_id_key" ON "users_roles"("user_id", "role_id");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "user_tokens_user_id_key" ON "user_tokens"("user_id");
-
--- CreateIndex
-CREATE UNIQUE INDEX "refresh_tokens_user_id_key" ON "refresh_tokens"("user_id");
+CREATE UNIQUE INDEX "user_tokens_token_key" ON "user_tokens"("token");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "customers_userId_key" ON "customers"("userId");
@@ -280,9 +274,6 @@ CREATE UNIQUE INDEX "order_statuses_order_status_key_key" ON "order_statuses"("o
 -- CreateIndex
 CREATE UNIQUE INDEX "addresses_restaurant_id_key" ON "addresses"("restaurant_id");
 
--- CreateIndex
-CREATE UNIQUE INDEX "preferred_payment_settings_customer_id_key" ON "preferred_payment_settings"("customer_id");
-
 -- AddForeignKey
 ALTER TABLE "users_roles" ADD CONSTRAINT "users_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
@@ -291,9 +282,6 @@ ALTER TABLE "users_roles" ADD CONSTRAINT "users_roles_role_id_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "user_tokens" ADD CONSTRAINT "user_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "customers" ADD CONSTRAINT "customers_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -338,7 +326,13 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_customer_id_fkey" FOREIGN KEY ("cust
 ALTER TABLE "orders" ADD CONSTRAINT "orders_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "restaurants"("restaurant_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_order_status_id_fkey" FOREIGN KEY ("order_status_id") REFERENCES "order_statuses"("order_status_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_order_status_fkey" FOREIGN KEY ("order_status") REFERENCES "order_statuses"("order_status_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "order_tracking" ADD CONSTRAINT "order_tracking_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "order_tracking" ADD CONSTRAINT "order_tracking_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("order_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_fkey" FOREIGN KEY ("order_id") REFERENCES "orders"("order_id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -351,12 +345,6 @@ ALTER TABLE "addresses" ADD CONSTRAINT "addresses_customer_id_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "addresses" ADD CONSTRAINT "addresses_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "restaurants"("restaurant_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "preferred_payment_settings" ADD CONSTRAINT "preferred_payment_settings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_payment_method_id_fkey" FOREIGN KEY ("payment_method_id") REFERENCES "preferred_payment_settings"("preferred_payment_settings_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ratings" ADD CONSTRAINT "ratings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE RESTRICT ON UPDATE CASCADE;

@@ -98,12 +98,13 @@ model Customer {
   cart Cart?
  
   orders Order[]
+  orderTracking OrderTracking[]
   addresses Address[]
   rating Rating[]
 
   createdById String
   updatedById String
-
+  
   // Relations
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
@@ -224,7 +225,6 @@ model Order {
   restaurantId   String     @map("restaurant_id")
   totalAmount    Int      @map("total_amount")
   orderStatusId    String     @map("order_status")
-  trackingStatusId String?    @map("tracking_status")
 
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
@@ -240,9 +240,8 @@ model Order {
   customer Customer @relation(fields: [customerId], references: [customerId])
   restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
-  orderStatusDetails OrderStatus @relation(fields: [orderStatusId], references: [orderStatusKey])
-  trackingStatusDetails OrderTracking? @relation(fields: [trackingStatusId], references: [trackingStatusKey])
-
+  orderStatusDetails OrderStatus @relation(fields: [orderStatusId], references: [orderStatusId])
+  orderTracking OrderTracking[] 
   orderItems OrderItem[]
 
   @@map("orders")
@@ -264,16 +263,15 @@ model OrderStatus {
 
 // Delivery tracking status (ongoing, out for delivery, delivered, etc.)
 model OrderTracking {
-  orderTrackingId     String              @id @default(uuid()) @map("order_tracking_id") 
-  orderId             String   @map("order_id")
-  trackingStatusName  String              @map("tracking_status_name")
-  trackingStatusKey   TrackingStatusKey   @map("tracking_status_key")
-  createdAt DateTime  @default(now())     @map("created_at")
-  updatedAt DateTime  @updatedAt          @map("updated_at")
-  notes               String?              
+    orderTrackingId     String              @id @default(uuid()) @map("order_tracking_id") 
+    orderId             String   @map("order_id")
+    customerId          String   @map("customer_id")
+    trackingStatus      Json   @map("tracking_status")
+  createdAt           DateTime  @default(now())     @map("created_at")
+  updatedAt           DateTime  @updatedAt          @map("updated_at")
+  customer            Customer @relation(fields: [customerId] , references: [customerId])              
   order               Order    @relation(fields: [orderId], references: [orderId]) // العلاقة
-
-
+  @@unique([orderId, customerId]) 
   @@map("order_tracking")
 }
 

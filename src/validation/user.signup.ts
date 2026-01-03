@@ -1,11 +1,9 @@
 import Joi from "joi";
-import { generalFields } from "../middleware/validate-request";
 
-export const signUpSchema = {
-    body: Joi.object().required().keys({
-        userName: generalFields.userName,
-        userEmail: generalFields.email,
-        userPassword: generalFields.password,
+export const signUpSchema =  Joi.object().required().keys({
+        userName: Joi.string,
+        userEmail: Joi.string,
+        userPassword: Joi.string,
         userConfirmPassword: Joi.string()
             .valid(Joi.ref("userPassword"))
             .required()
@@ -14,5 +12,5 @@ export const signUpSchema = {
                 "any.required": "Confirm password is required",
             }),
         userPhoneNumber: Joi.string().required(),
-    }),
-};
+    })
+
