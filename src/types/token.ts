@@ -1,4 +1,4 @@
-import { TokenType } from "../generated/prisma";
+export type TokenType = "VERIFICATION" | "REFRESH" | "FORGOT_PASSWORD";
 
 export interface TokenPayload {
   userId?: string;
@@ -36,10 +36,10 @@ export interface CreateRefreshTokenData {
 }
 
 export interface CreateTokenData {
-    userId: string;
-    tokenType: TokenType;
-    expiresAt: Date;
-    token?: string; // Optional - will be generated if not provided
+  userId: string;
+  tokenType: TokenType;
+  expiresAt: Date;
+  token?: string; // Optional - will be generated if not provided
 }
 
 export interface RefreshTokenFilter {
@@ -73,7 +73,7 @@ export interface RefreshResponse {
 export interface CookieOptions {
   httpOnly: boolean;
   secure: boolean;
-  sameSite: 'strict' | 'lax' | 'none';
+  sameSite: "strict" | "lax" | "none";
   maxAge?: number;
   path?: string;
   domain?: string;

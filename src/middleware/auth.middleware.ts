@@ -1,10 +1,10 @@
 import { RequestHandler, Request, Response, NextFunction } from "express";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { verifyAccessToken } from "../utils/generateAndVerifyToken";
 import { prisma } from "../config/prisma.config";
 import jwt from "jsonwebtoken";
 import { getTokenFromHeaders } from "../utils/jwt/getTokenFromHeaders";
+import { verifyToken } from "../utils/jwt/verifyToken";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
   return (req, res, next) => {
@@ -66,7 +66,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
       });
     }
 
-    const decoded = verifyAccessToken(token);
+    const decoded = verifyToken(token);
 
     if (typeof decoded === "string") {
       throw new CustomError({
