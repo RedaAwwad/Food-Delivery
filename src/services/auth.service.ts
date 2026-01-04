@@ -32,6 +32,7 @@ class AuthService {
             userName,
             userEmail,
             userPassword: hashedPassword,
+            isActive: true,
         });
 
         if (!newUser)
