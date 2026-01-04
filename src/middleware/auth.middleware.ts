@@ -4,7 +4,7 @@ import { prisma } from "../config/prisma.config";
 import { ForbiddenError, UnauthorizedError } from "../utils/errors";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
-    return (req, res, next) => {
+    return (req: Request, res: Response, next: NextFunction) => {
         const userRoles = req.user?.roles || [];
 
         // Check if user has at least one of the required roles
