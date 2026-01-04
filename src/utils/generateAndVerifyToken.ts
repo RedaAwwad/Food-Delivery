@@ -1,4 +1,4 @@
-import jwt, { JwtPayload, Secret } from "jsonwebtoken";
+import * as jwt from "jsonwebtoken";
 import { CustomError } from "./errors/custom-error";
 import { TokenPayload, TokenPair } from "../types/token";
 import { BadRequestError, InternalServerError, UnauthorizedError } from "./errors";
@@ -14,10 +14,10 @@ export const generateAccessToken = (payload: TokenPayload, expiresIn?: string | 
     }
 
     try {
-        return (jwt as any).sign(
+        return jwt.sign(
             { ...payload, tokenType: "access" },
-            ACCESS_TOKEN_SECRET as Secret,
-            { expiresIn: expiresIn || ACCESS_TOKEN_EXPIRY }
+            ACCESS_TOKEN_SECRET as jwt.Secret,
+            { expiresIn: expiresIn || ACCESS_TOKEN_EXPIRY } as jwt.SignOptions
         );
     } catch (err: any) {
         throw BadRequestError(err?.message || "Failed to generate access token");
@@ -30,10 +30,10 @@ export const generateRefreshToken = (payload: TokenPayload): string => {
     }
 
     try {
-        return (jwt as any).sign(
+        return jwt.sign(
             { ...payload, tokenType: "refresh" },
-            REFRESH_TOKEN_SECRET as Secret,
-            { expiresIn: REFRESH_TOKEN_EXPIRY }
+            REFRESH_TOKEN_SECRET as jwt.Secret,
+            { expiresIn: REFRESH_TOKEN_EXPIRY } as jwt.SignOptions
         );
     } catch (err: any) {
         throw BadRequestError(err?.message || "Failed to generate refresh token");
@@ -57,7 +57,7 @@ export const generateTokenPair = (payload: TokenPayload): TokenPair => {
     };
 };
 
-export const verifyAccessToken = (token: string): JwtPayload | string => {
+export const verifyAccessToken = (token: string): jwt.JwtPayload | string => {
     if (!token) {
         throw UnauthorizedError("Access token is required");
     }
@@ -78,7 +78,7 @@ export const verifyAccessToken = (token: string): JwtPayload | string => {
     }
 };
 
-export const verifyRefreshToken = (token: string): JwtPayload | string => {
+export const verifyRefreshToken = (token: string): jwt.JwtPayload | string => {
     if (!token) {
         throw UnauthorizedError("Refresh token is required");
     }
@@ -112,6 +112,6 @@ export const generateJwtTokenForGeneralUse = (payload: TokenPayload, expiresIn?:
     return generateAccessToken(payload, expiresIn);
 }
 
-export const verifyJwtTokenForGeneralUse = (token: string): JwtPayload | string => {
+export const verifyJwtTokenForGeneralUse = (token: string): jwt.JwtPayload | string => {
     return verifyAccessToken(token);
 }
