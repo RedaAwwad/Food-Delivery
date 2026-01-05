@@ -122,7 +122,10 @@ model Restaurant {
   restaurantLogo        String? @map("restaurant_logo")   
   isAvailable Boolean  @map("is_available")
   createdAt   DateTime @default(now()) @map("created_at")
-  DateTime DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  averageRating Float @default(0) @map("average_rating")
+  ratingCount   Int   @default(0) @map("rating_count")
 
   manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
@@ -317,7 +320,6 @@ model Address {
   @@map("addresses")
 }
 
-
 model PreferredPaymentSettings {
   preferredPaymentSettingsId String   @id @default(uuid()) @map("preferred_payment_settings_id")
   customerId                 String   @unique @map("customer_id")
@@ -371,5 +373,7 @@ enum RatingScore {
   FIVE
 }
 enum TokenType {
-  REFRESH_TOKEN
+  REFRESH
+  VERIFICATION
+  FORGOT_PASSWORD
 }
