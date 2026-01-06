@@ -1,5 +1,7 @@
-import { prisma } from "../config/prisma.config";
+import { prisma } from '../config/prisma.config';
 import { CreateOrderDto } from "../dto/createOrderDto";
+import { UpdateOrderStatusDto } from '../dto/updateOrderStatus.dto';
+import { Prisma } from '../generated/prisma';
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
 
@@ -14,7 +16,7 @@ class OrderRepository {
     return await prisma.order.findUniqueOrThrow({
       where: {
          orderId,
-      },
+      },prisma
     });
   }
   async findOrderRestaurantById(orderId: string , userRestaurantId:string ) {
@@ -26,14 +28,18 @@ class OrderRepository {
     });
   }
    
-  async updateOrderStatus(orderId: string,restaurantId:string, newStatusId: string, userId:string , updatedAt:Date) {
+  async updateOrderStatusByRestaurant(prisma:Prisma.TransactionClient, updateOrderStatusDto:UpdateOrderStatusDto) {
 
     return await prisma.order.update({
-      where: { orderId, restaurantId },
+      where: {orderId:updateOrderStatusDto.orderId},
       data: { 
-        '': newStatusId , 
-        // updatedBy : userId,
-        updatedAt 
+        orderStatusDetails : {
+          connect:{orderStatusKey:updateOrderStatusDto.orderStatusKey}
+        } 
+        ,
+        updatedBy :{ 
+          connect: {userId:updateOrderStatusDto.managerId}
+        } 
       },
     });
   }

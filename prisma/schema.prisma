@@ -251,7 +251,7 @@ model Order {
 model OrderStatus {
   orderStatusId        String   @id @default(uuid()) @map("order_status_id") 
   orderStatusName      String   @map("order_status_name")
-  orderStatusKey       String   @unique @map("order_status_key")
+  orderStatusKey       OrderStatusKey   @unique @map("order_status_key")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -267,15 +267,15 @@ model OrderTracking {
     orderId             String   @map("order_id")
     customerId          String   @map("customer_id")
     trackingStatus      Json   @map("tracking_status")
-  createdAt           DateTime  @default(now())     @map("created_at")
-  updatedAt           DateTime  @updatedAt          @map("updated_at")
-  customer            Customer @relation(fields: [customerId] , references: [customerId])              
-  order               Order    @relation(fields: [orderId], references: [orderId]) // العلاقة
-  @@unique([orderId, customerId]) 
-  @@map("order_tracking")
+    createdAt           DateTime  @default(now())     @map("created_at")
+    updatedAt           DateTime  @updatedAt          @map("updated_at")
+    customer            Customer @relation(fields: [customerId] , references: [customerId])              
+    order               Order    @relation(fields: [orderId], references: [orderId]) // العلاقة
+    @@unique([orderId, customerId]) 
+    @@map("order_tracking")
 }
 
-enum TrackingStatusKey {
+enum OrderStatusKey {
   PENDING
   ACCEPTED
   PREPARING

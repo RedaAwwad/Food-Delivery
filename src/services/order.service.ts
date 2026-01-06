@@ -5,6 +5,9 @@ import { cartRepository } from "../repositories/cart.repository";
 import { OrderStatus } from "../enums/orderStatus.enum";
 import { OrderHandlerChainBuilder } from "../handlers/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
+import { orderTrackingService } from "./orderTracking.service";
+import { restaurantService } from "./restaurant.service";
+import { prisma } from "../config/prisma.config";
 
 class OrderService {
   async getAllOrders() {
@@ -15,16 +18,31 @@ class OrderService {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateOrderStatus(orderId: string, newOrderStatus: OrderStatus) {
+async updateOrderStatusByRestaurant(orderId: string, managerId:string , orderStatusKey: OrderStatus) {
     const order = await orderRepository.findOrderById(orderId);
     if (!order) {
       throw new CustomError({
-        message: "The order not found",
+        message: "The order is not found",
         statusCode: StatusCodes.NOT_FOUND,
       });
     }
-    const updateOrder = await orderRepository.updateOrderStatus(orderId, newOrderStatus);
+    const restaurant = await restaurantService.findRestaurantByManagerId(managerId)
+    if (!restaurant || restaurant.restaurantId !== order.restaurantId){
+      throw new CustomError({
+        message:'The restaurant is not found Or the restaurant is not belong to Order',
+        statusCode:StatusCodes.CONFLICT
+      })
+    }
+    const customerId = order.customerId
+
+    // updateOrder
+    await prisma.$transaction(async (tx) => {
+    const updateOrder = await orderRepository.updateOrderStatusByRestaurant(tx, {orderId, managerId , orderStatusKey});
+    // upsert Order Trackig Status
+    await orderTrackingService.updateOrderTrackingStatus(tx , {orderId , managerId, customerId ,orderStatusKey } )    
     return updateOrder;
+    }) 
+    
   }
 
   async placeOrder(customerId: string, restaurantId: string) {
