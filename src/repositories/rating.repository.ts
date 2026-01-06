@@ -84,9 +84,9 @@ class RatingRepository {
       return updatedRating;
     } catch (error: any) {
       if (error.code === 'P2025') {
-        throw NotFoundError("Rating not found");
+        throw NotFoundError("Rating not found", error);
       }
-      throw BadRequestError("Failed To Update Rating");
+      throw BadRequestError("Failed To Update Rating", error);
     }
   }
 
@@ -101,9 +101,9 @@ class RatingRepository {
       return deletedRating;
     } catch (error: any) {
       if (error.code === 'P2025') {
-        throw NotFoundError("Rating not found");
+        throw NotFoundError("Rating not found", error);
       }
-      throw BadRequestError("Failed To Delete Rating");
+      throw BadRequestError("Failed To Delete Rating", error);
     }
   }
 

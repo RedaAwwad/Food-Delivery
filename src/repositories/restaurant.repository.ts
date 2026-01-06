@@ -73,9 +73,9 @@ class RestaurantRepository {
         }
         catch (error: any) {
             if (error.code === 'P2025') {
-                throw NotFoundError("Restaurant not found");
+                throw NotFoundError("Restaurant not found", error);
             }
-            throw BadRequestError("Failed To Update Restaurant");
+            throw BadRequestError("Failed To Update Restaurant", error);
         }
     }
 
@@ -111,9 +111,9 @@ class RestaurantRepository {
         }
         catch (error: any) {
             if (error.code === 'P2025') {
-                throw NotFoundError("Restaurant not found");
+                throw NotFoundError("Restaurant not found", error);
             }
-            throw BadRequestError("Failed To Update Restaurant Rating");
+            throw BadRequestError("Failed To Update Restaurant Rating", error);
         }
     }
 
