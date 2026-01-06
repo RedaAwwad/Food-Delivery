@@ -3,10 +3,10 @@ import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
 import { verifyToken } from "../utils/jwt/verifyToken";
 import { getTokenFromHeaders } from "../utils/jwt/getTokenFromHeaders";
-import { Role } from "../generated/prisma";
+import { userService } from "../services/user.service";
 
 export const isRestaurantManager = (): RequestHandler => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const token = getTokenFromHeaders(req);
 
     if (!token) {
@@ -17,15 +17,16 @@ export const isRestaurantManager = (): RequestHandler => {
     }
 
     const decoded = verifyToken(token);
-    (req as any).user = decoded;
+    const user = await userService.getUserByRestaurantId(decoded.userId, decoded.restaurantId);
 
-    const hasPermission = decoded.roles.some((role: Role) => role.roleKey === "RESTAURANT_MANAGER");
-    if (!hasPermission) {
+    if (!user) {
       throw new CustomError({
         message: "You are not authorized to perform this action",
         statusCode: StatusCodes.FORBIDDEN,
       });
     }
+
+    (req as any).user = user;
 
     next();
   };

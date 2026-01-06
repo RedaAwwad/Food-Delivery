@@ -9,6 +9,7 @@ const customerRouter = express.Router();
 
 // Apply auth to all role routes
 customerRouter.use(isAuthenticated);
+customerRouter.use(isCustomer);
 
 /**
  * @swagger
@@ -124,8 +125,6 @@ customerRouter.patch("/deactivate", customerController.deactivateAccount);
 customerRouter.post(
   "/rating",
   validateRequest(createCustomerRatingSchema),
-  isAuthorized,
-  isCustomer,
   customerController.createRatingByCustomer
 );
 
@@ -150,6 +149,6 @@ customerRouter.post(
  *         description: Customer not found
  */
 
-customerRouter.get('/orders/:orderId/orderTracking', [isAuthorized,isCustomer], customerController.getOrderTrackingStatus)
+customerRouter.get("/orders/:orderId/order-tracking", customerController.getOrderTrackingStatus);
 
 export { customerRouter };
