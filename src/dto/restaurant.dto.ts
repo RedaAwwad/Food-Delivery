@@ -19,3 +19,20 @@ export interface searchMenuItemsFilterDto {
     minPrice?: number
     maxPrice?: number
 }
+export type getRestaurantResponseDto =
+  Prisma.RestaurantGetPayload<{
+    select: {
+      restaurantName: true
+      restaurantLogo: true
+      isAvailable: true
+
+      menu: {
+        include: {
+          menuCategories: true
+        }
+      }
+
+      rating: true
+      address: true
+    }
+  }>
