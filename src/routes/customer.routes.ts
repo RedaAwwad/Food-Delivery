@@ -3,6 +3,7 @@ import { customerController } from "../controllers/customer.controller";
 import { validateRequest } from "../middleware/validate-request";
 import { createCustomerRatingSchema } from "../validation/customer.schema";
 import { isAuthorized, isAuthenticated } from "../middleware/auth.middleware";
+import { isCustomer } from "../middleware/customer.middleware";
 
 const customerRouter = express.Router();
 
@@ -48,7 +49,40 @@ customerRouter.get("/orders", customerController.getCustomerOrders);
  *         description: Customer not found
  */
 customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
-
+/**
+ * @swagger
+ * /api/v1/customers/deactivate:
+ *   patch:
+ *     summary: Deactivate customer's account
+ *     tags: [Customer]
+ *     responses:
+ *       200:
+ *         description: Account deactivated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: "Account deactivated successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     customerId:
+ *                       type: string
+ *                       example: "12345"
+ *                     isActive:
+ *                       type: boolean
+ *                       example: false
+ *                     deactivatedAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Customer not found or already deactivated
+ *       500:
+ *         description: Internal server error
+ */
 customerRouter.patch("/deactivate", customerController.deactivateAccount);
 
 /**
@@ -90,8 +124,32 @@ customerRouter.patch("/deactivate", customerController.deactivateAccount);
 customerRouter.post(
   "/rating",
   validateRequest(createCustomerRatingSchema),
-  isAuthorized(["Customer"]),
+  isAuthorized,
+  isCustomer,
   customerController.createRatingByCustomer
 );
+
+/**
+ * @swagger
+ * /api/v1/customers/orders/{orderId}/orderTracking:
+ *   get:
+ *     summary: Get customer order details by orderId
+ *     tags:
+ *       - Customer
+ *     parameters:
+ *       - in: path
+ *         name: orderId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: orderId of the customer order
+ *     responses:
+ *       200:
+ *         description: Customer details retrieved successfully
+ *       404:
+ *         description: Customer not found
+ */
+
+customerRouter.get('/orders/:orderId/orderTracking', [isAuthorized,isCustomer], customerController.getOrderTrackingStatus)
 
 export { customerRouter };
