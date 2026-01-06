@@ -6,6 +6,7 @@ import * as Routers from "../routes/index.routes";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import { prisma } from "../config/prisma.config";
+import { initAPIRoutes } from "../routes";
 
 const initiateApp = async (app: Express) => {
     const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
@@ -27,11 +28,7 @@ const initiateApp = async (app: Express) => {
         });
     });
 
-    app.use(`${apiPrefix}/cart`, Routers.cartRouter);
-    app.use(`${apiPrefix}/orders`, Routers.orderRouter);
-    app.use(`${apiPrefix}/users`, Routers.userRouter);
-    app.use(`${apiPrefix}/auth`, Routers.authRouter);
-    app.use(`${apiPrefix}/roles`, Routers.roleRouter);
+    initAPIRoutes(app);
 
     app.use((req, res, next) => {
         throw new CustomError({
