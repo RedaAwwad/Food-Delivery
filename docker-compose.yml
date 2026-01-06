@@ -20,11 +20,11 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-db:/var/lib/postgresql
+      - postgres-db:/var/lib/postgresql/data
     environment:
+      POSTGRES_DB: food-delivery
       POSTGRES_USER: root
       POSTGRES_PASSWORD: example
-      POSTGRES_DB: food-delivery
 
 volumes:
   postgres-db:

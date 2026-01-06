@@ -11,11 +11,11 @@ import { confirmEmailSchema, requireEmailSchema } from "../validation/user.confi
 const authRouter = express.Router();
 
 authRouter.post("/signup", validateRequest(signUpSchema), authController.signup);
-authRouter.put("/login", validateRequest(logInSchema), authController.login);
+authRouter.post("/login", validateRequest(logInSchema), authController.login);
 authRouter.post("/refresh-token", authController.refreshToken);
 
 // Verify Email Routes
-authRouter.get("/verify-email", validateRequest(confirmEmailSchema), authController.verifyEmail);
+authRouter.get("/verify-email", authController.verifyEmail);
 authRouter.post(
   "/resend-verification",
   validateRequest(requireEmailSchema),
