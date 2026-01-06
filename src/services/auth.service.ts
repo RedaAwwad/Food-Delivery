@@ -18,6 +18,7 @@ import { roleService } from "./role.service";
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors";
 import { verifyToken } from "../utils/jwt/verifyToken";
+import { checkValidation } from "../utils/checkValidation";
 
 type AccessTokenPayload = {
   userId: string;
@@ -198,7 +199,13 @@ class AuthService {
   }
 
   async verifyEmail(token: string): Promise<void> {
-    const tokenData = verifyToken(token);
+    const { token: validToken } = await checkValidation<{ token: string }>(confirmEmailSchema, {
+      token,
+    });
+
+    const tokenData = verifyToken(validToken);
+
+    console.log({ tokenData });
 
     if (!tokenData || typeof tokenData === "string" || !tokenData.userId || !tokenData.userEmail) {
       throw new CustomError({
