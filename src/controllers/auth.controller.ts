@@ -10,7 +10,11 @@ class AuthController {
 
     const result = await authService.signup(signupDto);
 
-    return res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: result }));
+    return res.status(StatusCodes.CREATED).json(
+      new SuccessResponse({
+        message: "Your account created successfully. Please verify your email.",
+      })
+    );
   }
 
   async login(req: Request, res: Response) {
@@ -24,7 +28,8 @@ class AuthController {
   }
 
   async verifyEmail(req: Request, res: Response) {
-    await authService.verifyEmail(req.query?.token as string);
+    const { token } = req.query;
+    await authService.verifyEmail(token as string);
 
     return res.status(StatusCodes.OK).json(
       new SuccessResponse({
