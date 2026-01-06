@@ -1,8 +1,26 @@
 import { prisma } from "../config/prisma.config";
 import { createMenuCategoryDto, updateMenuCategoryDto } from "../dto/menuCategory.dto";
-import { BadRequestError } from "../utils/errors";
+import { BadRequestError, NotFoundError } from "../utils/errors";
 
 class MenuCategoryRepository {
+    async findAllMenuCategoriesByMenuId(menyId:  string) {
+        const menuCategories = await prisma.menuCategory.findMany({
+            where: {
+                menuId: menyId
+            },
+            select: {
+                menuCategoryId: true,
+                menuCategoryName: true,
+                menuCategoryImageUrl: true,
+            }
+        });
+
+        if (!menuCategories)
+            throw NotFoundError("No Menu categories Was Found For This Menu");
+
+        return menuCategories;
+    }
+
     async createMenuCategory(data: createMenuCategoryDto) {
         const menuCategory = await prisma.menuCategory.create({
             data: {
@@ -10,6 +28,11 @@ class MenuCategoryRepository {
                 menuCategoryName: data.menuCategoryName,
                 menuCategoryImageUrl: data.menuCategoryImageUrl,
             },
+            select: {
+                menuCategoryId: true,
+                menuCategoryName: true,
+                menuCategoryImageUrl: true,
+            }
         });
         if (!menuCategory)
             throw BadRequestError("Failed To Create Menu category");
@@ -23,10 +46,14 @@ class MenuCategoryRepository {
                 menuCategoryId: data.menuCategoryId,
             },
             data: {
-                menuId: data.menuId,
                 ...(data.menuCategoryName !== undefined && { menuCategoryName: data.menuCategoryName }),
                 ...(data.menuCategoryImageUrl !== undefined && { menuCategoryImageUrl: data.menuCategoryImageUrl }),
             },
+            select: {
+                menuCategoryId: true,
+                menuCategoryName: true,
+                menuCategoryImageUrl: true,
+            }
         });
         if (!menuCategory)
             throw BadRequestError("Failed To Update Menu category");

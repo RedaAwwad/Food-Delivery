@@ -1,8 +1,27 @@
 import { prisma } from "../config/prisma.config";
 import { createMenuItemDto, updateMenuItemDto } from "../dto/menuItem.dto";
-import { BadRequestError } from "../utils/errors";
+import { BadRequestError, NotFoundError } from "../utils/errors";
 
 class MenuItemRepository {
+    async getAllMenuItemsByMenuCategoryId(menuCategoryId: string) {
+        const menuItem = await prisma.menuItem.findMany({
+            where: {
+                menuCategoryId: menuCategoryId,
+            },select:{
+                menuItemId:true,
+                menuItemName:true,
+                menuItemDesc:true,
+                menuItemImageUrl:true,
+                price:true,
+            }
+        });
+
+        if (!menuItem)
+            throw NotFoundError("no menu items found");
+
+        return menuItem;
+    }
+
     async createMenuItem(data: createMenuItemDto) {
         const menuItem = await prisma.menuItem.create({
             data: {
@@ -41,6 +60,21 @@ class MenuItemRepository {
         });
         if (!menuItem)
             throw BadRequestError("Failed To Delete Menu item");
+
+        return menuItem;
+    }
+
+    async searchMenuItem(query: string) {
+        const menuItem = await prisma.menuItem.findMany({
+            where: {
+                menuItemName: {
+                    contains: query,
+                    mode: "insensitive",
+                },
+            },
+        });
+        if (!menuItem)
+            throw BadRequestError("Failed To Search Menu item");
 
         return menuItem;
     }

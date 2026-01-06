@@ -3,6 +3,15 @@ import { createMenuDto, updateMenuDto } from "../dto/menu.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 
 class MenuRepository {
+    async getActiveMenuByRestaurantId(restaurantId: string) {
+        return await prisma.menu.findFirst({
+            where: {
+                restaurantId: restaurantId,
+                isActive: true,
+            },
+        });
+    }
+    
     async createMenu(Data: createMenuDto) {
         const menu = await prisma.menu.create({
             data: Data,
@@ -37,7 +46,7 @@ class MenuRepository {
         if (!menu)
             throw NotFoundError("Menu not found");
 
-        await prisma.menu.delete({
+        return await prisma.menu.delete({
             where: {
                 menuId: menuId,
             },
@@ -54,7 +63,7 @@ class MenuRepository {
             throw NotFoundError("Menu not found");
 
         menu.isActive = !menu.isActive;
-        await prisma.menu.update({
+        return await prisma.menu.update({
             where: {
                 menuId: menuId,
             },
@@ -62,7 +71,7 @@ class MenuRepository {
         });
     }
 
-    async getMenus(restaurantId: string) {
+    async viewHistoryListOfRestaurantMenus(restaurantId: string) {
         return await prisma.menu.findMany({
             where: {
                 restaurantId: restaurantId,
