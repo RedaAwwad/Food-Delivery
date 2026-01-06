@@ -1,5 +1,4 @@
 import { Request, Response } from 'express';
-import { searchMenuItemSchema } from '../validation/restautant.schema';
 import { StatusCodes } from 'http-status-codes';
 import { SuccessResponse } from '../utils/response/success-response';
 import { restaurantService } from '../services/restaurant.service';
@@ -68,7 +67,7 @@ class RestaurantController {
     }
 
     async searchRestaurants(req: Request, res: Response) {
-        const { query } = req.query
+        const query = req.query.restaurantName as string
         const restaurants = await restaurantService.searchRestaurants(query);
         res.status(StatusCodes.ACCEPTED).json(new SuccessResponse({
             data: restaurants
