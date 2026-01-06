@@ -1,8 +1,14 @@
 import express from "express";
 import { orderController } from "../controllers/order.controller";
-import { isAuthorized } from "../middleware/auth.middleware";
+import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
+import { isRestaurantManager } from "../middleware/restaurant.middleware";
+import { validateRequest } from "../middleware/validate-request";
+import { updateOrderStatusSchema } from "../validation/orderValidation.schema";
 
 const orderRouter = express.Router();
+
+// Apply auth to all role routes
+orderRouter.use(isAuthenticated);
 
 /**
  * @swagger
@@ -53,11 +59,11 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *       - Order
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: orderId
  *         required: true
  *         schema:
  *           type: string
- *         description: ID of the order to update
+ *         description: orderId of the order to update
  *     requestBody:
  *       required: true
  *       content:
@@ -65,9 +71,9 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *           schema:
  *             type: object
  *             properties:
- *               statusId:
+ *               orderStatusKey:
  *                 type: string
- *                 description: The new status ID of the order
+ *                 description: The new orderStatusKey ID of the order
  *             required:
  *               - statusId
  *     responses:
@@ -80,18 +86,23 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderController.updateStatus);
+orderRouter.patch(
+  "/:orderId/status",
+  [isAuthenticated , isRestaurantManager],
+  validateRequest(updateOrderStatusSchema),
+  orderController.updateOrderStatusByRestaurant
+);
 
 /**
  * @swagger
- * /api/v1/orders/{id}/cancel:
+ * /api/v1/orders/{orderId}/cancelOrder:
  *   patch:
- *     summary: cancell order by Customer or restuarent
+ *     summary: cancell order by restuarent
  *     tags:
  *       - Order
  *     parameters:
  *       - in: path
- *         name: id
+ *         name: orderId
  *         required: true
  *         schema:
  *           type: string
@@ -103,11 +114,11 @@ orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderCo
  *           schema:
  *             type: object
  *             properties:
- *               statusId:
+ *               orderstatusKey:
  *                 type: string
- *                 description: The new status ID of the order
+ *                 description: The new orderStatusKey of the order
  *             required:
- *               - statusId
+ *               - orderstatusKey
  *     responses:
  *       200:
  *         description: Order status cancell successfully
@@ -118,15 +129,8 @@ orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderCo
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch(
-  "/:id/cancel",
-  isAuthorized(["restaurant"]),
-  orderController.cancelOrder
-);
+orderRouter.patch("/:orderId/cancelOrder", [isAuthenticated , isRestaurantManager], orderController.cancelOrder);
 
-orderRouter.post(
-  "/check-out",
-  orderController.placeOrder
-);
+orderRouter.post("/check-out", orderController.placeOrder);
 
 export { orderRouter };
