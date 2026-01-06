@@ -7,7 +7,6 @@ import { Request, Response } from "express";
 import { AuthResponse } from "../types/token";
 import {
   generateAccessToken,
-  generateJwtTokenForGeneralUse,
   generateRefreshToken,
   generateTokenPair,
 } from "../utils/generateAndVerifyToken";
@@ -19,9 +18,16 @@ import { roleService } from "./role.service";
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors";
 import { verifyToken } from "../utils/jwt/verifyToken";
-import { TokenType } from "../types/token";
-import { confirmEmailSchema } from "../validation/user.confirmEmail";
 import { checkValidation } from "../utils/checkValidation";
+
+type AccessTokenPayload = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  isAdmin?: boolean;
+  customerId?: string;
+  restaurantId?: string;
+};
 
 class AuthService {
   private readonly REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
@@ -29,7 +35,7 @@ class AuthService {
   async signup(signupDto: SignupDTO) {
     const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
 
-    const userCheck = await userRepository.findByEmail(userEmail);
+    const userCheck = await userRepository.findUserByEmail(userEmail);
     if (userCheck) {
       throw new CustomError({
         message: "Email already exists!",
@@ -83,7 +89,7 @@ class AuthService {
     const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10); // Default 24 hours
     const expiresAt = new Date(Date.now() + expiryTime);
 
-    const token = generateJwtTokenForGeneralUse(
+    const token = generateAccessToken(
       {
         userId: newUser.userId,
         userEmail: newUser.userEmail,
@@ -97,21 +103,98 @@ class AuthService {
     // Send verification email
     await emailService.sendVerificationEmail(newUser.userEmail, verificationLink, newUser.userName);
 
-    const returnedUser = {
-      userId: newUser.userId,
-      userName: newUser.userName,
-      userEmail: newUser.userEmail,
-    };
-    const returnedCustomer = {
-      customerId: newCustomer.customerId,
-      customerPhone: newCustomer.customerPhone,
-      customerAvatar: newCustomer.customerAvatar,
+    // const returnedUser = {
+    //   userId: newUser.userId,
+    //   userName: newUser.userName,
+    //   userEmail: newUser.userEmail,
+    // };
+    // const returnedCustomer = {
+    //   customerId: newCustomer.customerId,
+    //   customerPhone: newCustomer.customerPhone,
+    //   customerAvatar: newCustomer.customerAvatar,
+    // };
+
+    // return {
+    //   user: returnedUser,
+    //   customer: returnedCustomer,
+    //   message: "Signup successful. Please verify your email.",
+    // };
+
+    return true;
+  }
+
+  async login(loginDto: loginDTO): Promise<AuthResponse> {
+    const { email, password } = loginDto;
+
+    if (!email || !password) {
+      throw new CustomError({
+        message: "Email and password are required",
+        statusCode: StatusCodes.BAD_REQUEST,
+      });
+    }
+
+    const user = await userRepository.findUserByEmail<{
+      userPassword: string;
+      customer: { customerId: string };
+      restaurant: { restaurantId: string };
+    }>(email, {
+      userPassword: true,
+      customer: { select: { customerId: true } },
+      restaurant: { select: { restaurantId: true } },
+    });
+
+    if (!user) {
+      throw new CustomError({
+        message: "Invalid credentials!",
+        statusCode: StatusCodes.UNAUTHORIZED,
+      });
+    }
+
+    const match = await compare(password, user.userPassword);
+    if (!match) {
+      throw new CustomError({
+        message: "Invalid credentials!",
+        statusCode: StatusCodes.UNAUTHORIZED,
+      });
+    }
+
+    // const activeUser = await userRepository.updateIsActive(user.userId, true);
+    const tokenPayload: AccessTokenPayload = {
+      userId: user.userId as string,
+      userName: user.userName as string,
+      userEmail: user.userEmail as string,
     };
 
+    if (user.isAdmin) {
+      tokenPayload.isAdmin = true;
+    }
+
+    if (user.customer) {
+      tokenPayload.customerId = user.customer?.customerId;
+    }
+
+    if (user.restaurant) {
+      tokenPayload.restaurantId = user.restaurant?.restaurantId;
+    }
+
+    const { accessToken, refreshToken, refreshTokenExpiresAt } = generateTokenPair(tokenPayload);
+
+    // Store refresh token
+    await userTokenRepository.createToken({
+      userId: user.userId as string,
+      token: refreshToken,
+      expiresAt: refreshTokenExpiresAt,
+      tokenType: "REFRESH",
+    });
+
+    const refreshTokenCookie = cookieService.createRefreshTokenCookie(refreshToken);
+
     return {
-      user: returnedUser,
-      customer: returnedCustomer,
-      message: "Signup successful. Please verify your email.",
+      data: {
+        accessToken,
+        user,
+      },
+      cookies: [refreshTokenCookie],
     };
   }
 
@@ -142,7 +225,7 @@ class AuthService {
   }
 
   async resendVerification(email: string): Promise<void> {
-    const user = await userRepository.findByEmail(email);
+    const user = await userRepository.findUserByEmail(email);
 
     if (!user) {
       throw new CustomError({
@@ -163,7 +246,7 @@ class AuthService {
     const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10);
     const expiresAt = new Date(Date.now() + expiryTime);
 
-    const token = generateJwtTokenForGeneralUse(
+    const token = generateAccessToken(
       {
         userId: user.userId,
         userEmail: user.userEmail,
@@ -178,68 +261,6 @@ class AuthService {
     await emailService.sendVerificationEmail(user.userEmail, verificationLink, user.userName);
 
     console.log(`✅ Verification email resent to: ${email}`);
-  }
-
-  async login(loginDto: loginDTO): Promise<AuthResponse> {
-    const { email, password } = loginDto;
-
-    if (!email || !password) {
-      throw new CustomError({
-        message: "Email and password are required",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
-
-    const user = await userRepository.findByEmail(email);
-
-    if (!user) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    const match = await compare(password, user.userPassword);
-    if (!match) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    const activeUser = await userRepository.updateIsActive(user.userId, true);
-
-    const tokenPair = generateTokenPair({
-      userId: user.userId,
-      userName: user.userName,
-      userEmail: user.userEmail,
-    });
-
-    // Store refresh token
-    await userTokenRepository.createToken({
-      userId: user.userId,
-      token: tokenPair.refreshToken,
-      expiresAt: tokenPair.refreshTokenExpiresAt,
-      tokenType: "REFRESH",
-    });
-
-    const refreshTokenCookie = cookieService.createRefreshTokenCookie(tokenPair.refreshToken);
-
-    // Optional: Revoke old tokens if you want single session
-    // await refreshTokenRepository.revokeAllExceptCurrent(
-    //     user.userId,
-    //     tokenPair.refreshToken,
-    //     'new_login'
-    // );
-
-    return {
-      data: {
-        accessToken: tokenPair.accessToken,
-        accessTokenExpiresAt: tokenPair.accessTokenExpiresAt,
-        user: activeUser,
-      },
-      cookies: [refreshTokenCookie],
-    };
   }
 
   async refreshToken(requestRefreshToken?: string): Promise<AuthResponse> {
@@ -449,7 +470,7 @@ class AuthService {
   // ============ PASSWORD RESET METHODS ============
 
   async forgetPassword(email: string): Promise<void> {
-    const user = await userRepository.findByEmail(email);
+    const user = await userRepository.findUserByEmail(email);
 
     // Security: Always return success to prevent email enumeration
     if (!user || !user?.userId) {
@@ -471,7 +492,7 @@ class AuthService {
     const expiryHours = expiryMs / (1000 * 60 * 60);
     const expiresAt = new Date(Date.now() + expiryMs);
 
-    const token = generateJwtTokenForGeneralUse(
+    const token = generateAccessToken(
       {
         userId: user.userId,
         userEmail: user.userEmail,

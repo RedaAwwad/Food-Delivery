@@ -1,7 +1,6 @@
 import Joi from 'joi';
 
-export const forgetPasswordSchema = {
-    body: Joi.object().required().keys({
+export const forgetPasswordSchema =Joi.object().required().keys({
         email: Joi.string()
             .email()
             .required()
@@ -9,4 +8,4 @@ export const forgetPasswordSchema = {
                 'string.email': 'Please provide a valid email address',
                 'any.required': 'Email is required'
             })
-    })};
+    })

@@ -1,7 +1,6 @@
 import Joi from 'joi';
 
-export const resetPasswordSchema ={
- body: Joi.object().required().keys ({
+export const resetPasswordSchema =Joi.object().required().keys ({
     token: Joi.string()
         .required()
         .messages({
@@ -14,4 +13,4 @@ export const resetPasswordSchema ={
             'string.min': 'Password must be at least 8 characters long',
             'any.required': 'New password is required'
         })
-})};
+})

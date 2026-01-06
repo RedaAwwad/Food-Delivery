@@ -71,10 +71,3 @@ export const generateTokenPair = (payload: TokenPayload): TokenPair => {
     refreshTokenExpiresAt,
   };
 };
-
-export const generateJwtTokenForGeneralUse = (
-  payload: TokenPayload,
-  expiresIn?: string | number
-): string => {
-  return generateAccessToken(payload, expiresIn);
-};

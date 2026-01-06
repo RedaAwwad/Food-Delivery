@@ -5,3 +5,8 @@ export type CreateCustomerRatingDto = {
     ratingScore: RatingScore
     review?:string
 }
+
+
+
+
+

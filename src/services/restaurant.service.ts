@@ -11,6 +11,13 @@ export class RestaurantService {
             }
         })
     }
+    async findRestaurantByManagerId(managerId:string) {
+        return await prisma.restaurant.findUnique({
+            where:{
+                managerId
+            }
+        })
+    }
     async findRestaurantByRestaurantId(restaurantId: string) {
         
         return await restaurantRepository.findRestaurantByRestaurantId(restaurantId)
