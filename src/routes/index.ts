@@ -6,6 +6,9 @@ import { authRouter } from "./auth.routes";
 import { roleRouter } from "./role.routes";
 import { userRouter } from "./user.routes";
 import { restaurantRouter } from "./restaurant.routes";
+import { menuRouter } from "./menu.routes";
+import { menuCategoryRouter } from "./menuCategory.routes";
+import menuItemRouter from "./menuItem.routes";
 
 const initAPIRoutes = (app: Express) => {
   const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
@@ -17,6 +20,9 @@ const initAPIRoutes = (app: Express) => {
   app.use(`${apiPrefix}/roles`, roleRouter);
   app.use(`${apiPrefix}/users`, userRouter);
   app.use(`${apiPrefix}/restaurant`, restaurantRouter);
+  app.use(`${apiPrefix}/menu`, menuRouter);
+  app.use(`${apiPrefix}/menuCategory`, menuCategoryRouter);
+  app.use(`${apiPrefix}/menuItem`, menuItemRouter);
 };
 
 export { initAPIRoutes };
