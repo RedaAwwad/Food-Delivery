@@ -1,12 +1,10 @@
 import express, { Express } from "express";
 import { setupSwagger } from "../lib/swagger/swagger";
-import { CustomError, errorHandler } from "./errors";
-import { StatusCodes } from "http-status-codes";
-import * as Routers from "../routes/index.routes";
+import { errorHandler, NotFoundError } from "./errors";
 import cookieParser from "cookie-parser";
 import cors from "cors";
-import { prisma } from "../config/prisma.config";
 import { initAPIRoutes } from "../routes";
+import { startServer } from "./startServer";
 
 const initiateApp = async (app: Express) => {
     const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
@@ -31,41 +29,12 @@ const initiateApp = async (app: Express) => {
     initAPIRoutes(app);
 
     app.use((req, res, next) => {
-        throw new CustomError({
-            statusCode: StatusCodes.NOT_FOUND,
-            message: "Not Found",
-        });
+        throw NotFoundError("Not Found");
     });
 
     app.use(errorHandler);
 
-    try {
-        await prisma.$connect();
-        console.log("✅ Database connected successfully");
-
-        const server = app.listen(process.env.PORT, () => {
-            console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
-            console.log(`📖 API docs: ${process.env.APP_BASE_URL}/api-docs`);
-        });
-
-        // Graceful shutdown
-        const shutdown = async () => {
-            console.log('🛑 Shutting down server...');
-            server.close(() => {
-                console.log('HTTTP server closed.');
-            });
-            await prisma.$disconnect();
-            console.log('Database disconnected.');
-            process.exit(0);
-        };
-
-        process.on('SIGTERM', shutdown);
-        process.on('SIGINT', shutdown);
-
-    } catch (error) {
-        console.error("❌ Failed to connect to database:", error);
-        process.exit(1);
-    }
+    await startServer(app);
 };
 
 export { initiateApp };
