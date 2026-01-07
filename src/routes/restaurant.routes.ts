@@ -1,6 +1,6 @@
 import express from 'express';
 import { validateRequest } from '../middleware/validate-request';
-import { createRestaurantSchema, deleteRestaurantSchema, enableOrDisableRestaurantSchema, findRestaurantByRestaurantIdSchema, searchRestaurantSchema, updateRestaurantRatingSchema, updateRestaurantSchema } from '../validation/restautant.schema';
+import { createRestaurantSchema, deleteRestaurantSchema, enableOrDisableRestaurantSchema, findRestaurantByRestaurantIdSchema, searchRestaurantSchema, updateRestaurantRatingSchema, updateRestaurantSchema } from '../validation/restaurant.schema';
 import { restaurantController } from '../controllers/restaurant.controller';
 import { authenticate } from '../middleware/auth.middleware';
 
