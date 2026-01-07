@@ -36,8 +36,7 @@ class RestaurantController {
     }
 
     async updateRestaurant(req: Request, res: Response) {
-        const { restaurantId } = req.body
-        const restaurant = await restaurantService.updateRestaurant(restaurantId);
+        const restaurant = await restaurantService.updateRestaurant(req.body);
         res.status(StatusCodes.ACCEPTED).json(new SuccessResponse({
             data: restaurant
         }))

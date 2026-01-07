@@ -7,6 +7,16 @@ export interface createRestaurantDto {
     managerId: string
 }
 
+export interface updateRestaurantDto {
+    restaurantId: string
+    restaurantName?: string
+    restaurantBio?: string
+    restaurantLogo?: string
+    isAvailable?: boolean
+    addressId?: string
+    managerId?: string
+}
+
 export interface updateRestaurantRatingDto {
     restaurantId: string
     averageRating: number
@@ -19,20 +29,3 @@ export interface searchMenuItemsFilterDto {
     minPrice?: number
     maxPrice?: number
 }
-export type getRestaurantResponseDto =
-  Prisma.RestaurantGetPayload<{
-    select: {
-      restaurantName: true
-      restaurantLogo: true
-      isAvailable: true
-
-      menu: {
-        include: {
-          menuCategories: true
-        }
-      }
-
-      rating: true
-      address: true
-    }
-  }>

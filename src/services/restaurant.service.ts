@@ -1,4 +1,4 @@
-import { createRestaurantDto, searchMenuItemsFilterDto, updateRestaurantRatingDto } from "../dto/restaurant.dto";
+import { createRestaurantDto, searchMenuItemsFilterDto, updateRestaurantDto, updateRestaurantRatingDto } from "../dto/restaurant.dto";
 import { restaurantRepository } from "../repositories/restaurant.repository";
 
 export class RestaurantService {
@@ -22,7 +22,7 @@ export class RestaurantService {
     return await restaurantRepository.updateRestaurantRating(data);
   }
 
-  async updateRestaurant(data: any) {
+  async updateRestaurant(data: updateRestaurantDto) {
     return await restaurantRepository.updateRestaurant(data);
   }
 
