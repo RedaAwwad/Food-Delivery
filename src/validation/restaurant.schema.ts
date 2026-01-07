@@ -44,7 +44,15 @@ export const deleteRestaurantSchema = {
 }
 
 export const updateRestaurantSchema = {
-    body:Joi.object().required()
+    body:Joi.object().required().keys({
+        restaurantId:Joi.string().required(),
+        restaurantName:Joi.string().min(1).optional(),
+        restaurantBio:Joi.string().optional(),
+        restaurantLogo:Joi.string().optional(),
+        isAvailable:Joi.boolean().optional(),
+        addressId:Joi.string().optional(),
+        managerId:Joi.string().optional(),
+    })
 }
 
 // export const searchMenuItemSchema = {

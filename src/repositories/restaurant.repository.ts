@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { createRestaurantDto, updateRestaurantRatingDto } from "../dto/restaurant.dto";
+import { createRestaurantDto, updateRestaurantDto, updateRestaurantRatingDto } from "../dto/restaurant.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 
 class RestaurantRepository {
@@ -60,7 +60,7 @@ class RestaurantRepository {
         return restaurant;
     }
 
-    async updateRestaurant(data: any) {
+    async updateRestaurant(data: updateRestaurantDto) {
         try {
             const restaurant = await prisma.restaurant.update({
                 where: { restaurantId: data.restaurantId },
