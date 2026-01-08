@@ -1,6 +1,8 @@
 import express from "express";
 import { orderController } from "../controllers/order.controller";
-import { isAuthorized } from "../middleware/auth.middleware";
+import { authenticate, isAuthorized } from "../middleware/auth.middleware";
+import { validateRequest } from "../middleware/validate-request";
+import { cancelOrderSchema, findOrderByIdSchema, updateOrderStatusSchema } from "../validation/order.schema";
 
 const orderRouter = express.Router();
 
@@ -21,7 +23,7 @@ const orderRouter = express.Router();
  *       200:
  *         description: List of all orders
  */
-orderRouter.get("/", orderController.getAllOrders);
+orderRouter.get("/", authenticate, orderController.findAllOrdersByCustomerId);
 
 /**
  * @swagger
@@ -42,7 +44,7 @@ orderRouter.get("/", orderController.getAllOrders);
  *       404:
  *         description: Order not found
  */
-orderRouter.get("/:id", orderController.getOrderDetails);
+orderRouter.get("/:orderId", authenticate, validateRequest(findOrderByIdSchema), orderController.findOrderById);
 
 /**
  * @swagger
@@ -80,7 +82,7 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderController.updateStatus);
+orderRouter.patch("/:orderId/status", authenticate, validateRequest(updateOrderStatusSchema), isAuthorized(["restaurant", "admin"]), orderController.updateOrderStatus);
 
 /**
  * @swagger
@@ -118,15 +120,8 @@ orderRouter.patch("/:id/status",isAuthorized(["restaurant" ,"admin"]) ,  orderCo
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch(
-  "/:id/cancel",
-  isAuthorized(["restaurant"]),
-  orderController.cancelOrder
-);
+orderRouter.patch("/:orderId/cancel", authenticate, validateRequest(cancelOrderSchema), isAuthorized(["restaurant"]), orderController.cancelOrder);
 
-orderRouter.post(
-  "/check-out",
-  orderController.placeOrder
-);
+orderRouter.post("/check-out", authenticate, orderController.placeOrder);
 
 export { orderRouter };

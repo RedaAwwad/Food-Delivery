@@ -1,13 +1,22 @@
 import { prisma } from "../config/prisma.config";
-import { CreateOrderDto } from "../dto/createOrderDto";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
-
-// type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
+import { CreateOrderDto, UpdateOrderStatusDto } from "../dto/order.dto";
+import { BadRequestError, NotFoundError } from "../utils/errors";
 
 class OrderRepository {
-  async findAllOrders() {
-    return await prisma.order.findMany();
+  async findAllOrdersByCustomerId(customerId: string) {
+    const orders = await prisma.order.findMany({
+      where: {
+        customerId
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    if (!orders)
+      throw NotFoundError("No Orders Found For This Customer")
+
+    return orders
   }
 
   async findOrderById(orderId: string) {
@@ -18,12 +27,30 @@ class OrderRepository {
     });
   }
 
-  async updateOrderStatus(orderId: string, newOrderStatus: string) {
-    return await prisma.order.update({
-      where: { orderId },
-      data: { orderStatus: newOrderStatus },
+  async updateOrderStatus(data: UpdateOrderStatusDto) {
+    const updatedStatus = await prisma.order.update({
+      where: { orderId: data.orderId },
+      data: { orderStatus: data.newOrderStatus },
     });
+
+    if (!updatedStatus)
+      throw BadRequestError("Failed To Update Order")
+
+    return updatedStatus
   }
+
+  async cancelOrder(orderId: string) {
+    try {
+      return await prisma.order.update({
+        where: { orderId },
+        data: { orderStatus: "canceled" },
+      });
+
+    } catch (error: any) {
+      throw BadRequestError("Failed To Cancel Order", error)
+    }
+  }
+
   async createOrder(createOrderDto: CreateOrderDto) {
     const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
@@ -39,7 +66,6 @@ class OrderRepository {
         restaurantId,
         totalAmount,
         orderStatus: status,
-        // createdById/updatedById are required by the schema — set to the customer for now
         createdById: customerId,
         updatedById: customerId,
         orderItems: {
@@ -54,6 +80,9 @@ class OrderRepository {
         orderItems: true, // Include items in the returned order object
       },
     });
+
+    if(!newOrder)
+      throw BadRequestError("Failed To Create Order")
 
     return newOrder;
   }
