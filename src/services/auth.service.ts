@@ -130,11 +130,10 @@ class AuthService {
     async login(loginDto: loginDTO): Promise<AuthResponse> {
         const { email, password } = loginDto;
 
-        if (!email || !password) {
+        if (!email || !password)
             throw BadRequestError("Email and password are required");
-        }
 
-        const user = await userService.findUserByEmail(email);
+        const user = await userService.findUserByEmailWithRoles(email);
 
         if (!user)
             throw UnauthorizedError("Invalid email or password");
@@ -152,11 +151,15 @@ class AuthService {
 
         const returnedUser = { userId: user.userId, userName: user.userName, userEmail: user.userEmail };
 
+        const roles = user.usersRoles.map(ur => ur.role.roleName);
+
         const tokenPair = generateTokenPair({
             userId: user.userId,
             customerId: customer.customerId,
             userName: user.userName,
             userEmail: user.userEmail,
+            roles,
+            isAdmin: user.isAdmin,
         });
 
         // Store refresh token
@@ -241,7 +244,6 @@ class AuthService {
             throw UnauthorizedError("Invalid Refresh Token")
 
         const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
-
         if (!isValid)
             throw UnauthorizedError("Invalid or expired refresh token")
 
@@ -251,6 +253,8 @@ class AuthService {
             customerId: decoded.customerId,
             userName: decoded.userName,
             userEmail: decoded.userEmail,
+            roles: decoded.roles || [],
+            isAdmin: decoded.isAdmin || false
         });
 
         const accessTokenExpiresAt = new Date(Date.now() + (parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 60 * 1000));

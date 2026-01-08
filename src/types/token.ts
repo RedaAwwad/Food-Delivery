@@ -5,6 +5,8 @@ export interface TokenPayload {
   userName?: string;
   userEmail?: string;
   role?: string;
+  roles?: string[];
+  isAdmin?: boolean;
   [key: string]: any;
 }
 
@@ -36,10 +38,10 @@ export interface CreateRefreshTokenData {
 }
 
 export interface CreateTokenData {
-    userId: string;
-    tokenType: TokenType;
-    expiresAt: Date;
-    token?: string; // Optional - will be generated if not provided
+  userId: string;
+  tokenType: TokenType;
+  expiresAt: Date;
+  token?: string; // Optional - will be generated if not provided
 }
 
 export interface RefreshTokenFilter {

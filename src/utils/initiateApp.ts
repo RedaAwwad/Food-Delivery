@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { initAPIRoutes } from "../routes";
 import { startServer } from "./startServer";
+import { tokenExtractor } from "../middleware/auth.middleware";
 
 const initiateApp = async (app: Express) => {
     const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
@@ -16,6 +17,8 @@ const initiateApp = async (app: Express) => {
     app.use(cors());
 
     app.use(express.urlencoded({ extended: true }));
+
+    app.use(tokenExtractor);
 
     setupSwagger(app);
 

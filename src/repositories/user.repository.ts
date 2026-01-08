@@ -43,5 +43,31 @@ export class UserRepository {
             data
         });
     }
+
+    async findUserByEmailWithRoles(email: string) {
+        return prisma.user.findUnique({
+            where: { userEmail: email },
+            include: {
+                usersRoles: {
+                    include: {
+                        role: true
+                    }
+                }
+            }
+        });
+    }
+
+    async findUserByIdWithRoles(userId: string) {
+        return prisma.user.findUnique({
+            where: { userId },
+            include: {
+                usersRoles: {
+                    include: {
+                        role: true
+                    }
+                }
+            }
+        });
+    }
 }
 export const userRepository = new UserRepository();
