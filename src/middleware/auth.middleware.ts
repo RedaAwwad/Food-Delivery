@@ -30,6 +30,7 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 
         req.user = {
             userId: decoded.userId,
+            customerId: decoded.customerId,
             userName: decoded.userName,
             userEmail: decoded.userEmail,
             isAdmin: decoded.isAdmin || false,

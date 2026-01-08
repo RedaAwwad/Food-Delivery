@@ -4,7 +4,7 @@ export interface TokenPayload {
   userId?: string;
   userName?: string;
   userEmail?: string;
-  role?: string;
+  customerId?: string;
   roles?: string[];
   isAdmin?: boolean;
   [key: string]: any;
