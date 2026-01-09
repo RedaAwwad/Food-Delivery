@@ -15,7 +15,11 @@ authRouter.post("/login", validateRequest(logInSchema), authController.login);
 authRouter.post("/refresh-token", authController.refreshToken);
 
 // Verify Email Routes
-authRouter.get("/verify-email", authController.verifyEmail);
+authRouter.get(
+  "/verify-email",
+  validateRequest(confirmEmailSchema, "query"),
+  authController.verifyEmail
+);
 authRouter.post(
   "/resend-verification",
   validateRequest(requireEmailSchema),

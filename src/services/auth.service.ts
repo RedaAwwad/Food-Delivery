@@ -199,11 +199,7 @@ class AuthService {
   }
 
   async verifyEmail(token: string): Promise<void> {
-    const { token: validToken } = await checkValidation<{ token: string }>(confirmEmailSchema, {
-      token,
-    });
-
-    const tokenData = verifyToken(validToken);
+    const tokenData = verifyToken(token);
 
     console.log({ tokenData });
 
