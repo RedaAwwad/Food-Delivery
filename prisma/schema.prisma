@@ -365,6 +365,32 @@ model Rating {
   @@map("ratings")
 }
 
+// ====== Event Sourcing ======
+model CartEvent {
+  id          String   @id @default(uuid()) @map("id")
+  customerId  String   @map("customer_id")
+  eventType   CartEventType @map("event_type")
+  eventDate   DateTime @default(now()) @map("event_date")
+  
+  // Specific payload fields (Nullable because they don't apply to LOCK/CLEAR events)
+  menuItemId  String?  @map("menu_item_id")
+  itemName    String?  @map("item_name")
+  quantity    Int?     @map("quantity")
+  price       Int?     @map("price")
+
+  @@index([customerId])
+  @@map("cart_events")
+}
+
+enum CartEventType {
+  ADD_TO_CART
+  UPDATE_QUANTITY
+  REMOVE_FROM_CART
+  CLEAR_CART
+  LOCK_CART
+  UNLOCK_CART
+}
+
 enum RatingScore {
   ONE
   TWO
@@ -372,6 +398,7 @@ enum RatingScore {
   FOUR
   FIVE
 }
+
 enum TokenType {
   REFRESH
   VERIFICATION

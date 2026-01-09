@@ -7,6 +7,11 @@ class MenuItemService {
         return menuItem;
     }
 
+    async getMenuItemById(menuItemId: string) {
+        const menuItem = await menuItemRepository.getMenuItemById(menuItemId);
+        return menuItem;
+    }
+
     async createMenuItem(data: createMenuItemDto) {
         const menuItem = await menuItemRepository.createMenuItem(data);
         return menuItem;

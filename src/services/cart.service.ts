@@ -1,73 +1,62 @@
-import { StatusCodes } from "http-status-codes";
+import { menuItemService } from "./menuItem.service";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
 import { cartRepository } from "../repositories/cart.repository";
-import { CustomError } from "../utils/errors/custom-error";
+import { NotFoundError } from "../utils/errors";
 
 class CartService {
   async addToCart(cartItem: CreateCartItemDTO, customerId: string) {
-    // const cartRepository = new cartRepository()
+    const menuItem = await menuItemService.getMenuItemById(cartItem.menuItemId);
+
+    if (!menuItem) throw NotFoundError("Menu Item not found");
+
     const cart = await cartRepository.upsertCart(customerId);
     console.log("the cart: ", cart);
-    const newCartItem = await cartRepository.createCartItem(cartItem, cart.cartId);
+
+    const newCartItem = await cartRepository.createCartItem(
+      cartItem,
+      cart.cartId,
+      customerId,
+      { name: menuItem.menuItemName, price: menuItem.price }
+    );
     return { cart, item: newCartItem };
   }
 
   async viewCart(customerId: string) {
-    // const cart = await cartRepository.findCartByCustomerId(customerId);
     const cart = await cartRepository.upsertCart(customerId);
-    if (!cart) {
-      throw new CustomError({
-        message: "The customer doesn't have cart",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!cart) throw NotFoundError("The customer doesn't have cart");
     return cart;
   }
 
-  async updateQuantity(updateQuantityDto: { cartItemId: string; quantity: number }) {
-    // check if the authenticated user owns the cart item
-    // TODO: get customerId from auth
-    const cart = await cartRepository.findCartByCustomerId("019ac7a7-45f5-7d74-b4df-507df7312a78");
-    if (!cart) {
-      throw new CustomError({
-        statusCode: StatusCodes.NOT_FOUND,
-        message: "Cart not found!",
-      });
-    }
+  async updateQuantity(updateQuantityDto: { cartItemId: string; quantity: number }, customerId: string) {
+    const cart = await cartRepository.findCartByCustomerId(customerId);
+    if (!cart) throw NotFoundError("Cart not found!");
+
     const updatedCartItem = await cartRepository.updateCartItemQuantity({
       ...updateQuantityDto,
       cartItemId: updateQuantityDto.cartItemId,
       cartId: cart.cartId,
+      customerId,
     });
     return updatedCartItem;
   }
 
-  async removeCartItem(removeCartItemDto: RemoveCartItemDTO) {
-    // get authenticated user cart
-    const cart = await cartRepository.findCartByCustomerId("019ac7a7-45f5-7d74-b4df-507df7312a78");
-    if (!cart) {
-      throw new CustomError({
-        statusCode: StatusCodes.NOT_FOUND,
-        message: "Cart not found!",
-      });
-    }
+  async removeCartItem(removeCartItemDto: RemoveCartItemDTO, customerId: string) {
+    const cart = await cartRepository.findCartByCustomerId(customerId);
+    if (!cart) throw NotFoundError("Cart not found!");
+
     return await cartRepository.removeItemFromCart({
       ...removeCartItemDto,
       cartId: cart.cartId,
+      customerId,
     });
   }
 
   async clearCart(customerId: string) {
     const cart = await cartRepository.findCartByCustomerId(customerId);
-    if (!cart) {
-      throw new CustomError({
-        statusCode: StatusCodes.NOT_FOUND,
-        message: "Cart not found!",
-      });
-    }
+    if (!cart) throw NotFoundError("Cart not found!");
 
-    await cartRepository.clearCart(cart.cartId);
+    await cartRepository.clearCart(cart.cartId, customerId);
   }
 }
 export const cartService = new CartService();

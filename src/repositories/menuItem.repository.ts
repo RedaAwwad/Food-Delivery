@@ -22,6 +22,25 @@ class MenuItemRepository {
         return menuItem;
     }
 
+    async getMenuItemById(menuItemId: string) {
+        const menuItem = await prisma.menuItem.findUnique({
+            where: {
+                menuItemId: menuItemId,
+            },select:{
+                menuItemId:true,
+                menuItemName:true,
+                menuItemDesc:true,
+                menuItemImageUrl:true,
+                price:true,
+                stockQuantity:true,
+            }
+        });
+        if (!menuItem)
+            throw NotFoundError("no menu item found");
+
+        return menuItem;
+    }
+
     async createMenuItem(data: createMenuItemDto) {
         const menuItem = await prisma.menuItem.create({
             data: {

@@ -6,6 +6,12 @@ export const getAllMenuItemByMenuCategoryIdSchema = {
     })
 }
 
+export const getMenuItemByIdSchema = {
+    body: Joi.object().required().keys({
+        menuItemId: Joi.string().required(),
+    })
+}
+
 export const createMenuItemSchema = {
     body: Joi.object().required().keys({
         menuItemName: Joi.string().required(),
