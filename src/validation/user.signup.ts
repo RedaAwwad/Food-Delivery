@@ -9,4 +9,4 @@ export const signUpSchema = Joi.object({
     "any.required": "Confirm password is required",
   }),
   userPhoneNumber: Joi.string().min(10).required(),
-});
+}).required();

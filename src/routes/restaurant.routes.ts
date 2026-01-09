@@ -1,6 +1,6 @@
 import express from "express";
 import { validateRequest } from "../middleware/validate-request";
-import { getRestaurantSchema, searchMenuItemSchema } from "../validation/restaurant.schema";
+import { searchMenuItemSchema } from "../validation/restaurant.schema";
 import { restaurantController } from "../controllers/restaurant.controller";
 export const restaurantRouter = express.Router();
 
@@ -43,13 +43,8 @@ export const restaurantRouter = express.Router();
  */
 restaurantRouter.get(
   "/menu-item/search",
-  validateRequest(searchMenuItemSchema),
+  validateRequest(searchMenuItemSchema, "query"),
   restaurantController.searchMenuItems
 );
 
-
-restaurantRouter.get(
-  "/:restaurantId",
-  validateRequest(getRestaurantSchema),
-  restaurantController.findRestaurantByRestaurantId
-);
+restaurantRouter.get("/:restaurantId", restaurantController.findRestaurantByRestaurantId);
