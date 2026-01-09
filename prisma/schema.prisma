@@ -301,8 +301,9 @@ model OrderItem {
 
 model Address {
   addressId  String      @id @default(uuid()) @map("address_id")
-  customerId String      @map("customer_id")
-  restaurantId String    @unique @map("restaurant_id")
+  ownerId String      @map("owner_id")
+  // customerId String      @map("customer_id")
+  // restaurantId String    @unique @map("restaurant_id")
   street     String   
   city       String   
   area      String   
@@ -317,8 +318,8 @@ model Address {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  customer Customer @relation(fields: [customerId], references: [customerId])
-  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+  customer Customer @relation(fields: [ownerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [ownerId], references: [restaurantId])
   
   @@map("addresses")
 }
