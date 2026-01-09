@@ -7,8 +7,6 @@ export const verifyToken = (token: string): JwtPayload => {
     const secret = process.env.JWT_SECRET || "default_secret";
     const decoded = jwt.verify(token, secret) as JwtPayload;
 
-    console.log(decoded);
-
     if (typeof decoded === "string" || !decoded.userId) {
       throw new CustomError({
         message: "Invalid credentials!",
