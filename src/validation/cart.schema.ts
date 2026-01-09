@@ -15,28 +15,24 @@ const AddToCartSchema = Joi.object({
     "number.min": "price must be at least 1",
     "any.required": "price is required",
   }),
-});
+}).required();
 
-const UpdateQuantitySchema = {
-  body: Joi.object({
-    itemId: Joi.number().integer().required().messages({
-      "any.required": "Item ID is required",
-    }),
-    quantity: Joi.number().integer().min(1).required().messages({
-      "number.base": "Quantity must be a number",
-      "number.integer": "Quantity must be an integer",
-      "number.min": "Quantity must be at least 1",
-      "any.required": "Quantity is required",
-    }),
+const UpdateQuantitySchema = Joi.object({
+  itemId: Joi.number().integer().required().messages({
+    "any.required": "Item ID is required",
   }),
-};
+  quantity: Joi.number().integer().min(1).required().messages({
+    "number.base": "Quantity must be a number",
+    "number.integer": "Quantity must be an integer",
+    "number.min": "Quantity must be at least 1",
+    "any.required": "Quantity is required",
+  }),
+}).required();
 
-const RemoveCartItemSchema = {
-  body: Joi.object({
-    itemId: Joi.number().integer().required().messages({
-      "any.required": "Item ID is required",
-    }),
+const RemoveCartItemSchema = Joi.object({
+  itemId: Joi.number().integer().required().messages({
+    "any.required": "Item ID is required",
   }),
-};
+}).required();
 
 export { AddToCartSchema, UpdateQuantitySchema, RemoveCartItemSchema };
