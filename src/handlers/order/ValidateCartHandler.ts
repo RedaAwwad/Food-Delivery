@@ -12,9 +12,15 @@ export class ValidateCartHandler extends OrderHandler {
         console.log(`[ValidateCartHandler] Fetching cart items for customer: ${context.customerId}`);
 
         const cart = await cartRepository.getCartWithCartItemsByCustomerId(context.customerId);
-        // Handle the case where cart is not found (returns empty array based on repository logic)
-        // or returns a cart object.
-        const cartItems = (Array.isArray(cart) ? [] : cart?.cartItems) || [];
+
+        if (!cart) {
+            throw new CustomError({
+                message: "Cart is empty. Cannot place an order.",
+                statusCode: StatusCodes.BAD_REQUEST,
+            });
+        }
+
+        const cartItems = cart.cartItems || [];
 
         if (!cartItems || cartItems.length === 0) {
             throw new CustomError({

@@ -35,7 +35,7 @@ class CartRepository {
       }
     });
 
-    if (!cart) return [];
+    if (!cart) return null;
 
     return cart;
   }

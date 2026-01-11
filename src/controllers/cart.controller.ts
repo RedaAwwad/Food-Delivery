@@ -10,12 +10,12 @@ class CartController {
     const cart = await cartService.addToCart(req.body as CreateCartItemDTO, customerId);
 
     if (!cart) res.status(500).json({ error: 'Internal Server Error' });
-    
+
     res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: cart }));
   }
 
   async getCartWithCartItemsByCustomerId(req: Request, res: Response) {
-    const customerId = req.user!.userId
+    const customerId = req.user!.customerId!
     const cart = await cartService.getCartWithCartItemsByCustomerId(customerId);
 
     res.status(StatusCodes.OK).json(new SuccessResponse({ data: cart }));

@@ -1,5 +1,5 @@
 import { orderRepository } from "../repositories/order.repository";
-import { cartRepository } from "../repositories/cart.repository";
+import { cartService } from "./cart.service";
 import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
 import { InternalServerError, NotFoundError } from "../utils/errors";
@@ -55,7 +55,7 @@ class OrderService {
     } catch (err: any) {
       try {
         if (context.isCartLocked)
-          await cartRepository.unlockCart(customerId);
+          await cartService.unlockCart(customerId);
 
       } catch (unlockError: any) {
         throw InternalServerError(`[OrderService] Failed to unlock cart after error:`, unlockError);
@@ -64,6 +64,7 @@ class OrderService {
       throw InternalServerError("Failed to place order", err);
     }
   }
+
 }
 
 export const orderService = new OrderService();

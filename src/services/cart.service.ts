@@ -12,10 +12,19 @@ class CartService {
     const menuItem = await menuItemService.getMenuItemById(cartItem.menuItemId);
 
     if (!menuItem) throw NotFoundError("Menu Item not found");
-    if (menuItem.stockQuantity < cartItem.quantity) throw NotFoundError("Not enough stock");
 
-    const cart = await cartRepository.upsertCart(customerId);
-    console.log("the cart: ", cart);
+    let cart: any = await cartRepository.getCartWithCartItemsByCustomerId(customerId);
+
+    if (!cart) {
+      cart = await cartRepository.upsertCart(customerId);
+      cart.cartItems = [];
+    }
+
+    const existingItem = cart.cartItems?.find((item: any) => item.menuItemId === cartItem.menuItemId);
+    const currentQuantity = existingItem ? existingItem.quantity : 0;
+    const newTotalQuantity = currentQuantity + cartItem.quantity;
+
+    if (menuItem.stockQuantity < newTotalQuantity) throw NotFoundError("Not enough stock");
 
     const newCartItem = await prisma.$transaction(async (tx) => {
       await cartEventService.createEvent({
@@ -28,7 +37,7 @@ class CartService {
       }, tx);
 
       return await cartRepository.createCartItem(
-        cartItem,
+        { ...cartItem, quantity: newTotalQuantity },
         cart.cartId,
         { name: menuItem.menuItemName, price: menuItem.price },
         tx
