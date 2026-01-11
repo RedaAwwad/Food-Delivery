@@ -1,34 +1,34 @@
 import { Request, Response, NextFunction } from "express";
 import { cartService } from "../services/cart.service";
-import { CreateCartItemDTO } from "../dto/cartItem.dto";
-import { UpdateQuantityDTO } from "../dto/UpdateQuantity.dto";
-import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
+import { CreateCartItemDTO, UpdateCartItemQuantityDTO } from "../dto/cartItem.dto";
 
 class CartController {
-  async addToCart(req: Request, res: Response, next: NextFunction) {
-    const customerId = req.user!.userId
-    const cart = await cartService.addToCart(req.body, customerId);
-  
+  async addToCart(req: Request, res: Response) {
+    const customerId = req.user!.customerId!
+    const cart = await cartService.addToCart(req.body as CreateCartItemDTO, customerId);
+
+    if (!cart) res.status(500).json({ error: 'Internal Server Error' });
+    
     res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: cart }));
   }
 
-  async viewCart(req: Request, res: Response) {
+  async getCartWithCartItemsByCustomerId(req: Request, res: Response) {
     const customerId = req.user!.userId
-    const cart = await cartService.viewCart(customerId);
+    const cart = await cartService.getCartWithCartItemsByCustomerId(customerId);
 
     res.status(StatusCodes.OK).json(new SuccessResponse({ data: cart }));
   }
 
-  async updateQuantity(req: Request<{}, {}, UpdateQuantityDTO>, res: Response) {
-    const customerId = req.user!.userId;
-    const updatedItem = await cartService.updateQuantity(req.body, customerId);
+  async updateQuantity(req: Request, res: Response) {
+    const customerId = req.user!.customerId!;
+    const updatedItem = await cartService.updateQuantity(req.body as UpdateCartItemQuantityDTO, customerId);
     res.status(StatusCodes.OK).json(new SuccessResponse({ data: updatedItem }));
   }
 
-  async removeCartItem(req: Request<{}, {}, RemoveCartItemDTO>, res: Response) {
-    const customerId = req.user!.userId;
+  async removeCartItem(req: Request, res: Response) {
+    const customerId = req.user!.customerId!;
     await cartService.removeCartItem(req.body, customerId);
     res
       .status(StatusCodes.NO_CONTENT)
@@ -36,7 +36,7 @@ class CartController {
   }
 
   async clearCart(req: Request, res: Response) {
-    const customerId = req.user!.userId
+    const customerId = req.user!.customerId!
     await cartService.clearCart(customerId);
     res
       .status(StatusCodes.NO_CONTENT)
