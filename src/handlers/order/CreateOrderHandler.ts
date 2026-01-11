@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { orderRepository } from "../repositories/order.repository";
-import { OrderStatus } from "../enums/orderStatus.enum";
+import { OrderContext } from "../../types/OrderContext";
+import { orderRepository } from "../../repositories/order.repository";
+import { OrderStatus } from "../../enums/orderStatus.enum";
 
 /**
  * Creates the order record with PENDING status.

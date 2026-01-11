@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { cartService } from "../services/cart.service";
+import { OrderContext } from "../../types/OrderContext";
+import { cartService } from "../../services/cart.service";
 
 /**
  * Unlocks the cart. This handler always executes, even if previous handlers failed.

@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { cartRepository } from "../repositories/cart.repository";
-import { CustomError } from "../utils/errors/custom-error";
+import { OrderContext } from "../../types/OrderContext";
+import { cartRepository } from "../../repositories/cart.repository";
+import { CustomError } from "../../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
 
 /**
@@ -11,7 +11,10 @@ export class ValidateCartHandler extends OrderHandler {
     protected async handle(context: OrderContext): Promise<void> {
         console.log(`[ValidateCartHandler] Fetching cart items for customer: ${context.customerId}`);
 
-        const cartItems = await cartRepository.getCartItemsByCustomerId(context.customerId);
+        const cart = await cartRepository.getCartWithCartItemsByCustomerId(context.customerId);
+        // Handle the case where cart is not found (returns empty array based on repository logic)
+        // or returns a cart object.
+        const cartItems = (Array.isArray(cart) ? [] : cart?.cartItems) || [];
 
         if (!cartItems || cartItems.length === 0) {
             throw new CustomError({

@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { notificationService } from "../services/notification.service";
+import { OrderContext } from "../../types/OrderContext";
+import { notificationService } from "../../services/notification.service";
 
 /**
  * Sends notification to the restaurant about the new order.

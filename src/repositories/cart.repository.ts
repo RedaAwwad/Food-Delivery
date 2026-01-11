@@ -27,7 +27,11 @@ class CartRepository {
         cartId: true,
         customerId: true,
         isLocked: true,
-        cartItems: true
+        cartItems: {
+          include: {
+            menuItem: true
+          }
+        }
       }
     });
 

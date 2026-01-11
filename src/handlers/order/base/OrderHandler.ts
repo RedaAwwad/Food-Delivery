@@ -1,4 +1,4 @@
-import { OrderContext } from "../../types/OrderContext";
+import { OrderContext } from "../../../types/OrderContext";
 
 export abstract class OrderHandler {
     private nextHandler?: OrderHandler;

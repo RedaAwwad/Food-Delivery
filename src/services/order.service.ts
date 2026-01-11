@@ -1,12 +1,9 @@
-import { StatusCodes } from "http-status-codes";
-import { CustomError } from "../utils/errors/custom-error";
 import { orderRepository } from "../repositories/order.repository";
 import { cartRepository } from "../repositories/cart.repository";
-import { OrderHandlerChainBuilder } from "../handlers/OrderHandlerChainBuilder";
+import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
 import { InternalServerError, NotFoundError } from "../utils/errors";
 import { UpdateOrderStatusDto } from "../dto/order.dto";
-import { any } from "joi";
 
 class OrderService {
   async findAllOrdersByCustomerId(customerId: string) {
@@ -57,7 +54,7 @@ class OrderService {
       return result.finalOrder;
     } catch (err: any) {
       try {
-        if (context.isCartLocked) 
+        if (context.isCartLocked)
           await cartRepository.unlockCart(customerId);
 
       } catch (unlockError: any) {

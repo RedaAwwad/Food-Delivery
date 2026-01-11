@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { inventoryRepository } from "../repositories/inventory.repository";
+import { OrderContext } from "../../types/OrderContext";
+import { inventoryRepository } from "../../repositories/inventory.repository";
 
 /**
  * Verifies that all items in the cart are available in sufficient quantities.

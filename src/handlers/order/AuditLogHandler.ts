@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { auditService } from "../services/audit.service";
+import { OrderContext } from "../../types/OrderContext";
+import { auditService } from "../../services/audit.service";
 
 /**
  * Logs audit information about the order creation.

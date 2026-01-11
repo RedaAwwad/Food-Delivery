@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { cartService } from "../services/cart.service";
+import { OrderContext } from "../../types/OrderContext";
+import { cartService } from "../../services/cart.service";
 
 /**
  * Clears the customer's cart after successful payment.

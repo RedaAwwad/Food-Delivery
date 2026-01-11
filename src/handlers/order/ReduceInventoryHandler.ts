@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { inventoryRepository } from "../repositories/inventory.repository";
+import { OrderContext } from "../../types/OrderContext";
+import { inventoryRepository } from "../../repositories/inventory.repository";
 
 /**
  * Reduces inventory stock if payment was successful.

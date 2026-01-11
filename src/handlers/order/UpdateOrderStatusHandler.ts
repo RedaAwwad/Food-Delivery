@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { orderRepository } from "../repositories/order.repository";
-import { OrderStatus } from "../enums/orderStatus.enum";
+import { OrderContext } from "../../types/OrderContext";
+import { orderRepository } from "../../repositories/order.repository";
+import { OrderStatus } from "../../enums/orderStatus.enum";
 
 /**
  * Updates order status based on payment result (COMPLETED or CANCELED).
@@ -18,10 +18,10 @@ export class UpdateOrderStatusHandler extends OrderHandler {
             ? OrderStatus.COMPLETED
             : OrderStatus.CANCELED;
 
-        const updatedOrder = await orderRepository.updateOrderStatus(
-            context.order.orderId,
-            newStatus
-        );
+        const updatedOrder = await orderRepository.updateOrderStatus({
+            orderId: context.order.orderId,
+            newOrderStatus: newStatus
+        });
 
         context.finalOrder = updatedOrder;
         console.log(`[UpdateOrderStatusHandler] Order status updated to: ${newStatus}`);
