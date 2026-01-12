@@ -8,34 +8,34 @@ class AddressRepository {
     });
   }
 
-  async findAddressesByCustomerId(customerId: number): Promise<Address[]> {
+  async findAddressesByCustomerId(customerId: string): Promise<Address[]> {
     return prisma.address.findMany({
       where: { customerId },
       orderBy: { isPrimary: "desc" },
     });
   }
 
-  async findAddressById(addressId: number): Promise<Address | null> {
+  async findAddressById(addressId: string): Promise<Address | null> {
     return prisma.address.findUnique({
-      where: { id: addressId },
+      where: { addressId },
     });
   }
 
-  async updateAddress(addressId: number, data: Prisma.AddressUpdateInput): Promise<Address> {
+  async updateAddress(addressId: string, data: Prisma.AddressUpdateInput): Promise<Address> {
     return prisma.address.update({
-      where: { id: addressId },
+      where: { addressId },
       data,
     });
   }
 
-  async unsetPrimaryAddresses(customerId: number, excludeAddressId?: number): Promise<void> {
+  async unsetPrimaryAddresses(customerId: string, excludeAddressId?: string): Promise<void> {
     const whereClause: Prisma.AddressWhereInput = {
       customerId,
       isPrimary: true,
     };
 
     if (excludeAddressId) {
-      whereClause.id = { not: excludeAddressId };
+      whereClause.addressId = { not: excludeAddressId };
     }
 
     await prisma.address.updateMany({
@@ -44,9 +44,9 @@ class AddressRepository {
     });
   }
 
-  async deleteAddress(addressId: number): Promise<void> {
+  async deleteAddress(addressId: string): Promise<void> {
     await prisma.address.delete({
-      where: { id: addressId },
+      where: { addressId },
     });
   }
 }

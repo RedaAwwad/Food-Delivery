@@ -29,9 +29,6 @@ model User {
   userToken   UserToken[]
 
   // Reverse relations
-  createdOrders Order[] @relation("CreatedOrders")
-  updatedOrders Order[] @relation("UpdatedOrders")
-
   createdCustomers Customer[] @relation("CreatedCustomers")
   updatedCustomers Customer[] @relation("UpdatedCustomers")
 
@@ -116,7 +113,6 @@ model Customer {
 model Restaurant {
   restaurantId String   @id @default(uuid()) @map("restaurant_id")
   managerId    String      @unique @map("manager_id")
-  addressId    String      @unique @map("address_id")
   restaurantName        String   
   restaurantBio String  @map("restaurant_bio") 
   restaurantLogo        String? @map("restaurant_logo")   
@@ -129,7 +125,7 @@ model Restaurant {
 
   manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
-  address Address?
+  addresses Address[]
   rating Rating[]
 
   orders Order[]
@@ -231,15 +227,8 @@ model Order {
 
   createdAt   DateTime      @default(now()) @map("created_at")
   updatedAt   DateTime      @updatedAt @map("updated_at")
-  
-    // Foreign keys
-  createdById String
-  updatedById String
 
   // Relations
-  createdBy   User? @relation("CreatedOrders", fields: [createdById], references: [userId])
-  updatedBy   User? @relation("UpdatedOrders", fields: [updatedById], references: [userId]) 
-
   customer Customer @relation(fields: [customerId], references: [customerId])
   restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
 
@@ -258,7 +247,7 @@ model OrderStatus {
   orderStatusKey       String   @unique @map("order_status_key")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   orders Order[]
 
@@ -272,7 +261,7 @@ model OrderTracking {
   trackingStatusKey    String   @unique @map("tracking_status_key")
 
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
 
   orders Order[]
 
@@ -297,14 +286,14 @@ model OrderItem {
 
 
 model Address {
-  addressId  String      @id @default(uuid()) @map("address_id")
-  customerId String      @map("customer_id")
-  restaurantId String    @unique @map("restaurant_id")
+  addressId     String      @id @default(uuid()) @map("address_id")
+  customerId   String?  @map("customer_id")
+  restaurantId String?  @map("restaurant_id")
   street     String   
   city       String   
-  area      String   
+  area       String   
   zipCode    Int   @map("zip_code")
-  block    String
+  block      String
   apartmentNumber  String
   floor      String  
   latitude   Float
@@ -312,10 +301,10 @@ model Address {
   isPrimary  Boolean   @default(false) @map("is_primary")
 
   createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
+  updatedAt  DateTime @default(now()) @map("updated_at")
 
-  customer Customer @relation(fields: [customerId], references: [customerId])
-  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+  customer Customer? @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [restaurantId])
   
   @@map("addresses")
 }

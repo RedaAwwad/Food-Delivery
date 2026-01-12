@@ -9,7 +9,7 @@ export class LockCartHandler extends OrderHandler {
     protected async handle(context: OrderContext): Promise<void> {
         console.log(`[LockCartHandler] Locking cart for customer: ${context.customerId}`);
 
-        await cartService.lockCart(context.customerId);
+        await cartService.lockCart(context.customerId, context.tx);
         context.isCartLocked = true;
 
         console.log(`[LockCartHandler] Cart locked successfully`);

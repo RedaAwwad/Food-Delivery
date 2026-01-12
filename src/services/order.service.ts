@@ -1,5 +1,5 @@
+import { prisma } from "../config/prisma.config";
 import { orderRepository } from "../repositories/order.repository";
-import { cartService } from "./cart.service";
 import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
 import { InternalServerError, NotFoundError } from "../utils/errors";
@@ -35,17 +35,24 @@ class OrderService {
   }
 
   async placeOrder(customerId: string, restaurantId: string) {
-    // Build the handler chain
     const handlerChain = OrderHandlerChainBuilder.build();
 
-    // Initialize the context
-    const context: OrderContext = {
-      customerId,
-      restaurantId,
-    };
-
     try {
-      const result = await handlerChain.execute(context);
+      // Execute the chain within a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Initialize the context with the transaction client
+        const context: OrderContext = {
+          customerId,
+          restaurantId,
+          tx,
+        };
+
+        const chainResult = await handlerChain.execute(context);
+        return chainResult;
+      }, {
+        maxWait: 5000,
+        timeout: 20000,
+      });
 
       if (!result.finalOrder) {
         throw InternalServerError("Failed to place order");
@@ -53,14 +60,6 @@ class OrderService {
 
       return result.finalOrder;
     } catch (err: any) {
-      try {
-        if (context.isCartLocked)
-          await cartService.unlockCart(customerId);
-
-      } catch (unlockError: any) {
-        throw InternalServerError(`[OrderService] Failed to unlock cart after error:`, unlockError);
-      }
-
       throw InternalServerError("Failed to place order", err);
     }
   }

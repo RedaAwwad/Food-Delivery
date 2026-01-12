@@ -1,7 +1,7 @@
 import Joi from "joi";
 
 export const findRestaurantByRestaurantIdSchema = {
-    body:Joi.object().required().keys({
+    query:Joi.object().required().keys({
         restaurantId:Joi.string().required(),
     })
 }
@@ -9,10 +9,11 @@ export const findRestaurantByRestaurantIdSchema = {
 export const createRestaurantSchema = {
     body:Joi.object().required().keys({
         managerId:Joi.string().required(), 
-        addressId:Joi.string().required(),
+        // addressId:Joi.string().required(),
         restaurantName:Joi.string().min(1).required(),
         restaurantBio:Joi.string().required(),
         restaurantLogo:Joi.string().required(),
+        isAvailable:Joi.boolean().required(),
         // restaurantPhone:Joi.string().required(),
     })
 }

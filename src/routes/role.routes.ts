@@ -6,14 +6,14 @@ import { asyncHandler } from "../utils/errors/async-handler";
 const roleRouter = Router();
 
 // Apply auth to all role routes
-roleRouter.use(asyncHandler(authenticate));
+roleRouter.use(authenticate);
 
 // Only Admins can manage roles
-roleRouter.post("/", isAuthorized(["Admin"]), asyncHandler(roleController.createRole));
+roleRouter.post("/", isAuthorized(["Admin"]), roleController.createRole);
 
-roleRouter.get("/", isAuthorized(["Admin"]), asyncHandler(roleController.getAllRoles));
+roleRouter.get("/", isAuthorized(["Admin"]), roleController.getAllRoles);
 
-roleRouter.post("/assign", isAuthorized(["Admin"]), asyncHandler(roleController.assignRole));
+roleRouter.post("/assign", isAuthorized(["Admin"]), roleController.assignRole);
 
 roleRouter.delete(
   "/delete-by-id",

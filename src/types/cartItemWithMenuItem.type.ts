@@ -6,16 +6,16 @@ export type CartItemWithMenuItem = {
   price: number;
   createdAt: Date;
   updatedAt: Date;
-  menuItem: {
-    menuItemId: string;
-    menuCategoryId: string;
-    menuItemName: string;
-    menuItemDesc: string;
-    menuItemImageUrl: string;
-    price: number;
-    stockQuantity: number;
-    isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-  };
+  // menuItem: {
+  //   menuItemId: string;
+  //   menuCategoryId: string;
+  //   menuItemName: string;
+  //   menuItemDesc: string;
+  //   menuItemImageUrl: string;
+  //   price: number;
+  //   stockQuantity: number;
+  //   isActive: boolean;
+  //   createdAt: Date;
+  //   updatedAt: Date;
+  // };
 };

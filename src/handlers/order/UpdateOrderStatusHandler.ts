@@ -21,7 +21,7 @@ export class UpdateOrderStatusHandler extends OrderHandler {
         const updatedOrder = await orderRepository.updateOrderStatus({
             orderId: context.order.orderId,
             newOrderStatus: newStatus
-        });
+        }, context.tx);
 
         context.finalOrder = updatedOrder;
         console.log(`[UpdateOrderStatusHandler] Order status updated to: ${newStatus}`);

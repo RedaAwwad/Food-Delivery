@@ -7,7 +7,7 @@ import { CustomError } from "../utils/errors/custom-error";
 export class AddressController {
   async createAddress(req: Request, res: Response, next: NextFunction) {
     try {
-      const customerId = (req as any).user?.customerId || (req as any).user?.userId;
+      const customerId = (req as any).user?.customerId
 
       if (!customerId) {
         throw new CustomError({
@@ -18,7 +18,7 @@ export class AddressController {
 
       const address = await addressService.createAddress({
         ...req.body,
-        customerId: Number(customerId),
+        customerId: customerId,
       });
       res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: address }));
     } catch (error) {
@@ -35,7 +35,7 @@ export class AddressController {
           statusCode: StatusCodes.UNAUTHORIZED,
         });
       }
-      const addresses = await addressService.getAddressesByCustomerId(Number(customerId));
+      const addresses = await addressService.getAddressesByCustomerId(customerId);
       res.status(StatusCodes.OK).json(new SuccessResponse({ data: addresses }));
     } catch (error) {
       next(error);
@@ -45,19 +45,17 @@ export class AddressController {
   async updateAddress(req: Request, res: Response, next: NextFunction) {
     try {
       const { addressId } = req.params;
-      const customerId = (req as any).user?.customerId || (req as any).user?.userId;
+      const customerId = (req as any).user?.customerId
       if (!customerId) {
         throw new CustomError({
           message: "User ID not found in token",
           statusCode: StatusCodes.UNAUTHORIZED,
         });
       }
-      const parsedCustomerId = Number(customerId);
-      const parsedAddressId = Number(addressId); // Params are strings
 
       const address = await addressService.updateAddress(
-        parsedAddressId,
-        parsedCustomerId,
+        addressId!,
+        customerId,
         req.body
       );
       res.status(StatusCodes.OK).json(new SuccessResponse({ data: address }));
@@ -69,17 +67,14 @@ export class AddressController {
   async deleteAddress(req: Request, res: Response, next: NextFunction) {
     try {
       const { addressId } = req.params;
-      const customerId = (req as any).user?.customerId || (req as any).user?.userId;
+      const customerId = (req as any).user?.customerId
       if (!customerId) {
         throw new CustomError({
           message: "User ID not found in token",
           statusCode: StatusCodes.UNAUTHORIZED,
         });
       }
-      const parsedCustomerId = Number(customerId);
-      const parsedAddressId = Number(addressId);
-
-      await addressService.deleteAddress(parsedAddressId, parsedCustomerId);
+      await addressService.deleteAddress(addressId!, customerId);
       res
         .status(StatusCodes.OK)
         .json(new SuccessResponse({ message: "Address deleted successfully" }));

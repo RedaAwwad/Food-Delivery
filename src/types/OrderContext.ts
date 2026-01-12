@@ -1,9 +1,11 @@
 import { CartItemWithMenuItem } from "./cartItemWithMenuItem.type";
+import { PrismaTx } from "./prisma.types";
 
 export interface OrderContext {
     // Input data
     customerId: string;
     restaurantId: string;
+    tx?: PrismaTx;
 
     // Data populated during chain execution
     cartItems?: CartItemWithMenuItem[];

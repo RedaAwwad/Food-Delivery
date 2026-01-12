@@ -6,6 +6,9 @@ import { NotFoundError } from "../utils/errors";
 import { cartEventService } from "./cartEvent.service";
 import { prisma } from "../config/prisma.config";
 import { CartEventType } from "../generated/prisma";
+import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "../generated/prisma";
+import { withTransaction } from "../utils/transaction.util";
 
 class CartService {
   async addToCart(cartItem: CreateCartItemDTO, customerId: string) {
@@ -14,11 +17,6 @@ class CartService {
     if (!menuItem) throw NotFoundError("Menu Item not found");
 
     let cart: any = await cartRepository.getCartWithCartItemsByCustomerId(customerId);
-
-    if (!cart) {
-      cart = await cartRepository.upsertCart(customerId);
-      cart.cartItems = [];
-    }
 
     const existingItem = cart.cartItems?.find((item: any) => item.menuItemId === cartItem.menuItemId);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
@@ -43,14 +41,16 @@ class CartService {
         tx
       );
     });
-    return { cart, item: newCartItem };
+
+    cart.cartItems = [newCartItem];
+
+    return { cart };
   }
 
-  async getCartWithCartItemsByCustomerId(customerId: string) {
-    const cart = await cartRepository.upsertCart(customerId);
-    if (!cart) throw NotFoundError("The customer doesn't have cart");
-    const cartWithCartItems = await cartRepository.getCartWithCartItemsByCustomerId(customerId);
-    return cartWithCartItems;
+  async getCartWithCartItemsByCustomerId(customerId: string, tx?: PrismaTx | PrismaClient) {
+    return await withTransaction(tx, async (activeTx) => {
+      return await cartRepository.getCartWithCartItemsByCustomerId(customerId, activeTx);
+    });
   }
 
   async updateQuantity(updateQuantityDto: UpdateCartItemQuantityDTO, customerId: string) {
@@ -98,44 +98,44 @@ class CartService {
     });
   }
 
-  async clearCart(customerId: string) {
+  async clearCart(customerId: string, tx?: PrismaTx | PrismaClient) {
     const cart = await cartRepository.findCartByCustomerId(customerId);
     if (!cart) throw NotFoundError("Cart not found!");
 
-    await prisma.$transaction(async (tx) => {
+    await withTransaction(tx, async (activeTx) => {
       await cartEventService.createEvent({
         customerId,
         eventType: CartEventType.CLEAR_CART,
-      }, tx);
+      }, activeTx as PrismaTx);
 
-      await cartRepository.clearCart(cart.cartId, tx);
+      await cartRepository.clearCart(cart.cartId, activeTx);
     });
   }
 
-  async lockCart(customerId: string) {
-    await prisma.$transaction(async (tx) => {
+  async lockCart(customerId: string, tx?: PrismaTx | PrismaClient) {
+    await withTransaction(tx, async (activeTx) => {
       await cartEventService.createEvent({
         customerId,
         eventType: CartEventType.LOCK_CART,
-      }, tx);
+      }, activeTx as PrismaTx);
 
-      await cartRepository.lockCart(customerId, tx);
+      await cartRepository.lockCart(customerId, activeTx);
     });
   }
 
-  async unlockCart(customerId: string) {
-    await prisma.$transaction(async (tx) => {
+  async unlockCart(customerId: string, tx?: PrismaTx | PrismaClient) {
+    await withTransaction(tx, async (activeTx) => {
       await cartEventService.createEvent({
         customerId,
         eventType: CartEventType.UNLOCK_CART,
-      }, tx);
+      }, activeTx as PrismaTx);
 
-      await cartRepository.unlockCart(customerId, tx);
+      await cartRepository.unlockCart(customerId, activeTx);
     });
   }
 
-  async clearCartByCustomerId(customerId: string) {
-    await this.clearCart(customerId);
+  async clearCartByCustomerId(customerId: string, tx?: PrismaTx | PrismaClient) {
+    await this.clearCart(customerId, tx);
   }
 }
 export const cartService = new CartService();

@@ -15,7 +15,7 @@ export class UnlockCartHandler extends OrderHandler {
         console.log(`[UnlockCartHandler] Unlocking cart`);
 
         try {
-            await cartService.unlockCart(context.customerId);
+            await cartService.unlockCart(context.customerId, context.tx);
             context.isCartLocked = false;
             console.log(`[UnlockCartHandler] Cart unlocked successfully`);
         } catch (error) {

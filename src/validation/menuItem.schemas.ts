@@ -14,6 +14,7 @@ export const getMenuItemByIdSchema = {
 
 export const createMenuItemSchema = {
     body: Joi.object().required().keys({
+        menuCategoryId: Joi.string().required(),
         menuItemName: Joi.string().required(),
         menuItemDesc: Joi.string().required(),
         menuItemImageUrl: Joi.string().required(),

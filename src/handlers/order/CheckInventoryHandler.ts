@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
-import { inventoryRepository } from "../../repositories/inventory.repository";
+import { menuItemService } from "../../services/menuItem.service";
 
 /**
  * Verifies that all items in the cart are available in sufficient quantities.
@@ -13,7 +13,7 @@ export class CheckInventoryHandler extends OrderHandler {
             throw new Error("Cart items not found in context");
         }
 
-        await inventoryRepository.checkItemsAvailability(context.cartItems);
+        await menuItemService.validateStock(context.cartItems, context.tx);
 
         console.log(`[CheckInventoryHandler] Inventory check passed`);
     }

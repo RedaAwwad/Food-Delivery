@@ -58,7 +58,7 @@ const cartRouter = express.Router();
  *                   type: string
  *                   example: Cart not found!
  */
-cartRouter.get("/", authenticate, cartController.viewCart);
+cartRouter.get("/", authenticate, cartController.getCartWithCartItemsByCustomerId);
 
 /**
  * @swagger
@@ -159,11 +159,7 @@ cartRouter.get("/", authenticate, cartController.viewCart);
  *                             type: string
  *                             example: quantity
  */
-cartRouter.post(
-  "/add-to-cart",
-  validateRequest(AddToCartSchema),
-  cartController.addToCart
-);
+cartRouter.post("/add-to-cart", authenticate, validateRequest(AddToCartSchema), cartController.addToCart);
 
 /**
  * @swagger
@@ -245,11 +241,7 @@ cartRouter.post(
  *                             type: string
  *                             example: quantity
  */
-cartRouter.put(
-  "/update-quantity",
-  validateRequest(UpdateQuantitySchema),
-  cartController.updateQuantity
-);
+cartRouter.put("/update-quantity", authenticate, validateRequest(UpdateQuantitySchema), cartController.updateQuantity);
 
 /**
  * @swagger
@@ -324,11 +316,7 @@ cartRouter.put(
  *                             type: string
  *                             example: cartItemId
  */
-cartRouter.delete(
-  "/remove-item",
-  validateRequest(RemoveCartItemSchema),
-  cartController.removeCartItem
-);
+cartRouter.delete("/remove-item", authenticate, validateRequest(RemoveCartItemSchema), cartController.removeCartItem);
 
 /**
  * @swagger

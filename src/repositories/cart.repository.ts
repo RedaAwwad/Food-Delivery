@@ -3,6 +3,7 @@ import { CreateCartItemDTO, UpdateCartItemQuantityDTO } from "../dto/cartItem.dt
 import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
 import { NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "../generated/prisma";
 
 class CartRepository {
   async findCartByCustomerId(customerId: string) {
@@ -11,8 +12,8 @@ class CartRepository {
     return cart;
   }
 
-  async upsertCart(customerId: string) {
-    return await prisma.cart.upsert({
+  async upsertCart(customerId: string, tx: PrismaTx | PrismaClient = prisma) {
+    return await tx.cart.upsert({
       where: { customerId },
       update: {},
       create: { customerId },
@@ -20,24 +21,15 @@ class CartRepository {
     });
   }
 
-  async getCartWithCartItemsByCustomerId(customerId: string) {
-    const cart = await prisma.cart.findUnique({
+  async getCartWithCartItemsByCustomerId(customerId: string, tx: PrismaTx | PrismaClient = prisma) {
+    return await tx.cart.upsert({
       where: { customerId },
-      select: {
-        cartId: true,
-        customerId: true,
-        isLocked: true,
-        cartItems: {
-          include: {
-            menuItem: true
-          }
-        }
+      update: {},
+      create: { customerId },
+      include: {
+        cartItems: true
       }
     });
-
-    if (!cart) return null;
-
-    return cart;
   }
 
   async getCartWithOneCartItemByCustomerIdAndCartItemId(customerId: string, cartItemId: string) {

@@ -28,8 +28,7 @@ class RestaurantController {
     }
 
     async createRestaurant(req: Request, res: Response) {
-        const { restaurantId } = req.body
-        const restaurant = await restaurantService.createRestaurant(restaurantId);
+        const restaurant = await restaurantService.createRestaurant(req.body);
         res.status(StatusCodes.ACCEPTED).json(new SuccessResponse({
             data: restaurant
         }))

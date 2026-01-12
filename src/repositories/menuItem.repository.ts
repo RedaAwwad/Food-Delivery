@@ -1,18 +1,20 @@
 import { prisma } from "../config/prisma.config";
 import { createMenuItemDto, updateMenuItemDto } from "../dto/menuItem.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
+import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "../generated/prisma";
 
 class MenuItemRepository {
     async getAllMenuItemsByMenuCategoryId(menuCategoryId: string) {
         const menuItem = await prisma.menuItem.findMany({
             where: {
                 menuCategoryId: menuCategoryId,
-            },select:{
-                menuItemId:true,
-                menuItemName:true,
-                menuItemDesc:true,
-                menuItemImageUrl:true,
-                price:true,
+            }, select: {
+                menuItemId: true,
+                menuItemName: true,
+                menuItemDesc: true,
+                menuItemImageUrl: true,
+                price: true,
             }
         });
 
@@ -26,13 +28,13 @@ class MenuItemRepository {
         const menuItem = await prisma.menuItem.findUnique({
             where: {
                 menuItemId: menuItemId,
-            },select:{
-                menuItemId:true,
-                menuItemName:true,
-                menuItemDesc:true,
-                menuItemImageUrl:true,
-                price:true,
-                stockQuantity:true,
+            }, select: {
+                menuItemId: true,
+                menuItemName: true,
+                menuItemDesc: true,
+                menuItemImageUrl: true,
+                price: true,
+                stockQuantity: true,
             }
         });
         if (!menuItem)
@@ -96,6 +98,31 @@ class MenuItemRepository {
             throw BadRequestError("Failed To Search Menu item");
 
         return menuItem;
+    }
+
+    async getMenuItemsForStockCheck(menuItemIds: string[], tx: PrismaTx | PrismaClient = prisma) {
+        const menuItems = await tx.menuItem.findMany({
+            where: {
+                menuItemId: { in: menuItemIds },
+            },
+            select: {
+                menuItemId: true,
+                menuItemName: true,
+                stockQuantity: true,
+            },
+        });
+        return menuItems;
+    }
+
+    async reduceStock(menuItemId: string, quantity: number, tx: PrismaTx | PrismaClient = prisma) {
+        return await tx.menuItem.update({
+            where: { menuItemId },
+            data: {
+                stockQuantity: {
+                    decrement: quantity,
+                },
+            },
+        });
     }
 }
 

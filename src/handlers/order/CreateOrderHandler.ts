@@ -19,7 +19,7 @@ export class CreateOrderHandler extends OrderHandler {
             restaurantId: context.restaurantId,
             cartItems: context.cartItems,
             status: OrderStatus.PENDING,
-        });
+        }, context.tx);
 
         context.order = order;
         console.log(`[CreateOrderHandler] Order created with ID: ${order.orderId}`);

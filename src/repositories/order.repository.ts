@@ -1,6 +1,8 @@
 import { prisma } from "../config/prisma.config";
 import { CreateOrderDto, UpdateOrderStatusDto } from "../dto/order.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
+import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "../generated/prisma";
 
 class OrderRepository {
   async findAllOrdersByCustomerId(customerId: string) {
@@ -27,8 +29,8 @@ class OrderRepository {
     });
   }
 
-  async updateOrderStatus(data: UpdateOrderStatusDto) {
-    const updatedStatus = await prisma.order.update({
+  async updateOrderStatus(data: UpdateOrderStatusDto, tx: PrismaTx | PrismaClient = prisma) {
+    const updatedStatus = await tx.order.update({
       where: { orderId: data.orderId },
       data: { orderStatus: data.newOrderStatus },
     });
@@ -51,7 +53,7 @@ class OrderRepository {
     }
   }
 
-  async createOrder(createOrderDto: CreateOrderDto) {
+  async createOrder(createOrderDto: CreateOrderDto, tx: PrismaTx | PrismaClient = prisma) {
     const { customerId, restaurantId, cartItems, status } = createOrderDto;
     // Calculate total
     const totalAmount = cartItems.reduce(
@@ -60,14 +62,15 @@ class OrderRepository {
     );
 
     // Create the order and its items in a single transaction
-    const newOrder = await prisma.order.create({
+    const newOrder = await tx.order.create({
       data: {
         customerId,
         restaurantId,
         totalAmount,
         orderStatus: status,
-        createdById: customerId,
-        updatedById: customerId,
+        trackingStatus: "under going",
+        // createdById: customerId,
+        // updatedById: customerId,
         orderItems: {
           create: cartItems.map((item) => ({
             menuItemId: item.menuItemId,
@@ -81,8 +84,7 @@ class OrderRepository {
       },
     });
 
-    if(!newOrder)
-      throw BadRequestError("Failed To Create Order")
+    if (!newOrder) throw BadRequestError("Failed To Create Order")
 
     return newOrder;
   }

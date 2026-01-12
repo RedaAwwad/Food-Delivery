@@ -112,9 +112,9 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema), restaur
  *         required: true
  *         schema:
  *           type: string
- *         description: ID of the restaurant to retrieve (Note: Schema uses body, but GET requests usually use query params. If your middleware expects body, document as such, but standard is query/path)
- *     requestBody:
- *       description: "Note: This endpoint expects restaurantId in the body based on validation schema, though GET with body is non-standard."
+ *         description: ID of the restaurant to retrieve
+ *     requestQuery:
+ *       description: Restaurant ID
  *       content:
  *         application/json:
  *           schema:
