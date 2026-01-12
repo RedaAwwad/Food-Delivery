@@ -4,13 +4,21 @@ import { faker } from "@faker-js/faker";
 const prisma = new PrismaClient();
 
 async function main() {
-  const users = prisma.user.createManyAndReturn({
-    data: Array.from({ length: 10 }).map(() => ({
-      name: faker.person.fullName(),
-      email: faker.internet.email(),
-      password: faker.internet.password(),
-    })),
+  const user = await prisma.user.create({
+    data: {
+      name: "Reda Awwad",
+      email: "reda@reda.com",
+      password: "123456",
+    },
   });
+
+  // const users = prisma.user.createManyAndReturn({
+  //   data: Array.from({ length: 10 }).map(() => ({
+  //     name: faker.person.fullName(),
+  //     email: faker.internet.email(),
+  //     password: faker.internet.password(),
+  //   })),
+  // });
 }
 main()
   .then(async () => {

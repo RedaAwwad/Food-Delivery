@@ -9,22 +9,22 @@ services:
     env_file:
       - ./.env
     environment:
-      - DATABASE_URL=postgresql://root:example@postgres:5432/food-delivery?schema=public
+      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:${DATABASE_PORT}/${DATABASE_NAME}
     depends_on:
       - postgres
     command: ["npm", "run", "dev"]
   postgres:
-    image: postgres
+    image: postgres:alpine
     restart: always
     container_name: postgres-db
     ports:
-      - "5432:5432"
+      - "${DATABASE_LOCAL_PORT}:5432"
     volumes:
       - postgres-db:/var/lib/postgresql/data
     environment:
-      POSTGRES_DB: food-delivery
-      POSTGRES_USER: root
-      POSTGRES_PASSWORD: example
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
 
 volumes:
   postgres-db:

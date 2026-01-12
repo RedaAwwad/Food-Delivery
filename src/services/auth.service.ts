@@ -33,9 +33,9 @@ class AuthService {
   private readonly REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 
   async signup(signupDto: SignupDTO) {
-    const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
+    const { name, password, email, phoneNumber } = signupDto;
 
-    const userCheck = await userRepository.findUserByEmail(userEmail);
+    const userCheck = await userRepository.findUserByEmail(email);
     if (userCheck) {
       throw new CustomError({
         message: "Email already exists!",
@@ -43,13 +43,13 @@ class AuthService {
       });
     }
 
-    const hashedPassword = await hash(userPassword);
+    const hashedPassword = await hash(password);
 
     // Transactional feeling, but manual for now
     const newUser = await userRepository.create({
       userId: uuidv7(),
-      userName,
-      userEmail,
+      userName: name,
+      userEmail: email,
       userPassword: hashedPassword,
     });
 
@@ -63,8 +63,7 @@ class AuthService {
     const newCustomer = await customerRepository.create({
       customerId: uuidv7(),
       userId: newUser.userId,
-      customerPhone: String(userPhoneNumber || ""),
-      customerAvatar: "",
+      customerPhone: phoneNumber,
       createdById: newUser.userId,
       updatedById: newUser.userId,
     });
@@ -93,7 +92,7 @@ class AuthService {
       {
         userId: newUser.userId,
         userEmail: newUser.userEmail,
-        tokenType: TokenType.VERIFICATION,
+        tokenType: "VERIFICATION",
       },
       expiryTime / 1000
     );

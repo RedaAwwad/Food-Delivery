@@ -28,7 +28,7 @@ class AuthController {
   }
 
   async verifyEmail(req: Request, res: Response) {
-    const { token } = req.body;
+    const { token } = req.query;
 
     await authService.verifyEmail(token as string);
 
