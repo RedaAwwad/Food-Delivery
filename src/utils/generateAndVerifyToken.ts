@@ -56,7 +56,6 @@ const verifyToken = (
 
         return decoded;
     } catch (err: any) {
-        if (err instanceof CustomError) throw err;
 
         if (err.name === "TokenExpiredError") {
             throw UnauthorizedError(`${type} token expired`);
