@@ -8,46 +8,81 @@ const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET || "refresh_secret
 const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || "15m";
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || "15d";
 
-export const generateAccessToken = (payload: TokenPayload, expiresIn?: string | number): string => {
-    if (!ACCESS_TOKEN_SECRET) {
-        throw InternalServerError("Access token secret is not configured");
+// Generic Generation Function
+const generateToken = (
+    payload: TokenPayload,
+    secret: string | undefined,
+    expiresIn: string | number,
+    type: 'access' | 'refresh'
+): string => {
+    if (!secret) {
+        throw InternalServerError(`${type.charAt(0).toUpperCase() + type.slice(1)} token secret is not configured`);
     }
 
     try {
         return jwt.sign(
-            { ...payload, tokenType: "access" },
-            ACCESS_TOKEN_SECRET as jwt.Secret,
-            { expiresIn: expiresIn || ACCESS_TOKEN_EXPIRY } as jwt.SignOptions
+            { ...payload, tokenType: type },
+            secret as jwt.Secret,
+            { expiresIn } as jwt.SignOptions
         );
     } catch (err: any) {
-        throw BadRequestError(err?.message || "Failed to generate access token");
+        throw BadRequestError(err?.message || `Failed to generate ${type} token`, err);
     }
 };
 
-export const generateRefreshToken = (payload: TokenPayload): string => {
-    if (!REFRESH_TOKEN_SECRET) {
-        throw InternalServerError("Refresh token secret is not configured");
+// Generic Verification Function
+const verifyToken = (
+    token: string,
+    secret: string | undefined,
+    type: 'Access' | 'Refresh',
+    expectedTokenType?: string
+): jwt.JwtPayload | string => {
+    if (!token) {
+        throw UnauthorizedError(`${type} token is required`);
+    }
+
+    if (!secret) {
+        throw InternalServerError(`${type} token secret is not configured`);
     }
 
     try {
-        return jwt.sign(
-            { ...payload, tokenType: "refresh" },
-            REFRESH_TOKEN_SECRET as jwt.Secret,
-            { expiresIn: REFRESH_TOKEN_EXPIRY } as jwt.SignOptions
-        );
+        const decoded = jwt.verify(token, secret);
+
+        if (expectedTokenType) {
+            if (typeof decoded !== 'string' && decoded.tokenType !== expectedTokenType) {
+                throw UnauthorizedError("Invalid token type");
+            }
+        }
+
+        return decoded;
     } catch (err: any) {
-        throw BadRequestError(err?.message || "Failed to generate refresh token");
+        if (err instanceof CustomError) throw err;
+
+        if (err.name === "TokenExpiredError") {
+            throw UnauthorizedError(`${type} token expired`);
+        }
+
+        const errors = err?.message ? [{ message: err.message }] : undefined;
+        throw UnauthorizedError(`Invalid ${type.toLowerCase()} token`, errors);
     }
+};
+
+export const generateAccessToken = (payload: TokenPayload, expiresIn?: string | number): string => {
+    return generateToken(payload, ACCESS_TOKEN_SECRET, expiresIn || ACCESS_TOKEN_EXPIRY, 'access');
+};
+
+export const generateRefreshToken = (payload: TokenPayload): string => {
+    return generateToken(payload, REFRESH_TOKEN_SECRET, REFRESH_TOKEN_EXPIRY, 'refresh');
 };
 
 export const generateTokenPair = (payload: TokenPayload): TokenPair => {
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
-    // Calculate expiration dates
     const now = new Date();
-    const accessTokenExpiresAt = new Date(now.getTime() + parseInt(ACCESS_TOKEN_EXPIRY, 10) * 60 * 1000); // 15 minutes
-    const refreshTokenExpiresAt = new Date(now.getTime() + parseInt(REFRESH_TOKEN_EXPIRY, 10) * 24 * 60 * 60 * 1000); // 15 days
+
+    const accessTokenExpiresAt = new Date(now.getTime() + parseInt(ACCESS_TOKEN_EXPIRY, 10) * 60 * 1000);
+    const refreshTokenExpiresAt = new Date(now.getTime() + parseInt(REFRESH_TOKEN_EXPIRY, 10) * 24 * 60 * 60 * 1000);
 
     return {
         accessToken,
@@ -58,54 +93,11 @@ export const generateTokenPair = (payload: TokenPayload): TokenPair => {
 };
 
 export const verifyAccessToken = (token: string): jwt.JwtPayload | string => {
-    if (!token) {
-        throw UnauthorizedError("Access token is required");
-    }
-
-    if (!ACCESS_TOKEN_SECRET) {
-        throw InternalServerError("Access token secret is not configured");
-    }
-
-    try {
-        return jwt.verify(token, ACCESS_TOKEN_SECRET);
-    } catch (err: any) {
-        if (err.name === "TokenExpiredError") {
-            throw UnauthorizedError("Access token expired");
-        }
-
-        const errors = err?.message ? [{ message: err.message }] : undefined;
-        throw UnauthorizedError("Invalid access token", errors);
-    }
+    return verifyToken(token, ACCESS_TOKEN_SECRET, 'Access');
 };
 
 export const verifyRefreshToken = (token: string): jwt.JwtPayload | string => {
-    if (!token) {
-        throw UnauthorizedError("Refresh token is required");
-    }
-
-    if (!REFRESH_TOKEN_SECRET) {
-        throw InternalServerError("Refresh token secret is not configured");
-    }
-
-    try {
-        const decoded = jwt.verify(token, REFRESH_TOKEN_SECRET);
-
-        // Additional check for token type
-        if (typeof decoded !== 'string' && decoded.tokenType !== 'refresh') {
-            throw UnauthorizedError("Invalid token type");
-        }
-
-        return decoded;
-    } catch (err: any) {
-        if (err instanceof CustomError) throw err;
-
-        if (err.name === "TokenExpiredError") {
-            throw UnauthorizedError("Refresh token expired");
-        }
-
-        const errors = err?.message ? [{ message: err.message }] : undefined;
-        throw UnauthorizedError("Invalid refresh token", errors);
-    }
+    return verifyToken(token, REFRESH_TOKEN_SECRET, 'Refresh', 'refresh');
 };
 
 export const generateJwtTokenForGeneralUse = (payload: TokenPayload, expiresIn?: string | number): string => {
