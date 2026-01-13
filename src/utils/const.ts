@@ -1,3 +1,9 @@
+export const DEFAULT_ROLE_KEYS = {
+  ADMIN: "ADMIN",
+  CUSTOMER: "CUSTOMER",
+  RESTAURANT_MANAGER: "RESTAURANT_MANAGER",
+} as const;
+
 export const USER_DEFAULT_SELECT = {
   userId: true,
   userName: true,
