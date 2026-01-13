@@ -14,6 +14,8 @@ authRouter.post("/signup", validateRequest(signUpSchema), authController.signup)
 authRouter.post("/login", validateRequest(logInSchema), authController.login);
 authRouter.post("/refresh-token", authController.refreshToken);
 
+authRouter.get("/me", isAuthenticated, authController.me);
+
 // Verify Email Routes
 authRouter.get(
   "/verify-email",
