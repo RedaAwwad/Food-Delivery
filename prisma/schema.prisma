@@ -23,7 +23,7 @@ model User {
 
   isAdmin  Boolean  @default(false) @map("is_admin")
 
-  usersRoles  UserRole[]
+  userRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
   userToken   UserToken[]
@@ -47,7 +47,7 @@ model Role {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  usersRoles UserRole[]
+  userRoles UserRole[]
 
   @@map("roles")
 }

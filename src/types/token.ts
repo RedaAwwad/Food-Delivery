@@ -1,12 +1,14 @@
 export type TokenType = "VERIFICATION" | "REFRESH" | "FORGOT_PASSWORD";
 
-export interface TokenPayload {
-  userId?: string;
-  userName?: string;
-  userEmail?: string;
-  role?: string;
-  [key: string]: any;
-}
+export type TokenPayload = {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  isAdmin?: boolean;
+  customerId?: string;
+  restaurantId?: string;
+  userRoles: string[];
+};
 
 export interface GenerateTokenOpts {
   payload: TokenPayload;
@@ -39,7 +41,7 @@ export interface CreateTokenData {
   userId: string;
   tokenType: TokenType;
   expiresAt: Date;
-  token?: string; // Optional - will be generated if not provided
+  token: string;
 }
 
 export interface RefreshTokenFilter {
@@ -48,11 +50,8 @@ export interface RefreshTokenFilter {
   expired?: boolean;
 }
 
-export interface LoginResponse {
+export interface AuthLoginResponse {
   accessToken: string;
-  accessTokenExpiresAt: Date;
-  refreshToken: string;
-  refreshTokenExpiresAt: Date;
   user: {
     userId: string;
     userName: string;
@@ -86,7 +85,7 @@ export interface CookieData {
 }
 
 export interface AuthResponse {
-  data: LoginResponse | RefreshResponse | any;
+  data: AuthLoginResponse;
   cookies?: CookieData[];
   clearCookies?: string[];
 }

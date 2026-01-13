@@ -4,7 +4,7 @@ import { userRepository } from "../repositories/user.repository";
 import { customerRepository } from "../repositories/customer.repository";
 import { userTokenRepository } from "../repositories/user-token.repository";
 import { Request, Response } from "express";
-import { AuthResponse } from "../types/token";
+import { AuthResponse, TokenPayload } from "../types/token";
 import {
   generateAccessToken,
   generateRefreshToken,
@@ -18,7 +18,11 @@ import { roleService } from "./role.service";
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors";
 import { verifyToken } from "../utils/jwt/verifyToken";
-import { checkValidation } from "../utils/checkValidation";
+import { UserDTO } from "../dto/user.dto";
+import { User } from "../generated/prisma";
+import { generateToken } from "../utils/jwt/generateToken";
+import { prisma } from "../config/prisma.config";
+import { USER_DEFAULT_SELECT } from "../utils/const";
 
 type AccessTokenPayload = {
   userId: string;
@@ -102,23 +106,6 @@ class AuthService {
     // Send verification email
     await emailService.sendVerificationEmail(newUser.userEmail, verificationLink, newUser.userName);
 
-    // const returnedUser = {
-    //   userId: newUser.userId,
-    //   userName: newUser.userName,
-    //   userEmail: newUser.userEmail,
-    // };
-    // const returnedCustomer = {
-    //   customerId: newCustomer.customerId,
-    //   customerPhone: newCustomer.customerPhone,
-    //   customerAvatar: newCustomer.customerAvatar,
-    // };
-
-    // return {
-    //   user: returnedUser,
-    //   customer: returnedCustomer,
-    //   message: "Signup successful. Please verify your email.",
-    // };
-
     return true;
   }
 
@@ -134,12 +121,12 @@ class AuthService {
 
     const user = await userRepository.findUserByEmail<{
       userPassword: string;
+      userRoles: { role: { roleKey: string } }[];
       customer: { customerId: string };
       restaurant: { restaurantId: string };
     }>(email, {
       userPassword: true,
-      customer: { select: { customerId: true } },
-      restaurant: { select: { restaurantId: true } },
+      ...USER_DEFAULT_SELECT,
     });
 
     if (!user) {
@@ -157,30 +144,32 @@ class AuthService {
       });
     }
 
-    // const activeUser = await userRepository.updateIsActive(user.userId, true);
-    const tokenPayload: AccessTokenPayload = {
-      userId: user.userId as string,
-      userName: user.userName as string,
-      userEmail: user.userEmail as string,
+    const tokenPayload: TokenPayload = {
+      userId: user.userId,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      userRoles: user.userRoles.map((role) => (role as any).role?.roleKey),
     };
 
     if (user.isAdmin) {
       tokenPayload.isAdmin = true;
     }
 
-    if (user.customer) {
-      tokenPayload.customerId = user.customer?.customerId;
+    if (user.customer && user.customer?.customerId) {
+      tokenPayload.customerId = user.customer.customerId;
     }
 
-    if (user.restaurant) {
-      tokenPayload.restaurantId = user.restaurant?.restaurantId;
+    if (user.restaurant && user.restaurant?.restaurantId) {
+      tokenPayload.restaurantId = user.restaurant.restaurantId;
     }
 
-    const { accessToken, refreshToken, refreshTokenExpiresAt } = generateTokenPair(tokenPayload);
+    const { refreshTokenExpiresAt } = generateTokenPair(tokenPayload);
+    const accessToken = generateToken(tokenPayload, "30d", "ACCESS");
+    const refreshToken = generateToken(tokenPayload, "90d", "REFRESH");
 
     // Store refresh token
     await userTokenRepository.createToken({
-      userId: user.userId as string,
+      userId: user.userId,
       token: refreshToken,
       expiresAt: refreshTokenExpiresAt,
       tokenType: "REFRESH",
@@ -191,7 +180,7 @@ class AuthService {
     return {
       data: {
         accessToken,
-        user,
+        user: new UserDTO(user),
       },
       cookies: [refreshTokenCookie],
     };
@@ -331,6 +320,7 @@ class AuthService {
       userId: decoded.userId,
       userName: decoded.userName,
       userEmail: decoded.userEmail,
+      userRoles: decoded.userRoles.map((role) => (role as any).roleKey),
     });
 
     const accessTokenExpiresAt = new Date(
@@ -555,6 +545,18 @@ class AuthService {
       "REFRESH",
       "password_changed"
     );
+  }
+
+  async me(userId: string): Promise<UserDTO> {
+    const user = await userRepository.findUserById<User>(userId);
+
+    if (!user) {
+      throw new CustomError({
+        message: "User not found",
+        statusCode: StatusCodes.NOT_FOUND,
+      });
+    }
+    return new UserDTO(user);
   }
 }
 

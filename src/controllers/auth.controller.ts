@@ -3,6 +3,8 @@ import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
 import { CustomError } from "../utils/errors/custom-error";
+import { User } from "../generated/prisma";
+import { TokenPayload } from "../types/token";
 
 class AuthController {
   async signup(req: Request, res: Response) {
@@ -122,6 +124,13 @@ class AuthController {
         message: "Password has been reset successfully. Please login with your new password.",
       })
     );
+  }
+
+  async me(req: Request & { user: TokenPayload }, res: Response) {
+    const userId = req.user.userId;
+    const user = await authService.me(userId);
+
+    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: user }));
   }
 }
 

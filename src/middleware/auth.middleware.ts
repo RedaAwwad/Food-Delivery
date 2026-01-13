@@ -48,72 +48,19 @@ export const isAuthorized = (roles: string[]): RequestHandler => {
 };
 
 export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const authHeader = req.headers.authorization;
+  const token = getTokenFromHeaders(req);
+  const userSession = verifyToken(token);
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new CustomError({
-        message: "Authorization header required",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    const token = authHeader.split(" ")[1];
-    if (!token) {
-      throw new CustomError({
-        message: "Access token is missing",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    const decoded = verifyToken(token);
-
-    if (typeof decoded === "string") {
-      throw new CustomError({
-        message: "Invalid access token",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    req.accessToken = token;
-
-    const user = await prisma.user.findUnique({
-      where: { userId: Number(decoded.userId) },
-      select: {
-        userId: true,
-        userName: true,
-        userEmail: true,
-        isAdmin: true,
-        usersRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
+  if (!userSession || typeof userSession !== "object" || !userSession.userId) {
+    throw new CustomError({
+      message: "You are not authorized to perform this action!",
+      statusCode: StatusCodes.UNAUTHORIZED,
     });
-
-    if (!user) {
-      throw new CustomError({
-        message: "User not found",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-
-    // Map UserRoles to role names
-    const roles = user.usersRoles.map((userRole: any) => userRole.role.roleName);
-
-    req.user = {
-      userId: user.userId,
-      userName: user.userName,
-      userEmail: user.userEmail,
-      isAdmin: user.isAdmin,
-      roles: roles,
-    };
-
-    next();
-  } catch (error) {
-    next(error);
   }
+
+  req.user = userSession;
+
+  next();
 };
 
 export const tokenExtractor = (req: Request, res: Response, next: NextFunction) => {
