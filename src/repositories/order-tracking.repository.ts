@@ -29,4 +29,5 @@ class OrderTrackingRepository {
 
   }
 }
+
 export const orderTrackingRepository = new OrderTrackingRepository();
