@@ -5,39 +5,39 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import { initAPIRoutes } from "../routes";
 import { startServer } from "./startServer";
-import { tokenExtractor } from "../middleware/auth.middleware";
+import { tokenValidator } from "../middleware/auth.middleware";
 
 const initiateApp = async (app: Express) => {
-    const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
+  const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
 
-    app.use(express.json());
+  app.use(express.json());
 
-    app.use(cookieParser());
+  app.use(cookieParser());
 
-    app.use(cors());
+  app.use(cors());
 
-    app.use(express.urlencoded({ extended: true }));
+  app.use(express.urlencoded({ extended: true }));
 
-    app.use(tokenExtractor);
+  app.use(tokenValidator);
 
-    setupSwagger(app);
+  setupSwagger(app);
 
-    app.get("/", (req, res) => {
-        res.json({
-            message: "Welcome to the Food Delivery API",
-            version: process.env.API_VERSION || "v1",
-        });
+  app.get("/", (req, res) => {
+    res.json({
+      message: "Welcome to the Food Delivery API",
+      version: process.env.API_VERSION || "v1",
     });
+  });
 
-    initAPIRoutes(app);
+  initAPIRoutes(app);
 
-    app.use((req, res, next) => {
-        throw NotFoundError("Not Found");
-    });
+  app.use((req, res, next) => {
+    throw NotFoundError("Not Found");
+  });
 
-    app.use(errorHandler);
+  app.use(errorHandler);
 
-    await startServer(app);
+  await startServer(app);
 };
 
 export { initiateApp };
