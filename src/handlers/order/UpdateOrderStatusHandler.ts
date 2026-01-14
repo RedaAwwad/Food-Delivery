@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
-import { orderRepository } from "../../repositories/order.repository";
-import { OrderStatus } from "../../enums/orderStatus.enum";
+import { orderService } from "../../services/order.service";
+import { OrderStatusKey } from "../../generated/prisma";
 
 /**
  * Updates order status based on payment result (COMPLETED or CANCELED).
@@ -15,10 +15,10 @@ export class UpdateOrderStatusHandler extends OrderHandler {
         }
 
         const newStatus = context.paymentResult.success
-            ? OrderStatus.COMPLETED
-            : OrderStatus.CANCELED;
+            ? OrderStatusKey.COMPLETED
+            : OrderStatusKey.CANCELED;
 
-        const updatedOrder = await orderRepository.updateOrderStatus({
+        const updatedOrder = await orderService.updateOrderStatus({
             orderId: context.order.orderId,
             newOrderStatus: newStatus
         }, context.tx);

@@ -4,6 +4,8 @@ import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBui
 import { OrderContext } from "../types/OrderContext";
 import { InternalServerError, NotFoundError } from "../utils/errors";
 import { UpdateOrderStatusDto } from "../dto/order.dto";
+import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "@prisma/client/extension";
 
 class OrderService {
   async findAllOrdersByCustomerId(customerId: string) {
@@ -14,13 +16,12 @@ class OrderService {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateOrderStatus(data: UpdateOrderStatusDto) {
-    const order = await orderRepository.findOrderById(data.orderId);
+  async updateOrderStatus(data: UpdateOrderStatusDto, tx: PrismaTx | PrismaClient = prisma) {
+    // const order = await orderRepository.findOrderById(data.orderId);
 
-    if (!order)
-      throw NotFoundError("The order not found");
+    // if (!order) throw NotFoundError("The order not found");
 
-    const updateOrder = await orderRepository.updateOrderStatus(data);
+    const updateOrder = await orderRepository.updateOrderStatus(data, tx);
     return updateOrder;
   }
 
