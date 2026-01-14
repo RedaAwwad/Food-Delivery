@@ -3,7 +3,7 @@ import { verifyAccessToken } from "../utils/generateAndVerifyToken";
 import { prisma } from "../config/prisma.config";
 import jwt from "jsonwebtoken";
 import { getTokenFromHeaders } from "../utils/jwt/getTokenFromHeaders";
-import { CustomError, ForbiddenError } from "../utils/errors";
+import { CustomError, ForbiddenError, UnauthorizedError } from "../utils/errors";
 import { StatusCodes } from "http-status-codes";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
@@ -24,10 +24,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new CustomError({
-        message: "Authorization header required",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
+      throw UnauthorizedError()
     }
 
     const token = authHeader.split(" ")[1];
