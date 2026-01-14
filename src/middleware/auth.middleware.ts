@@ -24,7 +24,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw UnauthorizedError("Unauthorized")
+      throw UnauthorizedError()
     }
 
     const token = authHeader.split(" ")[1];
