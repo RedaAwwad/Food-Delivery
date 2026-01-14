@@ -1,16 +1,16 @@
 import { StatusCodes } from "http-status-codes";
-import { CustomError } from "../utils/errors/custom-error";
 import { customerRepository } from "../repositories/customer.repository";
-import { CreateCustomerRatingDto } from "../dto/customer.dto";
 import { ratingService } from "./rating.service";
+import { CustomError } from "../utils/errors";
+import { CreateCustomerRatingDto } from "../dto/customer.dto";
 
 class CustomerService {
-  async getCustomerOrdersByCustomerId(customerId: string) {
-    return await customerRepository.findCustomerOrders(customerId);
+  async createCustomer(data: any) {
+    return await customerRepository.createCustomer(data);
   }
 
-  async findCustomerOrderByCustomerId(customerId: string, orderId: string) {
-    return await customerRepository.findCustomerOrderByCustomerId(customerId, orderId);
+  async getCustomerByCustomerId(customerId: string) {
+    return await customerRepository.getCustomerByCustomerId(customerId);
   }
 
   async deactivateAccount(customerId: string) {
@@ -21,12 +21,7 @@ class CustomerService {
         statusCode: StatusCodes.BAD_REQUEST,
       });
     }
-    if (!customer.isActive) {
-      throw new CustomError({
-        message: "The customer has already deactivated",
-        statusCode: StatusCodes.CONFLICT,
-      });
-    }
+
     return await customerRepository.deactivateAccount(customerId);
   }
   async createRatingByCustomer(
@@ -34,6 +29,14 @@ class CustomerService {
     createCustomerRatingDto: CreateCustomerRatingDto
   ) {
     return await ratingService.createRatingByCustomer(customerId, createCustomerRatingDto);
+  }
+
+  async updateDeactivateAccount(customerId: string) {
+    return await customerRepository.updateDeactivateAccount(customerId);
+  }
+
+  async getCustomerByUserId(userId: string) {
+    return await customerRepository.getCustomerByUserId(userId);
   }
 }
 export const customerService = new CustomerService();

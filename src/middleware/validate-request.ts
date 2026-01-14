@@ -1,12 +1,28 @@
 import { Request, Response, NextFunction } from "express";
+import { StatusCodes } from "http-status-codes";
 import Joi from "joi";
+import { CustomError } from "../utils/errors";
 
-const validateRequest = (schema: Joi.ObjectSchema) => {
+const validateRequest = (
+  schema: Joi.ObjectSchema,
+  target: "body" | "query" | "params" = "body"
+) => {
   return async (req: Request, res: Response, next: NextFunction) => {
-    const validated = await schema.validateAsync(req.body, {
+    const validated = await schema.validateAsync(req[target], {
       abortEarly: false,
     });
-    req.body = validated;
+
+    if (!validated) {
+      throw new CustomError({
+        message: "Invalid request",
+        statusCode: StatusCodes.BAD_REQUEST,
+      });
+    }
+
+    if (target === "body") {
+      req.body = validated;
+    }
+
     next();
   };
 };

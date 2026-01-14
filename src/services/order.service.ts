@@ -1,78 +1,70 @@
-import { StatusCodes } from "http-status-codes";
-import { CustomError } from "../utils/errors/custom-error";
+import { prisma } from "../config/prisma.config";
 import { orderRepository } from "../repositories/order.repository";
-import { cartRepository } from "../repositories/cart.repository";
-import { OrderStatus } from "../enums/orderStatus.enum";
-import { OrderHandlerChainBuilder } from "../handlers/OrderHandlerChainBuilder";
+import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
+import { InternalServerError, NotFoundError } from "../utils/errors";
+import { UpdateOrderStatusDto } from "../dto/order.dto";
+import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "@prisma/client/extension";
 
 class OrderService {
-  async getAllOrders() {
-    return await orderRepository.findAllOrders();
+  async findAllOrdersByCustomerId(customerId: string) {
+    return await orderRepository.findAllOrdersByCustomerId(customerId);
   }
 
-  async getOrderById(orderId: string) {
+  async findOrderById(orderId: string) {
     return orderRepository.findOrderById(orderId);
   }
 
-  async updateOrderStatus(orderId: string, newOrderStatus: OrderStatus) {
+  async updateOrderStatus(data: UpdateOrderStatusDto, tx: PrismaTx | PrismaClient = prisma) {
+    // const order = await orderRepository.findOrderById(data.orderId);
+
+    // if (!order) throw NotFoundError("The order not found");
+
+    const updateOrder = await orderRepository.updateOrderStatus(data, tx);
+    return updateOrder;
+  }
+
+  async cancelOrder(orderId: string) {
     const order = await orderRepository.findOrderById(orderId);
-    if (!order) {
-      throw new CustomError({
-        message: "The order not found",
-        statusCode: StatusCodes.NOT_FOUND,
-      });
-    }
-    const updateOrder = await orderRepository.updateOrderStatus(orderId, newOrderStatus);
+
+    if (!order)
+      throw NotFoundError("The order not found");
+
+    const updateOrder = await orderRepository.cancelOrder(orderId);
     return updateOrder;
   }
 
   async placeOrder(customerId: string, restaurantId: string) {
-    // Build the handler chain
     const handlerChain = OrderHandlerChainBuilder.build();
 
-    // Initialize the context
-    const context: OrderContext = {
-      customerId,
-      restaurantId,
-    };
-
     try {
-      // Execute the chain
-      console.log(`\n========== Starting Order Processing ==========`);
-      const result = await handlerChain.execute(context);
-      console.log(`========== Order Processing Complete ==========\n`);
+      // Execute the chain within a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Initialize the context with the transaction client
+        const context: OrderContext = {
+          customerId,
+          restaurantId,
+          tx,
+        };
 
-      // Return the final order
+        const chainResult = await handlerChain.execute(context);
+        return chainResult;
+      }, {
+        maxWait: 5000,
+        timeout: 20000,
+      });
+
       if (!result.finalOrder) {
-        throw new CustomError({
-          message: "Order processing failed - no final order created",
-          statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-        });
+        throw InternalServerError("Failed to place order");
       }
 
       return result.finalOrder;
     } catch (err: any) {
-      // Ensure cart is unlocked even on error
-      try {
-        if (context.isCartLocked) {
-          await cartRepository.unlockCart(customerId);
-          console.log(`[OrderService] Cart unlocked after error`);
-        }
-      } catch (unlockError) {
-        console.error(`[OrderService] Failed to unlock cart after error:`, unlockError);
-      }
-
-      // Re-throw custom errors, wrap others
-      if (err instanceof CustomError) {
-        throw err;
-      }
-      throw new CustomError({
-        message: err.message || "Failed to place order",
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      });
+      throw InternalServerError("Failed to place order", err);
     }
   }
+
 }
 
 export const orderService = new OrderService();

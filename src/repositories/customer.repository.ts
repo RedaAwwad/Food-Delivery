@@ -40,7 +40,11 @@ export class CustomerRepository {
     return prisma.customer.findUnique({ where: { customerId } });
   }
 
-  async create(data: any) {
+  async getCustomerByUserId(userId: string) {
+    return prisma.customer.findUnique({ where: { userId } });
+  }
+
+  async createCustomer(data: any) {
     return prisma.customer.create({ data });
   }
 
@@ -53,5 +57,7 @@ export class CustomerRepository {
     });
   }
 
+  // TODO: Add deactivate account
+  async deactivateAccount(customerId: string) {}
 }
 export const customerRepository = new CustomerRepository();

@@ -13,7 +13,8 @@ export type CreateAddressDTO = Pick<
   | "longitude"
 > & {
   isPrimary?: boolean;
-  restaurantId?: number;
+  restaurantId?: string;
+  customerId?: string;
 };
 
 export type UpdateAddressDTO = Partial<CreateAddressDTO>;

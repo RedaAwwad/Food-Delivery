@@ -1,12 +1,7 @@
 import { loginDTO } from "../dto/login.dto";
 import { SignupDTO } from "../dto/signup.dto";
-import { userRepository } from "../repositories/user.repository";
-import { customerRepository } from "../repositories/customer.repository";
-import { userTokenRepository } from "../repositories/user-token.repository";
 import { Request, Response } from "express";
 import { AuthResponse } from "../types/token";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
 import { generateAccessToken, generateJwtTokenForGeneralUse, generateRefreshToken, generateTokenPair, verifyJwtTokenForGeneralUse, verifyRefreshToken } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { compare, hash } from "../utils/HashAndCompare";
@@ -14,7 +9,10 @@ import { emailService } from "./email.service";
 import { TokenType } from "../generated/prisma";
 import { v7 as uuidv7 } from 'uuid';
 import { roleService } from "./role.service";
-import { BadRequestError, ConflictError, TooManyRequestsError, UnauthorizedError } from "../utils/errors";
+import { BadRequestError, ConflictError, UnauthorizedError } from "../utils/errors";
+import { userService } from "./user.service";
+import { customerService } from "./customer.service";
+import { userTokenService } from "./user-token.service";
 
 class AuthService {
     private readonly REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
@@ -22,24 +20,25 @@ class AuthService {
     async signup(signupDto: SignupDTO) {
         const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
 
-        const userCheck = await userRepository.findByEmail(userEmail);
+        const userCheck = await userService.findUserByEmail(userEmail);
         if (userCheck)
             throw ConflictError("Email already exists");
 
         const hashedPassword = await hash(userPassword);
 
         // Transactional feeling, but manual for now
-        const newUser = await userRepository.create({
+        const newUser = await userService.createUser({
             userId: uuidv7(),
             userName,
             userEmail,
             userPassword: hashedPassword,
+            isActive: true,
         });
 
         if (!newUser)
             throw BadRequestError("Failed to Create User");
 
-        const newCustomer = await customerRepository.create({
+        const newCustomer = await customerService.createCustomer({
             customerId: uuidv7(),
             userId: newUser.userId,
             customerPhone: String(userPhoneNumber || ""),
@@ -59,7 +58,6 @@ class AuthService {
 
         // Generate verification token
         const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || '86400000', 10); // Default 24 hours
-        const expiresAt = new Date(Date.now() + expiryTime);
 
         const token = generateJwtTokenForGeneralUse({
             userId: newUser.userId,
@@ -85,7 +83,7 @@ class AuthService {
             throw BadRequestError("Invalid or expired verification token");
 
         try {
-            await userRepository.findAndUpdateUserByEmail(tokenData.userEmail, { isConfirmed: true });
+            await userService.findAndUpdateUserByEmail(tokenData.userEmail, { isConfirmed: true });
         } catch (error) {
             throw BadRequestError("User not found");
         }
@@ -96,7 +94,7 @@ class AuthService {
     async resendVerification(email: string): Promise<void> {
         console.log(`📧 Resending verification email to: ${email}`);
 
-        const user = await userRepository.findByEmail(email);
+        const user = await userService.findUserByEmail(email);
 
         if (!user) {
             console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
@@ -132,11 +130,10 @@ class AuthService {
     async login(loginDto: loginDTO): Promise<AuthResponse> {
         const { email, password } = loginDto;
 
-        if (!email || !password) {
+        if (!email || !password)
             throw BadRequestError("Email and password are required");
-        }
 
-        const user = await userRepository.findByEmail(email);
+        const user = await userService.findUserByEmailWithRoles(email);
 
         if (!user)
             throw UnauthorizedError("Invalid email or password");
@@ -145,16 +142,28 @@ class AuthService {
         if (!match)
             throw UnauthorizedError("Invalid email or password");
 
-        const activeUser = await userRepository.updateIsActive(user.userId, true);
+        // const activeUser = await userService.updateIsActive(user.userId, true);
+
+        const customer = await customerService.getCustomerByUserId(user.userId);
+
+        if (!customer)
+            throw UnauthorizedError("Invalid email or password");
+
+        const returnedUser = { userId: user.userId, userName: user.userName, userEmail: user.userEmail };
+
+        const roles = user.usersRoles.map(ur => ur.role.roleName);
 
         const tokenPair = generateTokenPair({
             userId: user.userId,
+            customerId: customer.customerId,
             userName: user.userName,
             userEmail: user.userEmail,
+            roles,
+            isAdmin: user.isAdmin,
         });
 
         // Store refresh token
-        await userTokenRepository.createToken({
+        await userTokenService.createToken({
             userId: user.userId,
             token: tokenPair.refreshToken,
             expiresAt: tokenPair.refreshTokenExpiresAt,
@@ -174,7 +183,7 @@ class AuthService {
             data: {
                 accessToken: tokenPair.accessToken,
                 accessTokenExpiresAt: tokenPair.accessTokenExpiresAt,
-                user: activeUser
+                user: returnedUser
             },
             cookies: [refreshTokenCookie],
         };
@@ -186,7 +195,7 @@ class AuthService {
         if (!refreshToken)
             throw UnauthorizedError("Refresh token is required");
 
-        const isValid = await userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
+        const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
 
         if (!isValid)
             throw UnauthorizedError("Invalid or expired refresh token");
@@ -197,14 +206,15 @@ class AuthService {
         // Generate new refresh token (optional: token rotation)
         const newRefreshToken = generateRefreshToken({
             userId: result.user.userId,
+            customerId: result.user.customerId,
             userName: result.user.userName,
             userEmail: result.user.userEmail,
         });
 
-        const tokenData = await userTokenRepository.findByToken(refreshToken);
+        const tokenData = await userTokenService.findTokenByToken(refreshToken);
         if (tokenData) {
-            await userTokenRepository.revokeToken(refreshToken, 'token_rotated');
-            await userTokenRepository.createToken({
+            await userTokenService.revokeToken(refreshToken, 'token_rotated');
+            await userTokenService.createToken({
                 userId: tokenData.userId,
                 token: newRefreshToken,
                 expiresAt: new Date(Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 24 * 60 * 60 * 1000), // 15 days
@@ -233,16 +243,18 @@ class AuthService {
         if (typeof decoded === 'string' || !decoded.userId)
             throw UnauthorizedError("Invalid Refresh Token")
 
-        const isValid = await userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
-
+        const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
         if (!isValid)
             throw UnauthorizedError("Invalid or expired refresh token")
 
         // Generate new access token
         const accessToken = generateAccessToken({
             userId: decoded.userId,
+            customerId: decoded.customerId,
             userName: decoded.userName,
             userEmail: decoded.userEmail,
+            roles: decoded.roles || [],
+            isAdmin: decoded.isAdmin || false
         });
 
         const accessTokenExpiresAt = new Date(Date.now() + (parseInt(process.env.ACCESS_TOKEN_EXPIRY || '15', 10) * 60 * 1000));
@@ -252,6 +264,7 @@ class AuthService {
             accessTokenExpiresAt,
             user: {
                 userId: decoded.userId,
+                customerId: decoded.customerId,
                 userName: decoded.userName,
                 userEmail: decoded.userEmail,
             }
@@ -260,7 +273,7 @@ class AuthService {
 
     async logout(refreshToken?: string): Promise<AuthResponse> {
         if (refreshToken) {
-            await userTokenRepository.revokeToken(refreshToken, 'user_logout');
+            await userTokenService.revokeToken(refreshToken, 'user_logout');
         }
 
         // Prepare cookie clearance
@@ -276,12 +289,12 @@ class AuthService {
         if (!refreshToken)
             throw BadRequestError("Refresh token is required")
 
-        const tokenData = await userTokenRepository.findByToken(refreshToken);
+        const tokenData = await userTokenService.findTokenByToken(refreshToken);
 
         if (!tokenData)
             throw UnauthorizedError("Invalid token")
 
-        await userTokenRepository.revokeAllUserTokens(tokenData.userId);
+        await userTokenService.revokeAllUserTokens(tokenData.userId);
 
         // Prepare cookie clearance
         const clearCookies = [this.REFRESH_TOKEN_COOKIE_NAME];
@@ -293,7 +306,7 @@ class AuthService {
     }
 
     async getActiveSessions(userId: string): Promise<AuthResponse> {
-        const sessions = await userTokenRepository.findByUserIdAndType(userId, TokenType.REFRESH, true);
+        const sessions = await userTokenService.findByUserIdAndType(userId, TokenType.REFRESH, true);
 
         return {
             data: { sessions },
@@ -301,8 +314,8 @@ class AuthService {
     }
 
     async cleanupExpiredTokens(): Promise<void> {
-        await userTokenRepository.deleteExpiredTokens();
-        await userTokenRepository.deleteOldRevokedTokens();
+        await userTokenService.deleteExpiredTokens();
+        await userTokenService.deleteOldRevokedTokens();
     }
 
     extractRefreshToken(req: Request) {
@@ -347,7 +360,7 @@ class AuthService {
     // Get user ID from refresh token
     async getUserIdFromRefreshToken(refreshToken: string): Promise<string | null> {
         try {
-            const tokenData = await userTokenRepository.findByToken(refreshToken);
+            const tokenData = await userTokenService.findTokenByToken(refreshToken);
             return tokenData?.userId || null;
         } catch (error) {
             return null;
@@ -356,12 +369,12 @@ class AuthService {
 
     // Validate session is still active
     async validateSession(refreshToken: string): Promise<boolean> {
-        return userTokenRepository.isValid(refreshToken, TokenType.REFRESH);
+        return userTokenService.isValid(refreshToken, TokenType.REFRESH);
     }
 
     // Get session count for user
     async getSessionCount(userId: string): Promise<number> {
-        return userTokenRepository.getActiveTokenCount(userId, TokenType.REFRESH);
+        return userTokenService.getActiveTokenCount(userId, TokenType.REFRESH);
     }
 
     // ============ PASSWORD RESET METHODS ============
@@ -369,7 +382,7 @@ class AuthService {
     async forgetPassword(email: string): Promise<void> {
         console.log(`🔐 Password reset requested for email: ${email}`);
 
-        const user = await userRepository.findByEmail(email);
+        const user = await userService.findUserByEmail(email);
 
         // Security: Always return success to prevent email enumeration
         if (!user) {
@@ -378,7 +391,7 @@ class AuthService {
         }
 
         // Revoke any existing forgot password tokens for this user
-        await userTokenRepository.revokeAllUserTokensByType(
+        await userTokenService.revokeAllUserTokensByType(
             user.userId,
             TokenType.FORGOT_PASSWORD,
             'new_reset_requested'
@@ -395,7 +408,7 @@ class AuthService {
             tokenType: TokenType.FORGOT_PASSWORD,
         }, expiryMs / 1000);
 
-        await userTokenRepository.createToken({
+        await userTokenService.createToken({
             userId: user.userId,
             token: token,
             tokenType: TokenType.FORGOT_PASSWORD,
@@ -420,7 +433,7 @@ class AuthService {
             const decoded = verifyJwtTokenForGeneralUse(token);
             if (!decoded || typeof decoded === 'string' || !decoded.userId) return false;
 
-            return await userTokenRepository.isValid(token, TokenType.FORGOT_PASSWORD);
+            return await userTokenService.isValid(token, TokenType.FORGOT_PASSWORD);
         } catch (error) {
             return false;
         }
@@ -433,7 +446,7 @@ class AuthService {
         if (!decoded || typeof decoded === 'string' || !decoded.userId)
             throw BadRequestError("Invalid or expired reset token")
 
-        const tokenData = await userTokenRepository.findValidToken(token, TokenType.FORGOT_PASSWORD);
+        const tokenData = await userTokenService.findValidToken(token, TokenType.FORGOT_PASSWORD);
 
         if (!tokenData) {
             console.log(`❌ Invalid or expired reset token`);
@@ -442,12 +455,12 @@ class AuthService {
 
         const hashedPassword = await hash(newPassword);
 
-        await userRepository.update(tokenData.userId, { userPassword: hashedPassword });
+        await userService.updateUser(tokenData.userId, { userPassword: hashedPassword });
 
-        await userTokenRepository.revokeToken(token, 'password_reset_completed');
+        await userTokenService.revokeToken(token, 'password_reset_completed');
 
         // Security: Revoke all refresh tokens (logout from all devices)
-        await userTokenRepository.revokeAllUserTokensByType(
+        await userTokenService.revokeAllUserTokensByType(
             tokenData.userId,
             TokenType.REFRESH,
             'password_changed'

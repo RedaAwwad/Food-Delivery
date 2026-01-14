@@ -1,6 +1,8 @@
 import express from "express";
 import { orderController } from "../controllers/order.controller";
 import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
+import { validateRequest } from "../middleware/validate-request";
+import { updateOrderStatusSchema } from "../validation/order.schema";
 
 const orderRouter = express.Router();
 
@@ -24,7 +26,7 @@ orderRouter.use(isAuthenticated);
  *       200:
  *         description: List of all orders
  */
-orderRouter.get("/", orderController.getAllOrders);
+orderRouter.get("/", orderController.findAllOrdersByCustomerId);
 
 /**
  * @swagger
@@ -45,7 +47,7 @@ orderRouter.get("/", orderController.getAllOrders);
  *       404:
  *         description: Order not found
  */
-orderRouter.get("/:id", orderController.getOrderDetails);
+orderRouter.get("/:orderId", orderController.findOrderById);
 
 /**
  * @swagger
@@ -84,9 +86,10 @@ orderRouter.get("/:id", orderController.getOrderDetails);
  *         description: Internal server error
  */
 orderRouter.patch(
-  "/:id/status",
+  "/:orderId/status",
+  validateRequest(updateOrderStatusSchema),
   isAuthorized(["restaurant", "admin"]),
-  orderController.updateStatus
+  orderController.updateOrderStatus
 );
 
 /**
@@ -125,7 +128,7 @@ orderRouter.patch(
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:id/cancel", isAuthorized(["restaurant"]), orderController.cancelOrder);
+orderRouter.patch("/:orderId/cancel", isAuthorized(["restaurant"]), orderController.cancelOrder);
 
 orderRouter.post("/check-out", orderController.placeOrder);
 

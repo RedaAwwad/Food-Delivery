@@ -1,15 +1,15 @@
 import { prisma } from "../config/prisma.config";
 
 export class UserRepository {
-    async create(data: any) {
+    async createUser(data: any) {
         return prisma.user.create({ data });
     }
 
-    async findByEmail(email: string) {
+    async findUserByEmail(email: string) {
         return prisma.user.findUnique({ where: { userEmail: email } });
     }
 
-    async update(userId: string, data: any) {
+    async updateUser(userId: string, data: any) {
         return prisma.user.update({
             where: { userId },
             data
@@ -41,6 +41,32 @@ export class UserRepository {
         return prisma.user.update({
             where: { userEmail: email },
             data
+        });
+    }
+
+    async findUserByEmailWithRoles(email: string) {
+        return prisma.user.findUnique({
+            where: { userEmail: email },
+            include: {
+                usersRoles: {
+                    include: {
+                        role: true
+                    }
+                }
+            }
+        });
+    }
+
+    async findUserByIdWithRoles(userId: string) {
+        return prisma.user.findUnique({
+            where: { userId },
+            include: {
+                usersRoles: {
+                    include: {
+                        role: true
+                    }
+                }
+            }
         });
     }
 }

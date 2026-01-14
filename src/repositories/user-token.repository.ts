@@ -36,33 +36,14 @@ class UserTokenRepository {
                 tokenType,
                 isRevoked: false,
                 expiresAt: { gte: now }
-            },
-            include: {
-                user: {
-                    select: {
-                        userId: true,
-                        userName: true,
-                        userEmail: true,
-                        isActive: true
-                    }
-                }
             }
         });
     }
 
     // Find any token by token string (regardless of validity)
-    async findByToken(token: string) {
+    async findTokenByToken(token: string) {
         return prisma.userToken.findFirst({
-            where: { token },
-            include: {
-                user: {
-                    select: {
-                        userId: true,
-                        userName: true,
-                        userEmail: true
-                    }
-                }
-            }
+            where: { token }
         });
     }
 
@@ -176,21 +157,21 @@ class UserTokenRepository {
         });
     }
 
-    
+
     async findRecentVerificationTokens(userId: string, timeFrameInHours: number = 1): Promise<any[]> {
-    const oneHourAgo = new Date(Date.now() - (timeFrameInHours * 60 * 60 * 1000));
-    
-    return await prisma.userToken.findMany({
-        where: {
-            userId,
-            tokenType: TokenType.VERIFICATION,
-            revokedAt: null,
-            createdAt: {
-                gte: oneHourAgo
+        const oneHourAgo = new Date(Date.now() - (timeFrameInHours * 60 * 60 * 1000));
+
+        return await prisma.userToken.findMany({
+            where: {
+                userId,
+                tokenType: TokenType.VERIFICATION,
+                revokedAt: null,
+                createdAt: {
+                    gte: oneHourAgo
+                }
             }
-        }
-    });
-}
+        });
+    }
 }
 
 export const userTokenRepository = new UserTokenRepository();

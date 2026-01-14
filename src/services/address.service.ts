@@ -5,7 +5,7 @@ import { addressRepository } from "../repositories/address.repository";
 import { CreateAddressDTO, UpdateAddressDTO } from "../dto/address.dto";
 
 class AddressService {
-  async createAddress(data: CreateAddressDTO & { customerId: number }): Promise<Address> {
+  async createAddress(data: CreateAddressDTO & { customerId: string }): Promise<Address> {
     if (data.isPrimary) {
       await addressRepository.unsetPrimaryAddresses(data.customerId);
     }
@@ -16,17 +16,17 @@ class AddressService {
     });
   }
 
-  async getAddressesByCustomerId(customerId: number): Promise<Address[]> {
+  async getAddressesByCustomerId(customerId: string): Promise<Address[]> {
     return addressRepository.findAddressesByCustomerId(customerId);
   }
 
-  async getAddressById(addressId: number): Promise<Address | null> {
+  async getAddressById(addressId: string): Promise<Address | null> {
     return addressRepository.findAddressById(addressId);
   }
 
   async updateAddress(
-    addressId: number,
-    customerId: number,
+    addressId: string,
+    customerId: string,
     data: UpdateAddressDTO
   ): Promise<Address> {
     const existingAddress = await addressRepository.findAddressById(addressId);
@@ -56,7 +56,7 @@ class AddressService {
     return addressRepository.updateAddress(addressId, updateData);
   }
 
-  async deleteAddress(addressId: number, customerId: number): Promise<void> {
+  async deleteAddress(addressId: string, customerId: string): Promise<void> {
     const existingAddress = await addressRepository.findAddressById(addressId);
 
     if (!existingAddress) {

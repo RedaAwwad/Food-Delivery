@@ -1,45 +1,59 @@
 import { prisma } from "../config/prisma.config";
-import { CreateOrderDto } from "../dto/createOrderDto";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
-
-// type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
+import { CreateOrderDto, UpdateOrderStatusDto } from "../dto/order.dto";
+import { BadRequestError, NotFoundError } from "../utils/errors";
+import { PrismaTx } from "../types/prisma.types";
+import { OrderStatusKey, PrismaClient } from "../generated/prisma";
 
 class OrderRepository {
-  async findAllOrders() {
-    return await prisma.order.findMany();
+  async findAllOrdersByCustomerId(customerId: string) {
+    const orders = await prisma.order.findMany({
+      where: {
+        customerId
+      },
+      orderBy: {
+        createdAt: "desc"
+      }
+    });
+
+    if (!orders)
+      throw NotFoundError("No Orders Found For This Customer")
+
+    return orders
   }
 
   async findOrderById(orderId: string) {
     return await prisma.order.findUniqueOrThrow({
       where: {
-         orderId,
-      },
-    });
-  }
-  async findOrderRestaurantById(orderId: string , userRestaurantId:string ) {
-    return await prisma.order.findUniqueOrThrow({
-      where: {
-        orderId,
-        restaurantId:userRestaurantId
-      },
-    });
-  }
-   
-  async updateOrderStatus(orderId: string,restaurantId:string, newStatusId: string, userId:string , updatedAt:Date) {
-
-    return await prisma.order.updateMany({
-      where: { orderId, restaurantId },
-      data: { 
-        orderStatusId: newStatusId , 
-        // updatedBy : userId,
-        updatedAt 
+        orderId
       },
     });
   }
 
-  createOrder(createOrderDto: CreateOrderDto) {
-    const { customerId, restaurantId, cartItems, status } = createOrderDto;
+  async updateOrderStatus(data: UpdateOrderStatusDto, tx: PrismaTx | PrismaClient = prisma) {
+    const updatedStatus = await tx.order.update({
+      where: { orderId: data.orderId },
+      data: { orderStatus: data.newOrderStatus },
+    });
+
+    if (!updatedStatus) throw BadRequestError("Failed To Update Order")
+
+    return updatedStatus
+  }
+
+  async cancelOrder(orderId: string) {
+    try {
+      return await prisma.order.update({
+        where: { orderId },
+        data: { orderStatus: OrderStatusKey.CANCELED },
+      });
+
+    } catch (error: any) {
+      throw BadRequestError("Failed To Cancel Order", error)
+    }
+  }
+
+  async createOrder(createOrderDto: CreateOrderDto, tx: PrismaTx | PrismaClient = prisma) {
+    const { customerId, restaurantId, cartItems, orderStatus } = createOrderDto;
     // Calculate total
     const totalAmount = cartItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
@@ -47,15 +61,12 @@ class OrderRepository {
     );
 
     // Create the order and its items in a single transaction
-    const newOrder = await prisma.order.create({
+    const newOrder = await tx.order.create({
       data: {
         customerId,
         restaurantId,
         totalAmount,
-        orderStatus: status,
-        // createdById/updatedById are required by the schema — set to the customer for now
-        createdById: customerId,
-        updatedById: customerId,
+        orderStatus,
         orderItems: {
           create: cartItems.map((item) => ({
             menuItemId: item.menuItemId,
@@ -68,6 +79,8 @@ class OrderRepository {
         orderItems: true, // Include items in the returned order object
       },
     });
+
+    if (!newOrder) throw BadRequestError("Failed To Create Order")
 
     return newOrder;
   }
