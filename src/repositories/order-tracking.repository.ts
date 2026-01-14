@@ -1,4 +1,5 @@
 import { prisma } from "../config/prisma.config";
+import { TrackingStatusStep } from "../dto/orderTrackingStatus";
 import { NotFoundError } from "../utils/errors";
 
 class OrderTrackingRepository {
