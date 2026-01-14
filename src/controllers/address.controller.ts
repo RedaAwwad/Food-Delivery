@@ -7,7 +7,7 @@ import { CustomError } from "../utils/errors/custom-error";
 export class AddressController {
   async createAddress(req: Request, res: Response, next: NextFunction) {
     try {
-      const customerId = (req as any).user?.customerId
+      const customerId = req.user!.customerId!
 
       if (!customerId) {
         throw new CustomError({
@@ -28,7 +28,7 @@ export class AddressController {
 
   async getMyAddresses(req: Request, res: Response, next: NextFunction) {
     try {
-      const customerId = (req as any).user?.customerId || (req as any).user?.userId;
+      const customerId = req.user!.customerId!
       if (!customerId) {
         throw new CustomError({
           message: "User ID not found in token",
