@@ -1,11 +1,11 @@
 import express from "express";
 import { addressController } from "../controllers/address.controller";
-import { isCustomer } from "../middleware/customer.middleware";
+import { isAuthenticated } from "../middleware/auth.middleware";
 
 const addressRouter = express.Router();
 
 // Protect all address routes
-addressRouter.use(isCustomer);
+addressRouter.use(isAuthenticated);
 
 addressRouter.post("/", addressController.createAddress);
 addressRouter.get("/", addressController.getMyAddresses);

@@ -5,7 +5,7 @@ import { logInSchema } from "../validation/user.login";
 import { forgetPasswordSchema } from "../validation/forget-password.validation";
 import { resetPasswordSchema } from "../validation/reset-password.validation";
 import { authController } from "../controllers/auth.controller";
-import { authenticate } from "../middleware/auth.middleware";
+import { isAuthenticated } from "../middleware/auth.middleware";
 import { confirmEmailSchema, requireEmailSchema } from "../validation/user.confirmEmail";
 
 const authRouter = express.Router();
@@ -23,9 +23,9 @@ authRouter.post(
 );
 
 // Protected routes
-authRouter.post("/logout", authenticate, authController.logout);
-authRouter.post("/logout-all", authenticate, authController.logoutAll);
-authRouter.get("/sessions", authenticate, authController.getActiveSessions);
+authRouter.post("/logout", isAuthenticated, authController.logout);
+authRouter.post("/logout-all", isAuthenticated, authController.logoutAll);
+authRouter.get("/sessions", isAuthenticated, authController.getActiveSessions);
 
 // Password Reset Routes
 authRouter.post(

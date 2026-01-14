@@ -1,46 +1,34 @@
 import Joi from "joi";
 
-export const getAllMenuItemByMenuCategoryIdSchema = {
-    body: Joi.object().required().keys({
-        menuCategoryId: Joi.string().required(),
-    })
-}
+export const getAllMenuItemByMenuCategoryIdSchema = Joi.object({
+    menuCategoryId: Joi.string().required(),
+}).required();
 
-export const getMenuItemByIdSchema = {
-    body: Joi.object().required().keys({
-        menuItemId: Joi.string().required(),
-    })
-}
+export const getMenuItemByIdSchema = Joi.object({
+    menuItemId: Joi.string().required(),
+}).required();
 
-export const createMenuItemSchema = {
-    body: Joi.object().required().keys({
+export const createMenuItemSchema = Joi.object({
         menuCategoryId: Joi.string().required(),
         menuItemName: Joi.string().required(),
         menuItemDesc: Joi.string().required(),
         menuItemImageUrl: Joi.string().required(),
         price: Joi.number().required(),
         stockQuantity: Joi.number().required(),
-    })
-}
+    }).required();
 
-export const updateMenuItemSchema = {
-    body: Joi.object().required().keys({
+export const updateMenuItemSchema = Joi.object({
         menuItemName: Joi.string().required(),
         menuItemDesc: Joi.string().required(),
         menuItemImageUrl: Joi.string().required(),
         price: Joi.number().required(),
         stockQuantity: Joi.number().required(),
-    })
-}
+    }).required();
 
-export const deleteMenuItemSchema = {
-    body: Joi.object().required().keys({
-        menuItemId: Joi.string().required(),
-    })
-}
+export const deleteMenuItemSchema = Joi.object({
+    menuItemId: Joi.string().required(),
+}).required();
 
-export const searchMenuItemSchema = {
-    query: Joi.object().keys({
-        menuItemName: Joi.string().min(1).max(100).optional(),
-    })
-}
+export const searchMenuItemSchema = Joi.object({
+    menuItemName: Joi.string().min(1).max(100).optional(),
+}).required();
