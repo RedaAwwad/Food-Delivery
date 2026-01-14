@@ -28,7 +28,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
         message: "Unauthorized",
         statusCode: StatusCodes.UNAUTHORIZED,
       });
-    }
+    } 
 
     const token = authHeader.split(" ")[1];
     if (!token) {
