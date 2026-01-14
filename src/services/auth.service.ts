@@ -63,7 +63,7 @@ class AuthService {
             userId: newUser.userId,
             userEmail: newUser.userEmail,
             tokenType: TokenType.VERIFICATION,
-        }, expiryTime / 1000);
+        });
 
         const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
 
@@ -113,7 +113,7 @@ class AuthService {
             userId: user.userId,
             userEmail: user.userEmail,
             tokenType: TokenType.VERIFICATION,
-        }, expiryTime / 1000);
+        });
 
         const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
 
@@ -406,7 +406,7 @@ class AuthService {
             userId: user.userId,
             userEmail: user.userEmail,
             tokenType: TokenType.FORGOT_PASSWORD,
-        }, expiryMs / 1000);
+        });
 
         await userTokenService.createToken({
             userId: user.userId,

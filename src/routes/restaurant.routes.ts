@@ -2,19 +2,19 @@ import express from 'express';
 import { validateRequest } from '../middleware/validate-request';
 import { createRestaurantSchema, deleteRestaurantSchema, enableOrDisableRestaurantSchema, findRestaurantByRestaurantIdSchema, searchRestaurantSchema, updateRestaurantRatingSchema, updateRestaurantSchema } from '../validation/restaurant.schema';
 import { restaurantController } from '../controllers/restaurant.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { isAuthenticated, isAuthorized } from '../middleware/auth.middleware';
 
 export const restaurantRouter = express.Router()
 
 restaurantRouter.get('/', restaurantController.findAllRestaurants);
-restaurantRouter.get('/user', authenticate, restaurantController.findRestaurantByUserId);
-restaurantRouter.get('/restaurant', validateRequest(findRestaurantByRestaurantIdSchema), restaurantController.findRestaurantByRestaurantId);
-restaurantRouter.post('/', authenticate, validateRequest(createRestaurantSchema), restaurantController.createRestaurant);
-restaurantRouter.put('/update', authenticate, validateRequest(updateRestaurantSchema), restaurantController.updateRestaurant);
-restaurantRouter.put('/update-rating', authenticate, validateRequest(updateRestaurantRatingSchema), restaurantController.updateRestaurantRating);
-restaurantRouter.delete('/', authenticate, validateRequest(deleteRestaurantSchema), restaurantController.deleteRestaurant);
-restaurantRouter.put('/enable-disable', authenticate, validateRequest(enableOrDisableRestaurantSchema), restaurantController.enableOrDisableRestaurant);
-restaurantRouter.get('/search', validateRequest(searchRestaurantSchema), restaurantController.searchRestaurants);
+restaurantRouter.get('/user', isAuthenticated, isAuthorized(["Owner"]), restaurantController.findRestaurantByUserId);
+restaurantRouter.get('/:restaurantId', validateRequest(findRestaurantByRestaurantIdSchema), restaurantController.findRestaurantByRestaurantId);
+restaurantRouter.post('/', isAuthenticated, validateRequest(createRestaurantSchema), restaurantController.createRestaurant);
+restaurantRouter.put('/update', isAuthenticated, validateRequest(updateRestaurantSchema), restaurantController.updateRestaurant);
+restaurantRouter.put('/update-rating', isAuthenticated, validateRequest(updateRestaurantRatingSchema), restaurantController.updateRestaurantRating);
+restaurantRouter.delete('/', isAuthenticated, validateRequest(deleteRestaurantSchema), restaurantController.deleteRestaurant);
+restaurantRouter.put('/enable-disable', isAuthenticated, validateRequest(enableOrDisableRestaurantSchema), restaurantController.enableOrDisableRestaurant);
+restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query"), restaurantController.searchRestaurants);
 
 
 /**

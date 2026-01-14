@@ -5,7 +5,7 @@ import { CustomError } from "../utils/errors";
 
 const validateRequest = (
   schema: Joi.ObjectSchema,
-  target: "body" | "query" | "params" = "body"
+  target: "body" | "query" = "body"
 ) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     const validated = await schema.validateAsync(req[target], {
