@@ -6,12 +6,11 @@ const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || "30d";
 const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || "15d";
 const ACCESS_TOKEN_SECRET = process.env.ACCESS_TOKEN_SECRET;
 const REFRESH_TOKEN_SECRET = process.env.REFRESH_TOKEN_SECRET;
-const GENERAL_TOKEN_EXPIRY = process.env.GENERAL_TOKEN_EXPIRY || "1d";
 
 // Generic Generation Function
-const generateToken = (payload: TokenPayload, type: "ACCESS" | "REFRESH" | "GENERAL"): string => {
+const generateToken = (payload: TokenPayload, type: "ACCESS" | "REFRESH"): string => {
   const secret = type === "ACCESS" ? ACCESS_TOKEN_SECRET : REFRESH_TOKEN_SECRET;
-  const expiresIn = type === "ACCESS" ? ACCESS_TOKEN_EXPIRY : (type === "REFRESH" ? REFRESH_TOKEN_EXPIRY : GENERAL_TOKEN_EXPIRY);
+  const expiresIn = type === "ACCESS" ? ACCESS_TOKEN_EXPIRY : REFRESH_TOKEN_EXPIRY;
 
   try {
     return jwt.sign(
@@ -64,16 +63,16 @@ const verifyToken = (
 export const generateTokenPair = (payload: TokenPayload): TokenPair => {
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
-  
+
   const now = new Date();
-  
+
   const accessTokenExpiresAt = new Date(
     now.getTime() + parseInt(ACCESS_TOKEN_EXPIRY, 10) * 60 * 1000
   );
   const refreshTokenExpiresAt = new Date(
     now.getTime() + parseInt(REFRESH_TOKEN_EXPIRY, 10) * 24 * 60 * 60 * 1000
   );
-  
+
   return {
     accessToken,
     refreshToken,

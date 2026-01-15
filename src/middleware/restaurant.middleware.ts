@@ -1,13 +1,12 @@
 import { RequestHandler } from "express";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { verifyToken } from "../utils/jwt/verifyToken";
-import { getTokenFromHeaders } from "../utils/jwt/getTokenFromHeaders";
 import { Role } from "../generated/prisma";
+import { jwtUtils } from "../utils/jwt/jwt.utils";
 
 export const isRestaurantManager = (): RequestHandler => {
   return (req, res, next) => {
-    const token = getTokenFromHeaders(req);
+    const token = jwtUtils.getTokenFromHeaders(req);
 
     if (!token) {
       throw new CustomError({
@@ -16,7 +15,7 @@ export const isRestaurantManager = (): RequestHandler => {
       });
     }
 
-    const decoded = verifyToken(token);
+    const decoded = jwtUtils.verifyAccessToken(token);
     (req as any).user = decoded;
 
     const hasPermission = decoded.roles.some((role: Role) => role.roleKey === "RESTAURANT_MANAGER");

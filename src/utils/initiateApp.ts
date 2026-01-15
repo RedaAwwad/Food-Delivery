@@ -8,19 +8,13 @@ import { startServer } from "./startServer";
 import { tokenValidator } from "../middleware/auth.middleware";
 
 const initiateApp = async (app: Express) => {
-  const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
-
   app.use(express.json());
-
   app.use(cookieParser());
-
   app.use(cors());
-
   app.use(express.urlencoded({ extended: true }));
 
-  app.use(tokenValidator);
-
   setupSwagger(app);
+  app.use(tokenValidator);
 
   app.get("/", (req, res) => {
     res.json({
@@ -34,7 +28,6 @@ const initiateApp = async (app: Express) => {
   app.use((req, res, next) => {
     throw NotFoundError("Not Found");
   });
-
   app.use(errorHandler);
 
   await startServer(app);

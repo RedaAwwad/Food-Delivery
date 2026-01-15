@@ -1,13 +1,11 @@
-import { TokenType } from "../generated/prisma";
-
 export interface TokenPayload {
-  userId?: string;
-  userName?: string;
-  userEmail?: string;
-  customerId?: string;
-  roles?: string[];
+  userId: string;
+  userName: string;
+  userEmail: string;
   isAdmin?: boolean;
-  [key: string]: any;
+  customerId?: string;
+  restaurantId?: string;
+  userRoles: string[];
 }
 
 export interface GenerateTokenOpts {
@@ -75,7 +73,7 @@ export interface RefreshResponse {
 export interface CookieOptions {
   httpOnly: boolean;
   secure: boolean;
-  sameSite: 'strict' | 'lax' | 'none';
+  sameSite: "strict" | "lax" | "none";
   maxAge?: number;
   path?: string;
   domain?: string;

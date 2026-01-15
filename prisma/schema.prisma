@@ -69,11 +69,6 @@ model UserToken {
 
   tokenType   TokenType @map("token_type")
 
-  // Security controls
-  isRevoked      Boolean  @default(false) @map("is_revoked")
-  revokedAt      DateTime? @map("revoked_at")
-  revokedReason  String?  @map("revoked_reason") // "logout", "suspicious", "expired"
-
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
