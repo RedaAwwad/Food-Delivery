@@ -21,6 +21,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
 
     const userSession = jwtUtils.verifyAccessToken(token);
 
+    // @ts-ignore
     if (!userSession || !userSession?.userId) {
       throw new CustomError({
         message: "Invalid access token",
@@ -28,6 +29,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
       });
     }
 
+    // @ts-ignore
     req.user = userSession;
 
     next();
@@ -38,6 +40,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
   return (req, res, next) => {
+    // @ts-ignore
     const userRoles: string[] = req.user?.userRoles || [];
 
     // Check if user has at least one of the required roles

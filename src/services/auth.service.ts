@@ -4,16 +4,12 @@ import { Request, Response } from "express";
 import { AuthResponse } from "../types/token";
 import {
   generateAccessToken,
-  generateJwtTokenForGeneralUse,
   generateRefreshToken,
-  generateTokenPair,
-  verifyJwtTokenForGeneralUse,
   verifyRefreshToken,
 } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { compare, hash } from "../utils/HashAndCompare";
 import { emailService } from "./email.service";
-import { TokenType, User } from "../generated/prisma";
 import { v7 as uuidv7 } from "uuid";
 import { roleService } from "./role.service";
 import { BadRequestError, ConflictError, CustomError, UnauthorizedError } from "../utils/errors";
@@ -23,7 +19,6 @@ import { userTokenService } from "./user-token.service";
 import { jwtUtils } from "../utils/jwt/jwt.utils";
 import { USER_DEFAULT_SELECT } from "../utils/constants";
 import { TokenPayload } from "../types/token";
-import { UserWithRelations } from "../types/user.type";
 import { UserDTO } from "../dto/user.dto";
 import { StatusCodes } from "http-status-codes";
 import { userRepository } from "../repositories/user.repository";
@@ -176,7 +171,7 @@ class AuthService {
   }
 
   async verifyEmail(token: string): Promise<void> {
-    const tokenData = verifyJwtTokenForGeneralUse(token);
+    const tokenData = jwtUtils.verifyToken(token);
 
     if (!tokenData || typeof tokenData === "string" || !tokenData.userId || !tokenData.userEmail)
       throw BadRequestError("Invalid or expired verification token");
@@ -207,11 +202,13 @@ class AuthService {
     const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10);
     const expiresAt = new Date(Date.now() + expiryTime);
 
-    const token = generateJwtTokenForGeneralUse({
-      userId: user.userId,
-      userEmail: user.userEmail,
-      tokenType: TokenType.VERIFICATION,
-    });
+    const token = jwtUtils.generateToken(
+      {
+        userId: user.userId,
+        userEmail: user.userEmail,
+      },
+      "1h"
+    );
 
     const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
 
@@ -428,22 +425,19 @@ class AuthService {
       "new_reset_requested"
     );
 
-    // Generate new forgot password token
-    const expiryMs = parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || "3600000", 10); // Default 1 hour
-    const expiryHours = expiryMs / (1000 * 60 * 60);
-    const expiresAt = new Date(Date.now() + expiryMs);
-
-    const token = generateJwtTokenForGeneralUse({
-      userId: user.userId,
-      userEmail: user.userEmail,
-      tokenType: TokenType.FORGOT_PASSWORD,
-    });
+    const token = jwtUtils.generateToken(
+      {
+        userId: user.userId,
+        userEmail: user.userEmail,
+      },
+      "1h"
+    );
 
     await userTokenService.createToken({
       userId: user.userId,
       token: token,
       tokenType: TokenType.FORGOT_PASSWORD,
-      expiresAt,
+      expiresAt: jwtUtils.getExpiryDate("FORGOT_PASSWORD"),
     });
 
     // Construct reset link
@@ -453,7 +447,7 @@ class AuthService {
     await emailService.sendPasswordResetEmail(user.userEmail, {
       userName: user.userName,
       resetLink,
-      expiryHours,
+      expiryHours: jwtUtils.getExpiryDate("FORGOT_PASSWORD").getTime() / (1000 * 60 * 60),
     });
 
     console.log(`✅ Password reset email sent to: ${email}`);
@@ -461,7 +455,7 @@ class AuthService {
 
   async validateResetToken(token: string): Promise<boolean> {
     try {
-      const decoded = verifyJwtTokenForGeneralUse(token);
+      const decoded = jwtUtils.verifyToken(token);
       if (!decoded || typeof decoded === "string" || !decoded.userId) return false;
 
       return await userTokenService.isValid(token, TokenType.FORGOT_PASSWORD);
@@ -471,16 +465,13 @@ class AuthService {
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    console.log(`🔐 Password reset attempt with token`);
-
-    const decoded = verifyJwtTokenForGeneralUse(token);
+    const decoded = jwtUtils.verifyToken(token);
     if (!decoded || typeof decoded === "string" || !decoded.userId)
       throw BadRequestError("Invalid or expired reset token");
 
     const tokenData = await userTokenService.findValidToken(token, TokenType.FORGOT_PASSWORD);
 
     if (!tokenData) {
-      console.log(`❌ Invalid or expired reset token`);
       throw BadRequestError("Invalid or expired reset token");
     }
 
@@ -496,8 +487,6 @@ class AuthService {
       TokenType.REFRESH,
       "password_changed"
     );
-
-    console.log(`✅ Password reset successful for user ${tokenData.userId}`);
   }
 }
 

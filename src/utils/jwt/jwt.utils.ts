@@ -37,17 +37,25 @@ class JWTUtils {
     return refreshToken;
   }
 
-  getExpiryDate(tokenType: "ACCESS" | "REFRESH"): Date {
+  getExpiryDate(type: "ACCESS" | "REFRESH" | "FORGOT_PASSWORD"): Date {
     const now = new Date();
 
-    if (tokenType === "REFRESH") {
+    if (type === "REFRESH") {
       return new Date(now.getTime() + parseInt(this.refreshTokenExpiry, 10) * 24 * 60 * 60 * 1000);
+    }
+
+    if (type === "FORGOT_PASSWORD") {
+      return new Date(now.getTime() + parseInt("3600000", 10));
     }
 
     return new Date(now.getTime() + parseInt(this.accessTokenExpiry, 10) * 24 * 60 * 60 * 1000);
   }
 
-  generateToken(payload: TokenPayload, expiry: string, secret: string = this.jwtSecret): string {
+  generateToken(
+    payload: Record<string, unknown> | TokenPayload,
+    expiry: string,
+    secret: string = this.jwtSecret
+  ): string {
     try {
       return sign(payload, secret as Secret, { expiresIn: expiry } as SignOptions);
     } catch (err: any) {
@@ -77,11 +85,11 @@ class JWTUtils {
     return this.generateToken(payload, this.refreshTokenExpiry, this.refreshTokenSecret);
   }
 
-  verifyAccessToken(token: string): TokenPayload | string {
+  verifyAccessToken(token: string) {
     return this.verifyToken(token, this.accessTokenSecret);
   }
 
-  verifyRefreshToken(token: string): TokenPayload | string {
+  verifyRefreshToken(token: string) {
     return this.verifyToken(token, this.refreshTokenSecret);
   }
 }

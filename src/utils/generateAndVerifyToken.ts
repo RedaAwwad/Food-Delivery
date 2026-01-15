@@ -1,5 +1,5 @@
 import * as jwt from "jsonwebtoken";
-import { TokenPayload, TokenPair } from "../types/token";
+import { TokenPayload } from "../types/token";
 import { InternalServerError, UnauthorizedError } from "./errors/error-factories";
 
 const ACCESS_TOKEN_EXPIRY = process.env.ACCESS_TOKEN_EXPIRY || "30d";
@@ -60,27 +60,6 @@ const verifyToken = (
   }
 };
 
-export const generateTokenPair = (payload: TokenPayload): TokenPair => {
-  const accessToken = generateAccessToken(payload);
-  const refreshToken = generateRefreshToken(payload);
-
-  const now = new Date();
-
-  const accessTokenExpiresAt = new Date(
-    now.getTime() + parseInt(ACCESS_TOKEN_EXPIRY, 10) * 60 * 1000
-  );
-  const refreshTokenExpiresAt = new Date(
-    now.getTime() + parseInt(REFRESH_TOKEN_EXPIRY, 10) * 24 * 60 * 60 * 1000
-  );
-
-  return {
-    accessToken,
-    refreshToken,
-    accessTokenExpiresAt,
-    refreshTokenExpiresAt,
-  };
-};
-
 export const generateAccessToken = (payload: TokenPayload): string => {
   return generateToken(payload, "ACCESS");
 };
@@ -95,12 +74,4 @@ export const verifyAccessToken = (token: string): jwt.JwtPayload | string => {
 
 export const verifyRefreshToken = (token: string): jwt.JwtPayload | string => {
   return verifyToken(token, "REFRESH");
-};
-
-export const generateJwtTokenForGeneralUse = (payload: TokenPayload): string => {
-  return generateToken(payload, "GENERAL");
-};
-
-export const verifyJwtTokenForGeneralUse = (token: string): jwt.JwtPayload | string => {
-  return verifyToken(token, "ACCESS");
 };
