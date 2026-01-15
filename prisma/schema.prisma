@@ -23,7 +23,7 @@ model User {
 
   isAdmin  Boolean  @default(false) @map("is_admin")
 
-  usersRoles  UserRole[]
+  userRoles  UserRole[]
   customer    Customer?
   restaurant  Restaurant?
   userToken   UserToken[]
@@ -87,7 +87,7 @@ model Customer {
   customerId  String   @id @default(uuid()) @map("customer_id")
   userId    String      @unique
   customerPhone     String   @map("customer_phone")
-  customerAvatar    String   @map("customer_avatar")
+  customerAvatar    String?   @map("customer_avatar")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   deactivatedAt  DateTime?             
