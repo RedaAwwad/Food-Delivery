@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { cartRepository } from "../repositories/cart.repository";
+import { OrderContext } from "../../types/OrderContext";
+import { cartService } from "../../services/cart.service";
 
 /**
  * Unlocks the cart. This handler always executes, even if previous handlers failed.
@@ -15,7 +15,7 @@ export class UnlockCartHandler extends OrderHandler {
         console.log(`[UnlockCartHandler] Unlocking cart`);
 
         try {
-            await cartRepository.unlockCart(context.customerId);
+            await cartService.unlockCart(context.customerId, context.tx);
             context.isCartLocked = false;
             console.log(`[UnlockCartHandler] Cart unlocked successfully`);
         } catch (error) {

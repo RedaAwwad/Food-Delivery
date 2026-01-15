@@ -1,4 +1,4 @@
-import { ErrorFormat, ErrorDetails, ErrorCode } from "./error.types";
+import { ErrorFormat, ErrorDetails } from "./error.types";
 
 /**
  * Custom error class for application-specific errors
@@ -16,7 +16,6 @@ import { ErrorFormat, ErrorDetails, ErrorCode } from "./error.types";
  * throw new CustomError({
  *   message: "Validation failed",
  *   statusCode: 422,
- *   code: "ERR_VALIDATION",
  *   errors: [
  *     { message: "Email is required", path: ["email"] },
  *     { message: "Password must be at least 8 characters", path: ["password"] }
@@ -27,8 +26,6 @@ import { ErrorFormat, ErrorDetails, ErrorCode } from "./error.types";
 class CustomError extends Error {
   /** HTTP status code */
   statusCode: number;
-  /** Optional error code for categorization */
-  code?: ErrorCode;
   /** Optional array of detailed errors (useful for validation) */
   errors?: ErrorDetails[];
 
@@ -36,11 +33,10 @@ class CustomError extends Error {
    * Creates a new CustomError instance
    * @param {ErrorFormat} config - Error configuration object
    */
-  constructor({ message, statusCode = 500, code, errors }: ErrorFormat) {
+  constructor({ message, statusCode = 500, errors }: ErrorFormat) {
     super(message);
     this.name = "CustomError";
     this.statusCode = statusCode;
-    if (code) this.code = code;
     if (errors) this.errors = errors;
 
     // Capture stack trace if supported (V8 engines like Node.js)

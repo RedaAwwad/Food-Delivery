@@ -1,104 +1,74 @@
 import { loginDTO } from "../dto/login.dto";
 import { SignupDTO } from "../dto/signup.dto";
-import { userRepository } from "../repositories/user.repository";
-import { customerRepository } from "../repositories/customer.repository";
-import { userTokenRepository } from "../repositories/user-token.repository";
 import { Request, Response } from "express";
-import { AuthResponse, TokenPayload } from "../types/token";
+import { AuthResponse } from "../types/token";
 import {
   generateAccessToken,
   generateRefreshToken,
-  generateTokenPair,
+  verifyRefreshToken,
 } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { compare, hash } from "../utils/HashAndCompare";
 import { emailService } from "./email.service";
 import { v7 as uuidv7 } from "uuid";
 import { roleService } from "./role.service";
-import { StatusCodes } from "http-status-codes";
-import { CustomError } from "../utils/errors";
-import { verifyToken } from "../utils/jwt/verifyToken";
+import { BadRequestError, ConflictError, CustomError, UnauthorizedError } from "../utils/errors";
+import { userService } from "./user.service";
+import { customerService } from "./customer.service";
+import { userTokenService } from "./user-token.service";
+import { jwtUtils } from "../utils/jwt/jwt.utils";
+import { USER_DEFAULT_SELECT } from "../utils/constants";
+import { TokenPayload } from "../types/token";
 import { UserDTO } from "../dto/user.dto";
-import { User } from "../generated/prisma";
-import { generateToken } from "../utils/jwt/generateToken";
-import { prisma } from "../config/prisma.config";
-import { USER_DEFAULT_SELECT } from "../utils/const";
-
-type AccessTokenPayload = {
-  userId: string;
-  userName: string;
-  userEmail: string;
-  isAdmin?: boolean;
-  customerId?: string;
-  restaurantId?: string;
-};
+import { StatusCodes } from "http-status-codes";
+import { userRepository } from "../repositories/user.repository";
 
 class AuthService {
   private readonly REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 
   async signup(signupDto: SignupDTO) {
-    const { name, password, email, phoneNumber } = signupDto;
+    const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
 
-    const userCheck = await userRepository.findUserByEmail(email);
-    if (userCheck) {
-      throw new CustomError({
-        message: "Email already exists!",
-        statusCode: StatusCodes.CONFLICT,
-      });
-    }
+    const userCheck = await userService.findUserByEmail(userEmail);
+    if (userCheck) throw ConflictError("Email already exists");
 
-    const hashedPassword = await hash(password);
+    const hashedPassword = await hash(userPassword);
 
     // Transactional feeling, but manual for now
-    const newUser = await userRepository.create({
+    const newUser = await userService.createUser({
       userId: uuidv7(),
-      userName: name,
-      userEmail: email,
+      userName,
+      userEmail,
       userPassword: hashedPassword,
+      isActive: true,
     });
 
-    if (!newUser) {
-      throw new CustomError({
-        message: "Failed to Create User",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!newUser) throw BadRequestError("Failed to Create User");
 
-    const newCustomer = await customerRepository.create({
+    const newCustomer = await customerService.createCustomer({
       customerId: uuidv7(),
       userId: newUser.userId,
-      customerPhone: phoneNumber,
+      customerPhone: String(userPhoneNumber || ""),
+      customerAvatar: "",
       createdById: newUser.userId,
       updatedById: newUser.userId,
     });
 
-    if (!newCustomer) {
-      throw new CustomError({
-        message: "Failed to Create Customer",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!newCustomer) throw BadRequestError("Failed to Create Customer");
 
     // Assign default 'Customer' role
     const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "Customer");
-    if (!isRoleAssigned) {
-      throw new CustomError({
-        message: "Failed to assign default Customer role",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!isRoleAssigned) throw BadRequestError("Failed to assign default Customer role");
 
     // Generate verification token
     const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10); // Default 24 hours
-    const expiresAt = new Date(Date.now() + expiryTime);
 
-    const token = generateAccessToken(
+    const token = jwtUtils.generateToken(
       {
         userId: newUser.userId,
         userEmail: newUser.userEmail,
-        tokenType: "VERIFICATION",
       },
-      expiryTime / 1000
+      "1d"
     );
 
     const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
@@ -106,73 +76,75 @@ class AuthService {
     // Send verification email
     await emailService.sendVerificationEmail(newUser.userEmail, verificationLink, newUser.userName);
 
-    return true;
+    const returnedUser = {
+      userId: newUser.userId,
+      userName: newUser.userName,
+      userEmail: newUser.userEmail,
+    };
+    const returnedCustomer = {
+      customerId: newCustomer.customerId,
+      customerPhone: newCustomer.customerPhone,
+      customerAvatar: newCustomer.customerAvatar,
+    };
+
+    return {
+      user: returnedUser,
+      customer: returnedCustomer,
+      message: "Signup successful. Please verify your email.",
+    };
   }
 
   async login(loginDto: loginDTO): Promise<AuthResponse> {
     const { email, password } = loginDto;
 
-    if (!email || !password) {
-      throw new CustomError({
-        message: "Email and password are required",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!email || !password) throw BadRequestError("Email and password are required!");
 
-    const user = await userRepository.findUserByEmail<{
-      userPassword: string;
-      userRoles: { role: { roleKey: string } }[];
-      customer: { customerId: string };
-      restaurant: { restaurantId: string };
-    }>(email, {
-      userPassword: true,
+    const user = await userService.findUserByEmail(email, {
       ...USER_DEFAULT_SELECT,
+      userPassword: true,
     });
 
-    if (!user) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
+    if (!user) throw UnauthorizedError("Invalid credentials!");
 
     const match = await compare(password, user.userPassword);
-    if (!match) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
+    if (!match) throw UnauthorizedError("Invalid credentials!");
+
+    let userRoleKeys: string[] = [];
+    if (user?.userRoles) {
+      userRoleKeys = user.userRoles.map((role) => role.role.roleKey);
     }
 
     const tokenPayload: TokenPayload = {
       userId: user.userId,
       userName: user.userName,
       userEmail: user.userEmail,
-      userRoles: user.userRoles.map((role) => (role as any).role?.roleKey),
+      userRoles: userRoleKeys,
     };
 
     if (user.isAdmin) {
       tokenPayload.isAdmin = true;
     }
 
-    if (user.customer && user.customer?.customerId) {
+    if (user?.customer && user.customer?.customerId) {
       tokenPayload.customerId = user.customer.customerId;
     }
 
-    if (user.restaurant && user.restaurant?.restaurantId) {
+    if (user?.restaurant && user.restaurant?.restaurantId) {
       tokenPayload.restaurantId = user.restaurant.restaurantId;
     }
 
-    const { refreshTokenExpiresAt } = generateTokenPair(tokenPayload);
-    const accessToken = generateToken(tokenPayload, "30d", "ACCESS");
-    const refreshToken = generateToken(tokenPayload, "90d", "REFRESH");
+    const accessToken = jwtUtils.generateAccessToken(tokenPayload);
+    const refreshToken = generateRefreshToken(tokenPayload);
 
-    // Store refresh token
-    await userTokenRepository.createToken({
+    // Delete old refresh token
+    await userTokenService.deleteRefreshTokensByUserId(user.userId);
+
+    // Store new refresh token
+    await userTokenService.createToken({
       userId: user.userId,
       token: refreshToken,
-      expiresAt: refreshTokenExpiresAt,
-      tokenType: "REFRESH",
+      expiresAt: jwtUtils.getExpiryDate("REFRESH"),
+      tokenType: TokenType.REFRESH,
     });
 
     const refreshTokenCookie = cookieService.createRefreshTokenCookie(refreshToken);
@@ -186,57 +158,56 @@ class AuthService {
     };
   }
 
-  async verifyEmail(token: string): Promise<void> {
-    const tokenData = verifyToken(token);
-
-    console.log({ tokenData });
-
-    if (!tokenData || typeof tokenData === "string" || !tokenData.userId || !tokenData.userEmail) {
-      throw new CustomError({
-        message: "Invalid or expired verification token",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
-
-    try {
-      await userRepository.findAndUpdateUserByEmail(tokenData.userEmail, { isConfirmed: true });
-    } catch (error) {
-      throw new CustomError({
-        message: "User not found",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
-  }
-
-  async resendVerification(email: string): Promise<void> {
-    const user = await userRepository.findUserByEmail(email);
+  async me(userId: string): Promise<UserDTO> {
+    const user = await userRepository.findUserById(userId, USER_DEFAULT_SELECT);
 
     if (!user) {
       throw new CustomError({
-        message: "Email not found!",
+        message: "User not found",
         statusCode: StatusCodes.NOT_FOUND,
       });
     }
+    return new UserDTO(user);
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    const tokenData = jwtUtils.verifyToken(token);
+
+    if (!tokenData || typeof tokenData === "string" || !tokenData.userId || !tokenData.userEmail)
+      throw BadRequestError("Invalid or expired verification token");
+
+    try {
+      await userService.findAndUpdateUserByEmail(tokenData.userEmail, { isConfirmed: true });
+    } catch (error) {
+      throw BadRequestError("User not found");
+    }
+
+    console.log(`✅ Email verified for user ${tokenData.userId}`);
+  }
+
+  async resendVerification(email: string): Promise<void> {
+    console.log(`📧 Resending verification email to: ${email}`);
+
+    const user = await userService.findUserByEmail(email);
+
+    if (!user) {
+      console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
+      return;
+    }
 
     // Check if user is already verified
-    if (user.isConfirmed) {
-      throw new CustomError({
-        message: "Email is already verified",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (user.isConfirmed) throw BadRequestError("Email is already verified");
 
     // Create new verification token
     const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10);
     const expiresAt = new Date(Date.now() + expiryTime);
 
-    const token = generateAccessToken(
+    const token = jwtUtils.generateToken(
       {
         userId: user.userId,
         userEmail: user.userEmail,
-        tokenType: "VERIFICATION",
       },
-      expiryTime / 1000
+      "1h"
     );
 
     const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
@@ -250,21 +221,11 @@ class AuthService {
   async refreshToken(requestRefreshToken?: string): Promise<AuthResponse> {
     const refreshToken = requestRefreshToken;
 
-    if (!refreshToken) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
+    if (!refreshToken) throw UnauthorizedError("Refresh token is required");
 
-    const isValid = await userTokenRepository.isValid(refreshToken, "REFRESH");
+    const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
 
-    if (!isValid) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
+    if (!isValid) throw UnauthorizedError("Invalid or expired refresh token");
 
     // Generate new access token
     const result = await this.refreshAccessToken(refreshToken);
@@ -272,20 +233,21 @@ class AuthService {
     // Generate new refresh token (optional: token rotation)
     const newRefreshToken = generateRefreshToken({
       userId: result.user.userId,
+      customerId: result.user.customerId,
       userName: result.user.userName,
       userEmail: result.user.userEmail,
     });
 
-    const tokenData = await userTokenRepository.findByToken(refreshToken);
+    const tokenData = await userTokenService.findTokenByToken(refreshToken);
     if (tokenData) {
-      await userTokenRepository.revokeToken(refreshToken, "token_rotated");
-      await userTokenRepository.createToken({
+      await userTokenService.revokeToken(refreshToken, "token_rotated");
+      await userTokenService.createToken({
         userId: tokenData.userId,
         token: newRefreshToken,
         expiresAt: new Date(
           Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRY || "15", 10) * 24 * 60 * 60 * 1000
         ), // 15 days
-        tokenType: "REFRESH",
+        tokenType: TokenType.REFRESH,
       });
     }
 
@@ -305,22 +267,22 @@ class AuthService {
 
   async refreshAccessToken(refreshToken: string) {
     // Verify JWT
-    const decoded = verifyToken(refreshToken);
-    const isValid = await userTokenRepository.isValid(refreshToken, "REFRESH");
+    const decoded = verifyRefreshToken(refreshToken);
 
-    if (!isValid) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
+    if (typeof decoded === "string" || !decoded.userId)
+      throw UnauthorizedError("Invalid Refresh Token");
+
+    const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
+    if (!isValid) throw UnauthorizedError("Invalid or expired refresh token");
 
     // Generate new access token
     const accessToken = generateAccessToken({
       userId: decoded.userId,
+      customerId: decoded.customerId,
       userName: decoded.userName,
       userEmail: decoded.userEmail,
-      userRoles: decoded.userRoles.map((role) => (role as any).roleKey),
+      roles: decoded.roles || [],
+      isAdmin: decoded.isAdmin || false,
     });
 
     const accessTokenExpiresAt = new Date(
@@ -332,6 +294,7 @@ class AuthService {
       accessTokenExpiresAt,
       user: {
         userId: decoded.userId,
+        customerId: decoded.customerId,
         userName: decoded.userName,
         userEmail: decoded.userEmail,
       },
@@ -340,7 +303,7 @@ class AuthService {
 
   async logout(refreshToken?: string): Promise<AuthResponse> {
     if (refreshToken) {
-      await userTokenRepository.revokeToken(refreshToken, "user_logout");
+      await userTokenService.revokeToken(refreshToken, "user_logout");
     }
 
     // Prepare cookie clearance
@@ -353,23 +316,13 @@ class AuthService {
   }
 
   async logoutAll(refreshToken?: string): Promise<AuthResponse> {
-    if (!refreshToken) {
-      throw new CustomError({
-        message: "Refresh token is required",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!refreshToken) throw BadRequestError("Refresh token is required");
 
-    const tokenData = await userTokenRepository.findByToken(refreshToken);
+    const tokenData = await userTokenService.findTokenByToken(refreshToken);
 
-    if (!tokenData) {
-      throw new CustomError({
-        message: "Invalid credentials!",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
+    if (!tokenData) throw UnauthorizedError("Invalid token");
 
-    await userTokenRepository.revokeAllUserTokens(tokenData.userId);
+    await userTokenService.revokeAllUserTokens(tokenData.userId);
 
     // Prepare cookie clearance
     const clearCookies = [this.REFRESH_TOKEN_COOKIE_NAME];
@@ -381,7 +334,7 @@ class AuthService {
   }
 
   async getActiveSessions(userId: string): Promise<AuthResponse> {
-    const sessions = await userTokenRepository.findByUserIdAndType(userId, "REFRESH", true);
+    const sessions = await userTokenService.findByUserIdAndType(userId, TokenType.REFRESH, true);
 
     return {
       data: { sessions },
@@ -389,8 +342,8 @@ class AuthService {
   }
 
   async cleanupExpiredTokens(): Promise<void> {
-    await userTokenRepository.deleteExpiredTokens();
-    await userTokenRepository.deleteOldRevokedTokens();
+    await userTokenService.deleteExpiredTokens();
+    await userTokenService.deleteOldRevokedTokens();
   }
 
   extractRefreshToken(req: Request) {
@@ -435,7 +388,7 @@ class AuthService {
   // Get user ID from refresh token
   async getUserIdFromRefreshToken(refreshToken: string): Promise<string | null> {
     try {
-      const tokenData = await userTokenRepository.findByToken(refreshToken);
+      const tokenData = await userTokenService.findTokenByToken(refreshToken);
       return tokenData?.userId || null;
     } catch (error) {
       return null;
@@ -444,53 +397,47 @@ class AuthService {
 
   // Validate session is still active
   async validateSession(refreshToken: string): Promise<boolean> {
-    return userTokenRepository.isValid(refreshToken, "REFRESH");
+    return userTokenService.isValid(refreshToken, TokenType.REFRESH);
   }
 
   // Get session count for user
   async getSessionCount(userId: string): Promise<number> {
-    return userTokenRepository.getActiveTokenCount(userId, "REFRESH");
+    return userTokenService.getActiveTokenCount(userId, TokenType.REFRESH);
   }
 
   // ============ PASSWORD RESET METHODS ============
 
   async forgetPassword(email: string): Promise<void> {
-    const user = await userRepository.findUserByEmail(email);
+    console.log(`🔐 Password reset requested for email: ${email}`);
+
+    const user = await userService.findUserByEmail(email);
 
     // Security: Always return success to prevent email enumeration
-    if (!user || !user?.userId) {
-      throw new CustomError({
-        message: "Internal server error!",
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-      });
+    if (!user) {
+      console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
+      return;
     }
 
     // Revoke any existing forgot password tokens for this user
-    await userTokenRepository.revokeAllUserTokensByType(
+    await userTokenService.revokeAllUserTokensByType(
       user.userId,
-      "FORGOT_PASSWORD",
+      TokenType.FORGOT_PASSWORD,
       "new_reset_requested"
     );
 
-    // Generate new forgot password token
-    const expiryMs = parseInt(process.env.PASSWORD_RESET_TOKEN_EXPIRY || "3600000", 10); // Default 1 hour
-    const expiryHours = expiryMs / (1000 * 60 * 60);
-    const expiresAt = new Date(Date.now() + expiryMs);
-
-    const token = generateAccessToken(
+    const token = jwtUtils.generateToken(
       {
         userId: user.userId,
         userEmail: user.userEmail,
-        tokenType: "FORGOT_PASSWORD",
       },
-      expiryMs / 1000
+      "1h"
     );
 
-    await userTokenRepository.createToken({
+    await userTokenService.createToken({
       userId: user.userId,
       token: token,
-      tokenType: "FORGOT_PASSWORD",
-      expiresAt,
+      tokenType: TokenType.FORGOT_PASSWORD,
+      expiresAt: jwtUtils.getExpiryDate("FORGOT_PASSWORD"),
     });
 
     // Construct reset link
@@ -500,63 +447,46 @@ class AuthService {
     await emailService.sendPasswordResetEmail(user.userEmail, {
       userName: user.userName,
       resetLink,
-      expiryHours,
+      expiryHours: jwtUtils.getExpiryDate("FORGOT_PASSWORD").getTime() / (1000 * 60 * 60),
     });
+
+    console.log(`✅ Password reset email sent to: ${email}`);
   }
 
   async validateResetToken(token: string): Promise<boolean> {
     try {
-      const decoded = verifyToken(token);
+      const decoded = jwtUtils.verifyToken(token);
       if (!decoded || typeof decoded === "string" || !decoded.userId) return false;
 
-      return await userTokenRepository.isValid(token, "FORGOT_PASSWORD");
+      return await userTokenService.isValid(token, TokenType.FORGOT_PASSWORD);
     } catch (error) {
       return false;
     }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
-    const decoded = verifyToken(token);
-    if (!decoded || typeof decoded === "string" || !decoded.userId) {
-      throw new CustomError({
-        message: "Invalid or expired reset token",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    const decoded = jwtUtils.verifyToken(token);
+    if (!decoded || typeof decoded === "string" || !decoded.userId)
+      throw BadRequestError("Invalid or expired reset token");
 
-    const tokenData = await userTokenRepository.findValidToken(token, "FORGOT_PASSWORD");
+    const tokenData = await userTokenService.findValidToken(token, TokenType.FORGOT_PASSWORD);
 
     if (!tokenData) {
-      throw new CustomError({
-        message: "Invalid or expired reset token",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
+      throw BadRequestError("Invalid or expired reset token");
     }
 
     const hashedPassword = await hash(newPassword);
 
-    await userRepository.update(tokenData.userId, { userPassword: hashedPassword });
+    await userService.updateUser(tokenData.userId, { userPassword: hashedPassword });
 
-    await userTokenRepository.revokeToken(token, "password_reset_completed");
+    await userTokenService.revokeToken(token, "password_reset_completed");
 
     // Security: Revoke all refresh tokens (logout from all devices)
-    await userTokenRepository.revokeAllUserTokensByType(
+    await userTokenService.revokeAllUserTokensByType(
       tokenData.userId,
-      "REFRESH",
+      TokenType.REFRESH,
       "password_changed"
     );
-  }
-
-  async me(userId: string): Promise<UserDTO> {
-    const user = await userRepository.findUserById<User>(userId);
-
-    if (!user) {
-      throw new CustomError({
-        message: "User not found",
-        statusCode: StatusCodes.NOT_FOUND,
-      });
-    }
-    return new UserDTO(user);
   }
 }
 

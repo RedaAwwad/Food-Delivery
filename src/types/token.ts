@@ -1,6 +1,4 @@
-export type TokenType = "VERIFICATION" | "REFRESH" | "FORGOT_PASSWORD";
-
-export type TokenPayload = {
+export interface TokenPayload {
   userId: string;
   userName: string;
   userEmail: string;
@@ -8,7 +6,7 @@ export type TokenPayload = {
   customerId?: string;
   restaurantId?: string;
   userRoles: string[];
-};
+}
 
 export interface GenerateTokenOpts {
   payload: TokenPayload;
@@ -41,7 +39,7 @@ export interface CreateTokenData {
   userId: string;
   tokenType: TokenType;
   expiresAt: Date;
-  token: string;
+  token?: string; // Optional - will be generated if not provided
 }
 
 export interface RefreshTokenFilter {

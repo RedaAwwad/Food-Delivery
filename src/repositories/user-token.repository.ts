@@ -12,11 +12,13 @@ class UserTokenRepository {
 
   // Create a new token for a user
   async createToken(data: CreateTokenData) {
-    return await prisma.userToken.create({
+    const token = data.token || this.generateSecureToken();
+
+    return prisma.userToken.create({
       data: {
         userTokenId: uuidv7(),
         userId: data.userId,
-        token: data.token,
+        token,
         tokenType: data.tokenType,
         expiresAt: data.expiresAt,
       },
@@ -34,32 +36,13 @@ class UserTokenRepository {
         isRevoked: false,
         expiresAt: { gte: now },
       },
-      include: {
-        user: {
-          select: {
-            userId: true,
-            userName: true,
-            userEmail: true,
-            isActive: true,
-          },
-        },
-      },
     });
   }
 
   // Find any token by token string (regardless of validity)
-  async findByToken(token: string) {
+  async findTokenByToken(token: string) {
     return prisma.userToken.findFirst({
       where: { token },
-      include: {
-        user: {
-          select: {
-            userId: true,
-            userName: true,
-            userEmail: true,
-          },
-        },
-      },
     });
   }
 
@@ -184,6 +167,15 @@ class UserTokenRepository {
         createdAt: {
           gte: oneHourAgo,
         },
+      },
+    });
+  }
+
+  async deleteRefreshTokensByUserId(userId: string) {
+    return prisma.userToken.deleteMany({
+      where: {
+        userId,
+        tokenType: TokenType.REFRESH,
       },
     });
   }

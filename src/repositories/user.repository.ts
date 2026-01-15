@@ -1,40 +1,43 @@
-import { StatusCodes } from "http-status-codes";
+import { Prisma } from "../generated/prisma";
 import { prisma } from "../config/prisma.config";
-import { User } from "../generated/prisma";
-import { CustomError } from "../utils/errors";
-
 export class UserRepository {
-  async create(data: any) {
+  async createUser(data: any) {
     return prisma.user.create({ data });
   }
 
-  async findUserByEmail<T>(
-    email: string,
-    select?: Record<string, unknown>
-  ): Promise<(User & T) | null> {
-    const user = await prisma.user.findUnique({
-      where: { userEmail: email, isActive: true },
-      select: {
-        userId: true,
-        userName: true,
-        userEmail: true,
-        isAdmin: true,
-        ...select,
-      },
-    });
+  async findUserByEmail(email: string, select?: Prisma.UserSelect) {
+    const q: Prisma.UserFindUniqueArgs = {
+      where: { userEmail: email },
+    };
 
-    return user as (User & T) | null;
+    if (select && Object.keys(select).length > 0) {
+      q.select = select;
+    }
+
+    return await prisma.user.findUnique(q);
   }
 
-  async update(userId: string, data: any) {
-    return await prisma.user.update({
+  async findUserById(userId: string, select?: Prisma.UserSelect) {
+    const q: Prisma.UserFindUniqueArgs = {
+      where: { userId },
+    };
+
+    if (select && Object.keys(select).length > 0) {
+      q.select = select;
+    }
+
+    return await prisma.user.findUnique(q);
+  }
+
+  async updateUser(userId: string, data: any) {
+    return prisma.user.update({
       where: { userId },
       data,
     });
   }
 
   async updateIsActive(userId: string, isActive: boolean) {
-    return await prisma.user.update({
+    return prisma.user.update({
       where: { userId },
       data: { isActive },
       select: {
@@ -46,7 +49,7 @@ export class UserRepository {
   }
 
   async findUserWithRestaurant(userId: string, userRole: string) {
-    return await prisma.user.findUnique({
+    return prisma.user.findUnique({
       where: { userId },
       include: {
         restaurant: userRole === "restaurant" ? true : false,
@@ -55,100 +58,36 @@ export class UserRepository {
   }
 
   async findAndUpdateUserByEmail(email: string, data: any) {
-    return await prisma.user.update({
+    return prisma.user.update({
       where: { userEmail: email },
       data,
     });
   }
 
-  async getUserByRestaurantId<T>(
-    userId: string,
-    restaurantId: string,
-    select?: Record<string, unknown>
-  ): Promise<(Pick<User, "userId" | "userName" | "userEmail" | "restaurant"> & T) | null> {
-    return await prisma.user.findUnique({
-      where: {
-        userId: Number(userId),
-        restaurant: { restaurantId: Number(restaurantId) },
-        usersRoles: {
-          some: {
-            role: {
-              roleKey: "RESTAURANT_MANAGER",
-            },
-          },
-        },
-      },
-      select: {
-        userId: true,
-        userName: true,
-        userEmail: true,
-        restaurant: true,
-        ...select,
-      },
-    });
-  }
-
-  async getUserByCustomerId<T>(
-    userId: string,
-    customerId: string,
-    select?: Record<string, unknown>
-  ): Promise<(Pick<User, "userId" | "userName" | "userEmail" | "customer"> & T) | null> {
-    return await prisma.user.findUnique({
-      where: {
-        userId: Number(userId),
-        customer: { customerId: Number(customerId) },
-        usersRoles: {
-          some: {
-            role: {
-              roleKey: "CUSTOMER",
-            },
-          },
-        },
-      },
-      select: {
-        userId: true,
-        userName: true,
-        userEmail: true,
-        customer: true,
-        ...select,
-      },
-    });
-  }
-
-  async findUserById<T>(userId: string, select: Record<string, unknown> = {}): Promise<User | T> {
-    const user = await prisma.user.findUnique({
-      where: { userId },
-      select: {
-        userId: true,
-        userName: true,
-        userEmail: true,
-        isAdmin: true,
-        isConfirmed: true,
-        isActive: true,
-        customer: true,
-        restaurant: true,
+  async findUserByEmailWithRoles(email: string) {
+    return prisma.user.findUnique({
+      where: { userEmail: email },
+      include: {
         userRoles: {
-          select: {
-            role: {
-              select: {
-                roleKey: true,
-              },
-            },
+          include: {
+            role: true,
           },
         },
-        ...select,
       },
     });
+  }
 
-    if (!user) {
-      throw new CustomError({
-        message: "User not found",
-        statusCode: StatusCodes.NOT_FOUND,
-      });
-    }
-
-    return user as User | T;
+  async findUserByIdWithRoles(userId: string) {
+    return prisma.user.findUnique({
+      where: { userId },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+      },
+    });
   }
 }
-
 export const userRepository = new UserRepository();

@@ -3,7 +3,6 @@ import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
 import { CustomError } from "../utils/errors/custom-error";
-import { User } from "../generated/prisma";
 import { TokenPayload } from "../types/token";
 
 class AuthController {
@@ -12,29 +11,30 @@ class AuthController {
 
     const result = await authService.signup(signupDto);
 
-    return res.status(StatusCodes.CREATED).json(
-      new SuccessResponse({
-        message: "Your account created successfully. Please verify your email.",
-      })
-    );
+    return res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: result }));
   }
 
   async login(req: Request, res: Response) {
     const loginDto = req.body;
 
     const result = await authService.login(loginDto);
-
     authService.applyCookies(res, result);
 
-    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: result.data }));
+    return res.json(new SuccessResponse({ data: result.data }));
+  }
+
+  async me(req: Request & { user: TokenPayload }, res: Response) {
+    const userId = req.user.userId;
+    const user = await authService.me(userId);
+
+    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: user }));
   }
 
   async verifyEmail(req: Request, res: Response) {
     const { token } = req.query;
-
     await authService.verifyEmail(token as string);
 
-    return res.status(StatusCodes.OK).json(
+    return res.json(
       new SuccessResponse({
         message: "Email verified successfully! You can now login to your account.",
       })
@@ -46,7 +46,7 @@ class AuthController {
 
     await authService.resendVerification(email);
 
-    return res.status(StatusCodes.OK).json(
+    return res.json(
       new SuccessResponse({
         message:
           "If an account with that email exists and is not verified, a new verification email has been sent.",
@@ -124,13 +124,6 @@ class AuthController {
         message: "Password has been reset successfully. Please login with your new password.",
       })
     );
-  }
-
-  async me(req: Request & { user: TokenPayload }, res: Response) {
-    const userId = req.user.userId;
-    const user = await authService.me(userId);
-
-    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: user }));
   }
 }
 

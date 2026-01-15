@@ -1,15 +1,16 @@
-import { faker } from "@faker-js/faker";
+// import { faker } from "@faker-js/faker";
 
 import { prisma } from "../src/config/prisma.config";
-import { DEFAULT_ROLE_KEYS } from "../src/utils/const";
+import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
+import { hash } from "../src/utils/HashAndCompare";
 
 async function main() {
   await prisma.userRole.deleteMany({});
   await prisma.role.deleteMany({});
+  await prisma.customer.deleteMany({});
   await prisma.user.deleteMany({
     where: { OR: [{ userEmail: "admin@admin.com" }, { userEmail: "customer@gmail.com" }] },
   });
-  await prisma.customer.deleteMany({});
   await prisma.restaurant.deleteMany({});
 
   const defaultRoles = await prisma.role.createManyAndReturn({
@@ -31,12 +32,12 @@ async function main() {
       {
         userName: "System Admin",
         userEmail: "admin@admin.com",
-        userPassword: "123456",
+        userPassword: await hash("11223344"),
       },
       {
         userName: "New Customer",
         userEmail: "customer@gmail.com",
-        userPassword: "123456",
+        userPassword: await hash("11223344"),
       },
     ],
     select: {

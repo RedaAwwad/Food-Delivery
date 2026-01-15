@@ -1,7 +1,10 @@
 import Joi from "joi";
+import { CreateCustomerRatingDto } from "../dto/rating.dto";
 
-export const createCustomerRatingSchema = Joi.object({
-  restaurantId: Joi.string().uuid().required(),
-  ratingScore: Joi.string().valid(["ONE", "TWO", "THREE", "FOUR", "FIVE"]).required(),
-  review: Joi.string().optional(),
-}).required();
+export const createCustomerRatingSchema = Joi.object<CreateCustomerRatingDto>({
+       restaurantId: Joi.string().uuid().required(),
+       ratingScore: Joi.string()
+              .valid(...Object.values(RatingScore))
+              .required(),
+       review: Joi.string().optional(),
+})

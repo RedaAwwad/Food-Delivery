@@ -1,13 +1,11 @@
 import { RequestHandler } from "express";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { verifyToken } from "../utils/jwt/verifyToken";
-import { getTokenFromHeaders } from "../utils/jwt/getTokenFromHeaders";
-import { userService } from "../services/user.service";
+import { jwtUtils } from "../utils/jwt/jwt.utils";
 
 export const isCustomer = (): RequestHandler => {
-  return async (req, res, next) => {
-    const token = getTokenFromHeaders(req);
+  return (req, res, next) => {
+    const token = jwtUtils.getTokenFromHeaders(req);
 
     if (!token) {
       throw new CustomError({
@@ -16,10 +14,11 @@ export const isCustomer = (): RequestHandler => {
       });
     }
 
-    const decoded = verifyToken(token);
-    const user = await userService.getUserByCustomerId(decoded.userId, decoded.customerId);
-
-    if (!user) {
+    const decoded = jwtUtils.verifyAccessToken(token);
+    const hasPermission = (decoded as { userRoles: string[] }).userRoles.some(
+      (roleKey: string) => roleKey === "CUSTOMER"
+    );
+    if (!hasPermission) {
       throw new CustomError({
         message: "You are not authorized to perform this action",
         statusCode: StatusCodes.FORBIDDEN,

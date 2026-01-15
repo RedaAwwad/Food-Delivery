@@ -7,6 +7,11 @@ class MenuItemController {
         return res.status(200).json(menuItem);
     }
 
+    async getMenuItemById(req: Request, res: Response) {
+        const menuItem = await menuItemService.getMenuItemById(req.body.menuItemId);
+        return res.status(200).json(menuItem);
+    }
+
     async createMenuItem(req: Request, res: Response) {
         const menuItem = await menuItemService.createMenuItem(req.body);
         return res.status(200).json(menuItem);

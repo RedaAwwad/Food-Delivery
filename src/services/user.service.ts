@@ -1,4 +1,4 @@
-import { User } from "../generated/prisma";
+import { Prisma } from "../generated/prisma";
 import { userRepository } from "../repositories/user.repository";
 
 class UserService {
@@ -6,18 +6,32 @@ class UserService {
     return await userRepository.findUserWithRestaurant(body.userId, body.userRole);
   }
 
-  async getUserByRestaurantId(
-    userId: string,
-    restaurantId: string
-  ): Promise<Pick<User, "userId" | "userName" | "userEmail" | "restaurant"> | null> {
-    return await userRepository.getUserByRestaurantId(userId, restaurantId);
+  async createUser(data: any) {
+    return await userRepository.createUser(data);
   }
 
-  async getUserByCustomerId(
-    userId: string,
-    customerId: string
-  ): Promise<Pick<User, "userId" | "userName" | "userEmail" | "customer"> | null> {
-    return await userRepository.getUserByCustomerId(userId, customerId);
+  async updateUser(userId: string, data: any) {
+    return await userRepository.updateUser(userId, data);
+  }
+
+  async updateIsActive(userId: string, isActive: boolean) {
+    return await userRepository.updateIsActive(userId, isActive);
+  }
+
+  async findAndUpdateUserByEmail(email: string, data: any) {
+    return await userRepository.findAndUpdateUserByEmail(email, data);
+  }
+
+  async findUserByEmail(email: string, select?: Prisma.UserSelect) {
+    return await userRepository.findUserByEmail(email, select);
+  }
+
+  async findUserByEmailWithRoles(email: string) {
+    return await userRepository.findUserByEmailWithRoles(email);
+  }
+
+  async findUserByIdWithRoles(userId: string) {
+    return await userRepository.findUserByIdWithRoles(userId);
   }
 }
 

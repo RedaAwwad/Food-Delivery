@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { paymentService } from "../services/payment.service";
+import { OrderContext } from "../../types/OrderContext";
+import { paymentService } from "../../services/payment.service";
 
 /**
  * Processes payment through the payment service.

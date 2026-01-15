@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { orderRepository } from "../repositories/order.repository";
-import { OrderStatus } from "../enums/orderStatus.enum";
+import { OrderContext } from "../../types/OrderContext";
+import { orderRepository } from "../../repositories/order.repository";
+import { OrderStatusKey } from "../../generated/prisma";
 
 /**
  * Creates the order record with PENDING status.
@@ -18,8 +18,8 @@ export class CreateOrderHandler extends OrderHandler {
             customerId: context.customerId,
             restaurantId: context.restaurantId,
             cartItems: context.cartItems,
-            status: OrderStatus.PENDING,
-        });
+            orderStatus: OrderStatusKey.PENDING,
+        }, context.tx);
 
         context.order = order;
         console.log(`[CreateOrderHandler] Order created with ID: ${order.orderId}`);

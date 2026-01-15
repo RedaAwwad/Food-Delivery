@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
-import { OrderContext } from "../types/OrderContext";
-import { cartRepository } from "../repositories/cart.repository";
+import { OrderContext } from "../../types/OrderContext";
+import { cartService } from "../../services/cart.service";
 
 /**
  * Clears the customer's cart after successful payment.
@@ -14,7 +14,7 @@ export class ClearCartHandler extends OrderHandler {
 
         console.log(`[ClearCartHandler] Clearing cart`);
 
-        await cartRepository.clearCartByCustomerId(context.customerId);
+        await cartService.clearCartByCustomerId(context.customerId, context.tx);
 
         console.log(`[ClearCartHandler] Cart cleared successfully`);
     }

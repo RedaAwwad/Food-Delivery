@@ -1,24 +1,30 @@
-// import { CartItem, MenuItem } from "@prisma-client";
 import { prisma } from "../config/prisma.config";
-import { CustomError } from "../utils/errors/custom-error";
-import { StatusCodes } from "http-status-codes";
 import { CartItemWithMenuItem } from "../types/cartItemWithMenuItem.type";
-
-// type CartItemWithMenuItem = CartItem & { menuItem: MenuItem };
+import { NotFoundError } from "../utils/errors";
 
 class InventoryRepository {
-    /**
-     * Checks if all items in the cart are available in the required quantity.
-     * Throws an error if any item is out of stock.
-     */
     async checkItemsAvailability(items: CartItemWithMenuItem[]) {
+        const menuItemIds = items.map((item) => item.menuItemId);
+
+        const menuItems = await prisma.menuItem.findMany({
+            where: {
+                menuItemId: { in: menuItemIds },
+            },
+            select: {
+                menuItemId: true,
+                menuItemName: true,
+                stockQuantity: true,
+            },
+        });
+
+        const menuItemMap = new Map(menuItems.map((item) => [item.menuItemId, item]));
+
         for (const item of items) {
-            if (item.quantity > item.menuItem.stockQuantity) {
-                throw new CustomError({
-                    message: `Item '${item.menuItem.menuItemName}' is out of stock. Required: ${item.quantity}, Available: ${item.menuItem.stockQuantity}`,
-                    statusCode: StatusCodes.CONFLICT, // 409 Conflict is appropriate here
-                });
-            }
+            const menuItem = menuItemMap.get(item.menuItemId);
+
+            if (!menuItem) throw NotFoundError(`Item with ID '${item.menuItemId}' not found`);
+
+            if (item.quantity > menuItem.stockQuantity) throw NotFoundError(`Item '${menuItem.menuItemName}' is out of stock. Required: ${item.quantity}, Available: ${menuItem.stockQuantity}`);
         }
     }
 

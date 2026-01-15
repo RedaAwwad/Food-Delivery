@@ -61,7 +61,7 @@ cartRouter.use(isAuthenticated);
  *                   type: string
  *                   example: Cart not found!
  */
-cartRouter.get("/", cartController.viewCart);
+cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId);
 
 /**
  * @swagger

@@ -13,42 +13,156 @@ import {
 
 const menuRouter = express.Router();
 
-menuRouter.use(isAuthenticated);
+menuRouter.get("/:menuId", validateRequest(getActiveMenuSchema), menuController.getActiveMenuByRestaurantId);
+menuRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuSchema), menuController.createMenu);
+menuRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuSchema), menuController.updateMenu);
+menuRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuSchema), menuController.deleteMenu);
+menuRouter.patch("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(enableOrDisableMenuSchema), menuController.enableOrDisableMenu);
+menuRouter.get("/all-menus", isAuthenticated, isAuthorized(["Owner"]), validateRequest(viewHistoryListOfRestaurantMenusSchema), menuController.viewHistoryListOfRestaurantMenus);
 
-menuRouter.get(
-  "/",
-  validateRequest(getActiveMenuSchema),
-  menuController.getActiveMenuByRestaurantId
-);
-menuRouter.post(
-  "/",
-  isAuthorized(["Owner"]),
-  validateRequest(createMenuSchema),
-  menuController.createMenu
-);
-menuRouter.put(
-  "/",
-  isAuthorized(["Owner"]),
-  validateRequest(updateMenuSchema),
-  menuController.updateMenu
-);
-menuRouter.delete(
-  "/",
-  isAuthorized(["Owner"]),
-  validateRequest(deleteMenuSchema),
-  menuController.deleteMenu
-);
-menuRouter.patch(
-  "/",
-  isAuthorized(["Owner"]),
-  validateRequest(enableOrDisableMenuSchema),
-  menuController.enableOrDisableMenu
-);
-menuRouter.get(
-  "/all-menus",
-  isAuthorized(["Owner"]),
-  validateRequest(viewHistoryListOfRestaurantMenusSchema),
-  menuController.viewHistoryListOfRestaurantMenus
-);
+export { menuRouter }
 
-export { menuRouter };
+/**
+ * @swagger
+ * tags:
+ *   name: Menu
+ *   description: Menu management endpoints
+ */
+
+/**
+ * @swagger
+ * /menu:
+ *   get:
+ *     summary: Get active menu by Restaurant ID
+ *     tags: [Menu]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Active menu details
+ * 
+ *   post:
+ *     summary: Create a new menu
+ *     tags: [Menu]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *               - menuDesc
+ *               - isActive
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *               menuDesc:
+ *                 type: string
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       201:
+ *         description: Menu created successfully
+ * 
+ *   put:
+ *     summary: Update a menu
+ *     tags: [Menu]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - menuId
+ *               - menuDesc
+ *               - isActive
+ *             properties:
+ *               menuId:
+ *                 type: string
+ *               menuDesc:
+ *                 type: string
+ *               isActive:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Menu updated successfully
+ * 
+ *   delete:
+ *     summary: Delete a menu
+ *     tags: [Menu]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - menuId
+ *             properties:
+ *               menuId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Menu deleted successfully
+ * 
+ *   patch:
+ *     summary: Enable or disable a menu
+ *     tags: [Menu]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - menuId
+ *             properties:
+ *               menuId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Menu status updated
+ */
+
+/**
+ * @swagger
+ * /menu/all-menus:
+ *   get:
+ *     summary: View history list of restaurant menus
+ *     tags: [Menu]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: List of restaurant menus
+ */

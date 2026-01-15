@@ -1,16 +1,19 @@
 import { prisma } from "../config/prisma.config";
-import { CreateCartItemDTO } from "../dto/cartItem.dto";
+import { CreateCartItemDTO, UpdateCartItemQuantityDTO } from "../dto/cartItem.dto";
 import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
-import { UpdateQuantityDTO } from "../dto/UpdateQuantity.dto";
+import { NotFoundError } from "../utils/errors";
+import { PrismaTx } from "../types/prisma.types";
+import { PrismaClient } from "../generated/prisma";
 
 class CartRepository {
   async findCartByCustomerId(customerId: string) {
     const cart = await prisma.cart.findUnique({ where: { customerId } });
+    if (!cart) throw NotFoundError("No Cart Yet; Add Some Items");
     return cart;
   }
 
-  async upsertCart(customerId: string) {
-    return await prisma.cart.upsert({
+  async upsertCart(customerId: string, tx: PrismaTx | PrismaClient = prisma) {
+    return await tx.cart.upsert({
       where: { customerId },
       update: {},
       create: { customerId },
@@ -18,29 +21,49 @@ class CartRepository {
     });
   }
 
-  async getCartItemsByCustomerId(customerId: string) {
+  async getCartWithCartItemsByCustomerId(customerId: string, tx: PrismaTx | PrismaClient = prisma) {
+    return await tx.cart.upsert({
+      where: { customerId },
+      update: {},
+      create: { customerId },
+      include: {
+        cartItems: true
+      }
+    });
+  }
+
+  async getCartWithOneCartItemByCustomerIdAndCartItemId(customerId: string, cartItemId: string) {
     const cart = await prisma.cart.findUnique({
       where: { customerId },
-      include: {
+      select: {
+        cartId: true,
+        customerId: true,
+        isLocked: true,
         cartItems: {
-          include: {
-            menuItem: true, // Include menuItem details if needed
-          },
-        },
-      },
+          where: { cartItemId }
+        }
+      }
     });
 
-    if (!cart) return [];
+    if (!cart) return null;
 
-    return cart.cartItems;
+    return cart;
   }
 
-  async findByCartAndMenuItem(cartId: string, menuItemId: string) {
-    return await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
+  async findCartItemByCartIdAndMenuItemId(cartId: string, menuItemId: string) {
+    const cartItem = await prisma.cartItem.findFirst({ where: { cartId, menuItemId } });
+    if (!cartItem) throw NotFoundError("Cart Item not found");
+    return cartItem;
   }
 
-  async createCartItem(cartItem: CreateCartItemDTO, cartId: string) {
-    return await prisma.cartItem.upsert({
+  async createCartItem(
+    cartItem: CreateCartItemDTO,
+    cartId: string,
+    itemDetails: { name: string; price: number },
+    tx: PrismaTx = prisma
+  ) {
+    // 2. Upsert CartItem (Snapshot)
+    return await tx.cartItem.upsert({
       where: {
         cartId_menuItemId: {
           cartId,
@@ -49,54 +72,47 @@ class CartRepository {
       },
       update: {
         quantity: cartItem.quantity,
-        price: cartItem.price,
+        price: itemDetails.price,
       },
       create: {
         cartId,
         quantity: cartItem.quantity,
         menuItemId: cartItem.menuItemId,
-        price: cartItem.price,
+        price: itemDetails.price,
       },
     });
   }
 
   async updateCartItemQuantity({
-    cartId,
     cartItemId,
     quantity,
-  }: UpdateQuantityDTO & { cartId: string }) {
-    return await prisma.cartItem.update({
-      where: { cartId, cartItemId },
+  }: UpdateCartItemQuantityDTO, tx: PrismaTx = prisma) {
+
+    return await tx.cartItem.update({
+      where: { cartItemId },
       data: { quantity },
     });
   }
 
-  async clearCartByCustomerId(customerId: string) {
-    const cart = await this.findCartByCustomerId(customerId);
-    if (cart) {
-      return this.clearCart(cart.cartId);
-    }
-  }
-
-  async removeItemFromCart({ cartId, cartItemId }: RemoveCartItemDTO & { cartId: string }) {
-    return await prisma.cartItem.delete({
+  async removeItemFromCart({ cartItemId }: RemoveCartItemDTO, cartId: string, tx: PrismaTx = prisma) {
+    return await tx.cartItem.delete({
       where: { cartItemId, cartId },
     });
   }
 
-  async clearCart(cartId: string) {
-    return await prisma.cartItem.deleteMany({ where: { cartId } });
+  async clearCart(cartId: string, tx: PrismaTx = prisma) {
+    return await tx.cartItem.deleteMany({ where: { cartId } });
   }
 
-  async lockCart(customerId: string) {
-    return await prisma.cart.update({
+  async lockCart(customerId: string, tx: PrismaTx = prisma) {
+    return await tx.cart.update({
       where: { customerId },
       data: { isLocked: true },
     });
   }
 
-  async unlockCart(customerId: string) {
-    return await prisma.cart.update({
+  async unlockCart(customerId: string, tx: PrismaTx = prisma) {
+    return await tx.cart.update({
       where: { customerId },
       data: { isLocked: false },
     });

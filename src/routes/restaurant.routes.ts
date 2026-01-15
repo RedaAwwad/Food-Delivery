@@ -1,50 +1,237 @@
-import express from "express";
-import { validateRequest } from "../middleware/validate-request";
-import { searchMenuItemSchema } from "../validation/restaurant.schema";
-import { restaurantController } from "../controllers/restaurant.controller";
-export const restaurantRouter = express.Router();
+import express from 'express';
+import { validateRequest } from '../middleware/validate-request';
+import { createRestaurantSchema, deleteRestaurantSchema, enableOrDisableRestaurantSchema, findRestaurantByRestaurantIdSchema, searchRestaurantSchema, updateRestaurantRatingSchema, updateRestaurantSchema } from '../validation/restaurant.schema';
+import { restaurantController } from '../controllers/restaurant.controller';
+import { isAuthenticated, isAuthorized } from '../middleware/auth.middleware';
+
+export const restaurantRouter = express.Router()
+
+restaurantRouter.get('/', restaurantController.findAllRestaurants);
+restaurantRouter.get('/user', isAuthenticated, isAuthorized(["Owner"]), restaurantController.findRestaurantByUserId);
+restaurantRouter.get('/:restaurantId', validateRequest(findRestaurantByRestaurantIdSchema), restaurantController.findRestaurantByRestaurantId);
+restaurantRouter.post('/', isAuthenticated, validateRequest(createRestaurantSchema), restaurantController.createRestaurant);
+restaurantRouter.put('/update', isAuthenticated, validateRequest(updateRestaurantSchema), restaurantController.updateRestaurant);
+restaurantRouter.put('/update-rating', isAuthenticated, validateRequest(updateRestaurantRatingSchema), restaurantController.updateRestaurantRating);
+restaurantRouter.delete('/', isAuthenticated, validateRequest(deleteRestaurantSchema), restaurantController.deleteRestaurant);
+restaurantRouter.put('/enable-disable', isAuthenticated, validateRequest(enableOrDisableRestaurantSchema), restaurantController.enableOrDisableRestaurant);
+restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query"), restaurantController.searchRestaurants);
+
 
 /**
  * @swagger
- * /api/v1/restaurant/menu-item/search:
+ * tags:
+ *   name: Restaurant
+ *   description: Restaurant management endpoints
+ */
+
+/**
+ * @swagger
+ * /restaurant:
  *   get:
- *     summary: Get all MenuItem searched
+ *     summary: Retrieve all restaurants
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: List of all restaurants
+ *
+ *   post:
+ *     summary: Create a new restaurant
+ *     tags: [Restaurant]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - managerId
+ *               - addressId
+ *               - restaurantName
+ *               - restaurantBio
+ *               - restaurantLogo
+ *             properties:
+ *               managerId:
+ *                 type: string
+ *               addressId:
+ *                 type: string
+ *               restaurantName:
+ *                 type: string
+ *               restaurantBio:
+ *                 type: string
+ *               restaurantLogo:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Restaurant created successfully
+ *
+ *   delete:
+ *     summary: Delete a restaurant
+ *     tags: [Restaurant]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Restaurant deleted successfully
+ */
+
+/**
+ * @swagger
+ * /restaurant/user:
+ *   get:
+ *     summary: Get restaurant by User ID
+ *     tags: [Restaurant]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Restaurant details
+ */
+
+/**
+ * @swagger
+ * /restaurant/restaurant:
+ *   get:
+ *     summary: Get restaurant by Restaurant ID
  *     tags: [Restaurant]
  *     parameters:
  *       - in: query
- *         name: menuItemName
+ *         name: restaurantId
+ *         required: true
  *         schema:
  *           type: string
- *         required: false
- *         description: Filter by menu item name
- *       - in: query
- *         name: menuItemDesc
- *         schema:
- *           type: string
- *         required: false
- *         description: Filter by menu item description
- *       - in: query
- *         name: minPrice
- *         schema:
- *           type: integer
- *           minimum: 0
- *         required: false
- *         description: Minimum price filter
- *       - in: query
- *         name: maxPrice
- *         schema:
- *           type: integer
- *           minimum: 0
- *         required: false
- *         description: Maximum price filter
+ *         description: ID of the restaurant to retrieve
+ *     requestQuery:
+ *       description: Restaurant ID
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
  *     responses:
  *       200:
- *         description: List of menu items matching filters
+ *         description: Restaurant details
  */
-restaurantRouter.get(
-  "/menu-item/search",
-  validateRequest(searchMenuItemSchema, "query"),
-  restaurantController.searchMenuItems
-);
 
-restaurantRouter.get("/:restaurantId", restaurantController.findRestaurantByRestaurantId);
+/**
+ * @swagger
+ * /restaurant/update:
+ *   put:
+ *     summary: Update restaurant details
+ *     tags: [Restaurant]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *               restaurantName:
+ *                 type: string
+ *               restaurantBio:
+ *                 type: string
+ *               restaurantLogo:
+ *                 type: string
+ *               isAvailable:
+ *                 type: boolean
+ *               addressId:
+ *                 type: string
+ *               managerId:
+ *                 type: string
+ *     responses:
+ *       202:
+ *         description: Restaurant updated successfully
+ */
+
+/**
+ * @swagger
+ * /restaurant/update-rating:
+ *   put:
+ *     summary: Update restaurant rating
+ *     tags: [Restaurant]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *               - averageRating
+ *               - ratingCount
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *               averageRating:
+ *                 type: number
+ *               ratingCount:
+ *                 type: number
+ *     responses:
+ *       200:
+ *         description: Rating updated successfully
+ */
+
+/**
+ * @swagger
+ * /restaurant/enable-disable:
+ *   put:
+ *     summary: Enable or disable a restaurant
+ *     tags: [Restaurant]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Restaurant status updated
+ */
+
+/**
+ * @swagger
+ * /restaurant/search:
+ *   get:
+ *     summary: Search restaurants
+ *     tags: [Restaurant]
+ *     parameters:
+ *       - in: query
+ *         name: restaurantName
+ *         schema:
+ *           type: string
+ *         description: Name of the restaurant to search for
+ *     responses:
+ *       200:
+ *         description: List of matching restaurants
+ */
