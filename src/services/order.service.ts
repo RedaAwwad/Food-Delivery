@@ -8,8 +8,12 @@ import { PrismaTx } from "../types/prisma.types";
 import { PrismaClient } from "@prisma/client/extension";
 
 class OrderService {
-  async findAllOrdersByCustomerId(customerId: string) {
-    return await orderRepository.findAllOrdersByCustomerId(customerId);
+  async findAllCustomerOrdersByCustomerId(customerId: string) {
+    return await orderRepository.findAllCustomerOrdersByCustomerId(customerId);
+  }
+
+  async findOrderByOrderIdAndCustomerId(orderId: string, customerId: string) {
+    return await orderRepository.findOrderByOrderIdAndCustomerId(orderId, customerId);
   }
 
   async findOrderById(orderId: string) {

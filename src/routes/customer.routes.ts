@@ -26,7 +26,7 @@ customerRouter.use(isAuthenticated);
  *       200:
  *         description: List of customer orders
  */
-customerRouter.get("/orders", customerController.getCustomerOrders);
+customerRouter.get("/orders", customerController.getCustomerOrdersByCustomerId);
 
 /**
  * @swagger
@@ -47,7 +47,7 @@ customerRouter.get("/orders", customerController.getCustomerOrders);
  *       404:
  *         description: Customer not found
  */
-customerRouter.get("/orders/:order_id", customerController.getCustomerOrderDetails);
+customerRouter.get("/orders/:order_id", customerController.findCustomerOrderByCustomerId);
 
 customerRouter.patch("/deactivate", customerController.deactivateAccount);
 

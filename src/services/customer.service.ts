@@ -3,6 +3,7 @@ import { customerRepository } from "../repositories/customer.repository";
 import { ratingService } from "./rating.service";
 import { CustomError } from "../utils/errors";
 import { CreateCustomerRatingDto } from "../dto/rating.dto";
+import { orderService } from "./order.service";
 
 class CustomerService {
   async createCustomer(data: any) {
@@ -11,6 +12,14 @@ class CustomerService {
 
   async getCustomerByCustomerId(customerId: string) {
     return await customerRepository.getCustomerByCustomerId(customerId);
+  }
+
+  async findCustomerOrdersByCustomerId(customerId: string) {
+    return await orderService.findAllCustomerOrdersByCustomerId(customerId);
+  }
+
+  async findCustomerOrderByCustomerId(customerId: string, orderId: string) {
+    return await orderService.findOrderByOrderIdAndCustomerId(orderId, customerId);
   }
 
   async deactivateAccount(customerId: string) {

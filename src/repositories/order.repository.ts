@@ -5,10 +5,13 @@ import { PrismaTx } from "../types/prisma.types";
 import { OrderStatusKey, PrismaClient } from "../generated/prisma";
 
 class OrderRepository {
-  async findAllOrdersByCustomerId(customerId: string) {
+  async findAllCustomerOrdersByCustomerId(customerId: string) {
     const orders = await prisma.order.findMany({
       where: {
         customerId
+      },
+      include: {
+        orderItems: true,
       },
       orderBy: {
         createdAt: "desc"
@@ -21,11 +24,26 @@ class OrderRepository {
     return orders
   }
 
+  async findOrderByOrderIdAndCustomerId(orderId: string, customerId: string) {
+    return await prisma.order.findUniqueOrThrow({
+      where: {
+        orderId,
+        customerId
+      },
+      include: {
+        orderItems: true,
+      }
+    });
+  }
+
   async findOrderById(orderId: string) {
     return await prisma.order.findUniqueOrThrow({
       where: {
         orderId
       },
+      include: {
+        orderItems: true,
+      }
     });
   }
 
