@@ -1,5 +1,5 @@
 import { CustomError } from "./custom-error";
-import { ErrorDetails } from "./types";
+import { ErrorDetails } from "./error.types";
 import { StatusCodes } from "http-status-codes";
 
 
@@ -10,7 +10,6 @@ export const BadRequestError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.BAD_REQUEST,
-        code: "ERR_BAD_REQUEST",
         ...(errors && { errors }),
     });
 };
@@ -22,7 +21,6 @@ export const UnauthorizedError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.UNAUTHORIZED,
-        code: "ERR_UNAUTHORIZED",
         ...(errors && { errors }),
     });
 };
@@ -34,7 +32,6 @@ export const ForbiddenError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.FORBIDDEN,
-        code: "ERR_FORBIDDEN",
         ...(errors && { errors }),
     });
 };
@@ -46,7 +43,6 @@ export const NotFoundError = (
     return new CustomError({
         message: `${resource} not found`,
         statusCode: StatusCodes.NOT_FOUND,
-        code: "ERR_NOT_FOUND",
         ...(errors && { errors }),
     });
 };
@@ -60,7 +56,6 @@ export const ConflictError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.CONFLICT,
-        code: "ERR_CONFLICT",
         ...(errors && { errors }),
     });
 };
@@ -72,7 +67,6 @@ export const UnprocessableEntityError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.UNPROCESSABLE_ENTITY,
-        code: "ERR_VALIDATION",
         ...(errors && { errors }),
     });
 };
@@ -84,7 +78,6 @@ export const InternalServerError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.INTERNAL_SERVER_ERROR,
-        code: "ERR_INTERNAL",
         ...(errors && { errors }),
     });
 };
@@ -98,7 +91,6 @@ export const ServiceUnavailableError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.SERVICE_UNAVAILABLE,
-        code: "ERR_SERVICE_UNAVAILABLE",
         ...(errors && { errors }),
     });
 };
@@ -110,7 +102,6 @@ export const TooManyRequestsError = (
     return new CustomError({
         message,
         statusCode: StatusCodes.TOO_MANY_REQUESTS,
-        code: "ERR_TOO_MANY_REQUESTS",
         ...(errors && { errors }),
     });
 };

@@ -3,7 +3,7 @@ import { verifyAccessToken } from "../utils/generateAndVerifyToken";
 import { prisma } from "../config/prisma.config";
 import jwt from "jsonwebtoken";
 import { getTokenFromHeaders } from "../utils/jwt/getTokenFromHeaders";
-import { CustomError, ForbiddenError } from "../utils/errors";
+import { CustomError, ForbiddenError, UnauthorizedError } from "../utils/errors";
 import { StatusCodes } from "http-status-codes";
 
 export const isAuthorized = (roles: string[]): RequestHandler => {
@@ -25,7 +25,7 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       throw new CustomError({
-        message: "Authorization header required",
+        message: "Unauthorized",
         statusCode: StatusCodes.UNAUTHORIZED,
       });
     }
@@ -38,6 +38,8 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
       });
     }
 
+    req.accessToken = token;
+
     const decoded = verifyAccessToken(token);
 
     if (typeof decoded === "string") {
@@ -47,24 +49,8 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
       });
     }
 
-    req.accessToken = token;
 
-    const user = await prisma.user.findUnique({
-      where: { userId: Number(decoded.userId) },
-      select: {
-        userId: true,
-        userName: true,
-        userEmail: true,
-        isAdmin: true,
-        usersRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
+    if (!decoded.user) {
       throw new CustomError({
         message: "User not found",
         statusCode: StatusCodes.UNAUTHORIZED,
@@ -72,13 +58,14 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
     }
 
     // Map UserRoles to role names
-    const roles = user.usersRoles.map((userRole: any) => userRole.role.roleName);
+    const userRoles: any[] = decoded.user.usersRoles || [];
+    const roles = userRoles.map(userRole => userRole.roleName);
 
     req.user = {
-      userId: user.userId,
-      userName: user.userName,
-      userEmail: user.userEmail,
-      isAdmin: user.isAdmin,
+      userId: decoded.user.userId,
+      userName: decoded.user.userName,
+      userEmail: decoded.user.userEmail,
+      isAdmin: decoded.user.isAdmin,
       roles: roles,
     };
 
