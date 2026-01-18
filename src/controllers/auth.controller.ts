@@ -23,7 +23,8 @@ class AuthController {
     return res.json(new SuccessResponse({ data: result.data }));
   }
 
-  async me(req: Request & { user: TokenPayload }, res: Response) {
+  async me(req: Request, res: Response) {
+    // @ts-ignore
     const userId = req.user.userId;
     const user = await authService.me(userId);
 

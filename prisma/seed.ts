@@ -2,7 +2,7 @@
 
 import { prisma } from "../src/config/prisma.config";
 import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
-import { hash } from "../src/utils/HashAndCompare";
+import { PasswordUtils } from "../src/utils/password.utils";
 
 async function main() {
   await prisma.userRole.deleteMany({});
@@ -32,12 +32,12 @@ async function main() {
       {
         userName: "System Admin",
         userEmail: "admin@admin.com",
-        userPassword: await hash("11223344"),
+        userPassword: await PasswordUtils.hash("Pass@123"),
       },
       {
         userName: "New Customer",
         userEmail: "customer@gmail.com",
-        userPassword: await hash("11223344"),
+        userPassword: await PasswordUtils.hash("Pass@123"),
       },
     ],
     select: {

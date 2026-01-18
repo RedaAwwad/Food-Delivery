@@ -1,5 +1,4 @@
-import { StatusCodes } from "http-status-codes";
-import { CustomError, InternalServerError, UnauthorizedError } from "../errors";
+import { InternalServerError, UnauthorizedError } from "../errors";
 import { Request } from "express";
 import { TokenPayload } from "../../types/token";
 import { sign, Secret, SignOptions, JwtPayload, verify } from "jsonwebtoken";

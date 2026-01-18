@@ -1,3 +1,5 @@
+import { TokenType } from "../generated/prisma";
+
 export interface TokenPayload {
   userId: string;
   userName: string;
@@ -63,11 +65,7 @@ export interface LoginResponse {
 export interface RefreshResponse {
   accessToken: string;
   accessTokenExpiresAt: Date;
-  user: {
-    userId: string;
-    userName: string;
-    userEmail: string;
-  };
+  user: AuthenticatedUser;
 }
 
 export interface CookieOptions {
@@ -91,10 +89,12 @@ export interface AuthResponse {
   clearCookies?: string[];
 }
 
-// export interface AuthUser {
-//   userId: string;
-//   userName: string;
-//   userEmail: string;
-//   isAdmin?: boolean;
-//   role?: string;
-// }
+export interface AuthenticatedUser {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  isAdmin?: boolean;
+  customerId?: string;
+  restaurantId?: string;
+  userRoles: string[];
+}

@@ -3,9 +3,9 @@ import { CreateCustomerRatingDto } from "../dto/customer.dto";
 import { RatingScore } from "../generated/prisma";
 
 export const createCustomerRatingSchema = Joi.object<CreateCustomerRatingDto>({
-       restaurantId: Joi.string().uuid().required(),
-       ratingScore: Joi.string()
-              .valid(...Object.values(RatingScore))
-              .required(),
-       review: Joi.string().optional(),
-})
+  restaurantId: Joi.string().uuid().required(),
+  ratingScore: Joi.string()
+    .valid(...Object.values(RatingScore))
+    .required(),
+  review: Joi.string().optional(),
+});

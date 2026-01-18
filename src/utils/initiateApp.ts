@@ -25,7 +25,7 @@ const initiateApp = async (app: Express) => {
 
   initAPIRoutes(app);
 
-  app.use((req, res, next) => {
+  app.use(() => {
     throw NotFoundError("Not Found");
   });
   app.use(errorHandler);

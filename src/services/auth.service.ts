@@ -8,7 +8,7 @@ import {
   verifyRefreshToken,
 } from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
-import { compare, hash } from "../utils/HashAndCompare";
+import { PasswordUtils } from "../utils/password.utils";
 import { emailService } from "./email.service";
 import { v7 as uuidv7 } from "uuid";
 import { roleService } from "./role.service";
@@ -32,7 +32,7 @@ class AuthService {
     const userCheck = await userService.findUserByEmail(userEmail);
     if (userCheck) throw ConflictError("Email already exists");
 
-    const hashedPassword = await hash(userPassword);
+    const hashedPassword = await PasswordUtils.hash(userPassword);
 
     // Transactional feeling, but manual for now
     const newUser = await userService.createUser({
@@ -106,7 +106,7 @@ class AuthService {
 
     if (!user) throw UnauthorizedError("Invalid credentials!");
 
-    const match = await compare(password, user.userPassword);
+    const match = await PasswordUtils.compare(password, user.userPassword);
     if (!match) throw UnauthorizedError("Invalid credentials!");
 
     let userRoleKeys: string[] = [];
@@ -144,7 +144,7 @@ class AuthService {
       userId: user.userId,
       token: refreshToken,
       expiresAt: jwtUtils.getExpiryDate("REFRESH"),
-      tokenType: TokenType.REFRESH,
+      tokenType: "REFRESH",
     });
 
     const refreshTokenCookie = cookieService.createRefreshTokenCookie(refreshToken);
@@ -402,26 +402,26 @@ class AuthService {
 
   // Get session count for user
   async getSessionCount(userId: string): Promise<number> {
-    return userTokenService.getActiveTokenCount(userId, TokenType.REFRESH);
+    return userTokenService.getActiveTokenCount(userId, "REFRESH");
   }
 
   // ============ PASSWORD RESET METHODS ============
 
   async forgetPassword(email: string): Promise<void> {
-    console.log(`🔐 Password reset requested for email: ${email}`);
-
     const user = await userService.findUserByEmail(email);
 
     // Security: Always return success to prevent email enumeration
     if (!user) {
-      console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
-      return;
+      throw new CustomError({
+        message: "User not found",
+        statusCode: StatusCodes.NOT_FOUND,
+      });
     }
 
     // Revoke any existing forgot password tokens for this user
     await userTokenService.revokeAllUserTokensByType(
       user.userId,
-      TokenType.FORGOT_PASSWORD,
+      "FORGOT_PASSWORD",
       "new_reset_requested"
     );
 
@@ -436,7 +436,7 @@ class AuthService {
     await userTokenService.createToken({
       userId: user.userId,
       token: token,
-      tokenType: TokenType.FORGOT_PASSWORD,
+      tokenType: "FORGOT_PASSWORD",
       expiresAt: jwtUtils.getExpiryDate("FORGOT_PASSWORD"),
     });
 
@@ -449,8 +449,6 @@ class AuthService {
       resetLink,
       expiryHours: jwtUtils.getExpiryDate("FORGOT_PASSWORD").getTime() / (1000 * 60 * 60),
     });
-
-    console.log(`✅ Password reset email sent to: ${email}`);
   }
 
   async validateResetToken(token: string): Promise<boolean> {
@@ -458,7 +456,7 @@ class AuthService {
       const decoded = jwtUtils.verifyToken(token);
       if (!decoded || typeof decoded === "string" || !decoded.userId) return false;
 
-      return await userTokenService.isValid(token, TokenType.FORGOT_PASSWORD);
+      return await userTokenService.isValid(token, "FORGOT_PASSWORD");
     } catch (error) {
       return false;
     }
@@ -469,13 +467,13 @@ class AuthService {
     if (!decoded || typeof decoded === "string" || !decoded.userId)
       throw BadRequestError("Invalid or expired reset token");
 
-    const tokenData = await userTokenService.findValidToken(token, TokenType.FORGOT_PASSWORD);
+    const tokenData = await userTokenService.findValidToken(token, "FORGOT_PASSWORD");
 
     if (!tokenData) {
       throw BadRequestError("Invalid or expired reset token");
     }
 
-    const hashedPassword = await hash(newPassword);
+    const hashedPassword = await PasswordUtils.hash(newPassword);
 
     await userService.updateUser(tokenData.userId, { userPassword: hashedPassword });
 
@@ -484,7 +482,7 @@ class AuthService {
     // Security: Revoke all refresh tokens (logout from all devices)
     await userTokenService.revokeAllUserTokensByType(
       tokenData.userId,
-      TokenType.REFRESH,
+      "REFRESH",
       "password_changed"
     );
   }
