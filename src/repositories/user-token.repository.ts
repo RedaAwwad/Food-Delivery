@@ -46,9 +46,9 @@ class UserTokenRepository {
   }
 
   // Revoke a specific token
-  async revokeToken(token: string) {
+  async revokeToken(userId: string, token: string) {
     return prisma.userToken.delete({
-      where: { token },
+      where: { userId, token },
     });
   }
 

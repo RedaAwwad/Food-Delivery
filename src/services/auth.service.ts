@@ -1,9 +1,7 @@
 import { loginDTO } from "../dto/login.dto";
 import { prisma } from "../config/prisma.config";
-import { Prisma } from "../generated/prisma";
+import { Prisma, RoleKey } from "../generated/prisma";
 import { SignupDTO } from "../dto/signup.dto";
-import { AuthResponse } from "../types/token";
-import { cookieService } from "./cookie.service";
 import { PasswordUtils } from "../utils/password.utils";
 import { emailService } from "./email.service";
 import { roleService } from "./role.service";
@@ -13,15 +11,12 @@ import { customerService } from "./customer.service";
 import { userTokenService } from "./user-token.service";
 import { jwtUtils } from "../utils/jwt/jwt.utils";
 import { USER_DEFAULT_SELECT } from "../utils/constants";
-import { TokenPayload } from "../types/token";
 import { UserDTO } from "../dto/user.dto";
 import { StatusCodes } from "http-status-codes";
 import { userRepository } from "../repositories/user.repository";
 import { UserSession, UserWithRelations } from "../types/user.type";
 
 class AuthService {
-  private readonly REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
-
   async signup(signupDto: SignupDTO) {
     const { name, password, email, phone } = signupDto;
 
@@ -84,7 +79,11 @@ class AuthService {
     };
   }
 
-  async login(loginDto: loginDTO): Promise<AuthResponse> {
+  async login(loginDto: loginDTO): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: UserDTO;
+  }> {
     const { email, password } = loginDto;
 
     if (!email || !password) throw BadRequestError("Email and password are required!");
@@ -103,12 +102,12 @@ class AuthService {
     const match = await PasswordUtils.compare(password, user.userPassword);
     if (!match) throw UnauthorizedError("Invalid credentials!");
 
-    let userRoleKeys: string[] = [];
+    let userRoleKeys: RoleKey[] = [];
     if (user?.userRoles) {
       userRoleKeys = user.userRoles.map((role: any) => role.role.roleKey);
     }
 
-    const tokenPayload: TokenPayload = {
+    const tokenPayload: UserSession = {
       userId: user.userId,
       userName: user.userName,
       userEmail: user.userEmail,
@@ -141,14 +140,10 @@ class AuthService {
       tokenType: "REFRESH",
     });
 
-    const refreshTokenCookie = cookieService.createRefreshTokenCookie(refreshToken);
-
     return {
-      data: {
-        accessToken,
-        user: new UserDTO(user),
-      },
-      cookies: [refreshTokenCookie],
+      accessToken,
+      refreshToken,
+      user: new UserDTO(user),
     };
   }
 
@@ -251,53 +246,18 @@ class AuthService {
     };
   }
 
-  // async refreshAccessToken(refreshToken: string) {
-
-  // }
-
-  async logout(refreshToken?: string): Promise<AuthResponse> {
-    if (refreshToken) {
-      await userTokenService.revokeToken(refreshToken);
+  async logout(userId: string, refreshToken?: string) {
+    if (!refreshToken) {
+      throw UnauthorizedError();
     }
 
-    // Prepare cookie clearance
-    const clearCookies = [this.REFRESH_TOKEN_COOKIE_NAME];
-
-    return {
-      data: {},
-      clearCookies,
-    };
+    await userTokenService.revokeToken(userId, refreshToken);
   }
 
-  async logoutAll(refreshToken?: string): Promise<AuthResponse> {
-    if (!refreshToken) throw BadRequestError("Refresh token is required");
+  async logoutAll(userId: string, refreshToken?: string) {
+    if (!refreshToken) throw UnauthorizedError();
 
-    const tokenData = await userTokenService.findTokenByToken(refreshToken);
-
-    if (!tokenData) throw UnauthorizedError("Invalid token");
-
-    await userTokenService.revokeAllUserTokens(tokenData.userId);
-
-    // Prepare cookie clearance
-    const clearCookies = [this.REFRESH_TOKEN_COOKIE_NAME];
-
-    return {
-      data: {},
-      clearCookies,
-    };
-  }
-
-  // Helper to apply cookies to response
-  applyCookies(res: Response, authResponse: AuthResponse): void {
-    // Set new cookies
-    if (authResponse.cookies) {
-      cookieService.setCookies(res, authResponse.cookies);
-    }
-
-    // Clear cookies
-    if (authResponse.clearCookies) {
-      cookieService.clearCookies(res, authResponse.clearCookies);
-    }
+    await userTokenService.revokeAllUserTokens(userId);
   }
 
   // ============ PASSWORD RESET METHODS ============
@@ -356,7 +316,7 @@ class AuthService {
 
     await userService.updateUser(tokenData.userId, { userPassword: hashedPassword });
 
-    await userTokenService.revokeToken(token);
+    await userTokenService.revokeToken(tokenData.userId, token);
 
     // Security: Revoke all refresh tokens (logout from all devices)
     await userTokenService.revokeAllUserTokensByType(tokenData.userId, "REFRESH");

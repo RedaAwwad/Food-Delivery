@@ -15,8 +15,8 @@ class UserTokenService {
     return userTokenRepository.findTokenByToken(token);
   }
 
-  async revokeToken(token: string) {
-    return userTokenRepository.revokeToken(token);
+  async revokeToken(userId: string, token: string) {
+    return userTokenRepository.revokeToken(userId, token);
   }
 
   async revokeAllUserTokensByType(userId: string, tokenType: TokenType) {
