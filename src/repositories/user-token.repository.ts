@@ -86,56 +86,6 @@ class UserTokenRepository {
     return true;
   }
 
-  // Delete expired tokens (cleanup)
-  async deleteExpiredTokens() {
-    return prisma.userToken.deleteMany({
-      where: {
-        expiresAt: { lt: new Date() },
-      },
-    });
-  }
-
-  // Delete old revoked tokens (cleanup)
-  async deleteOldRevokedTokens(daysOld: number = 30) {
-    const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
-
-    return prisma.userToken.deleteMany({
-      where: {
-        // isRevoked: true,
-        revokedAt: { lt: cutoffDate },
-      },
-    });
-  }
-
-  // Get count of active tokens by type for a user
-  async getActiveTokenCount(userId: string, tokenType: TokenType): Promise<number> {
-    const now = new Date();
-
-    return prisma.userToken.count({
-      where: {
-        userId,
-        tokenType,
-        // isRevoked: false,
-        expiresAt: { gte: now },
-      },
-    });
-  }
-
-  async findRecentVerificationTokens(userId: string, timeFrameInHours: number = 1): Promise<any[]> {
-    const oneHourAgo = new Date(Date.now() - timeFrameInHours * 60 * 60 * 1000);
-
-    return await prisma.userToken.findMany({
-      where: {
-        userId,
-        tokenType: TokenType.VERIFICATION,
-        revokedAt: null,
-        createdAt: {
-          gte: oneHourAgo,
-        },
-      },
-    });
-  }
-
   async deleteRefreshTokensByUserId(userId: string) {
     return prisma.userToken.deleteMany({
       where: {

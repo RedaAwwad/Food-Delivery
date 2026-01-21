@@ -31,18 +31,6 @@ class UserTokenService {
     return userTokenRepository.isValid(token, tokenType);
   }
 
-  async deleteExpiredTokens() {
-    return userTokenRepository.deleteExpiredTokens();
-  }
-
-  async deleteOldRevokedTokens(daysOld: number = 30) {
-    return userTokenRepository.deleteOldRevokedTokens(daysOld);
-  }
-
-  async getActiveTokenCount(userId: string, tokenType: TokenType): Promise<number> {
-    return userTokenRepository.getActiveTokenCount(userId, tokenType);
-  }
-
   async deleteRefreshTokensByUserId(userId: string) {
     return userTokenRepository.deleteRefreshTokensByUserId(userId);
   }

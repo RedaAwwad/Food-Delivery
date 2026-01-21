@@ -287,11 +287,6 @@ class AuthService {
     };
   }
 
-  async cleanupExpiredTokens(): Promise<void> {
-    await userTokenService.deleteExpiredTokens();
-    await userTokenService.deleteOldRevokedTokens();
-  }
-
   // Helper to apply cookies to response
   applyCookies(res: Response, authResponse: AuthResponse): void {
     // Set new cookies
@@ -305,36 +300,7 @@ class AuthService {
     }
   }
 
-  // Helper to clear all auth cookies
-  clearAllAuthCookies(res: Response): void {
-    const authCookies = [this.REFRESH_TOKEN_COOKIE_NAME];
-    cookieService.clearCookies(res, authCookies, {
-      path: "/", // Clear from all paths
-    });
-  }
-
-  // Get user ID from refresh token
-  async getUserIdFromRefreshToken(refreshToken: string): Promise<string | null> {
-    try {
-      const tokenData = await userTokenService.findTokenByToken(refreshToken);
-      return tokenData?.userId || null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  // Validate session is still active
-  async validateSession(refreshToken: string): Promise<boolean> {
-    return userTokenService.isValid(refreshToken, "REFRESH");
-  }
-
-  // Get session count for user
-  async getSessionCount(userId: string): Promise<number> {
-    return userTokenService.getActiveTokenCount(userId, "REFRESH");
-  }
-
   // ============ PASSWORD RESET METHODS ============
-
   async forgetPassword(email: string): Promise<void> {
     const user = await userService.findUserByEmail(email);
 
@@ -373,17 +339,6 @@ class AuthService {
       resetLink,
       expiryHours: jwtUtils.getExpiryDate("FORGOT_PASSWORD").getTime() / (1000 * 60 * 60),
     });
-  }
-
-  async validateResetToken(token: string): Promise<boolean> {
-    try {
-      const decoded = jwtUtils.verifyToken(token);
-      if (!decoded || typeof decoded === "string" || !decoded.userId) return false;
-
-      return await userTokenService.isValid(token, "FORGOT_PASSWORD");
-    } catch (error) {
-      return false;
-    }
   }
 
   async resetPassword(token: string, newPassword: string): Promise<void> {
