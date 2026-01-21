@@ -5,6 +5,7 @@ import {
   updateRestaurantRatingDto,
 } from "../dto/restaurant.dto";
 import { restaurantRepository } from "../repositories/restaurant.repository";
+import { prisma } from "../config/prisma.config";
 
 export class RestaurantService {
   async findRestaurantByManagerId(managerId: string) {

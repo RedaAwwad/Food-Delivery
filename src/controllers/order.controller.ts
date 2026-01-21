@@ -5,8 +5,8 @@ import { SuccessResponse } from "../utils/response/success-response";
 
 class OrderController {
   async findAllOrdersByCustomerId(req: Request, res: Response) {
-    const orders = await orderService.findAllOrdersByCustomerId(req.user?.customerId!);
-    res.status(StatusCodes.OK).json(new SuccessResponse({ data: orders}));
+    const orders = await orderService.findAllCustomerOrdersByCustomerId(req.user?.customerId!);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: orders }));
   }
 
   async findOrderById(req: Request, res: Response) {

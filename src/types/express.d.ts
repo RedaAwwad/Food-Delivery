@@ -1,18 +1,18 @@
-export {};
+import { Request } from "express";
+import { UserSession } from "../types/user.type";
 
 declare global {
   namespace Express {
     interface Request {
-      accessToken?: string;
+      user?: UserSession;
       refreshToken?: string;
-      user?: {
-        userId: string;
-        customerId?: string;
-        userName: string;
-        userEmail: string;
-        isAdmin?: boolean;
-        roles: string[];
-      };
     }
   }
+
+  interface RequestWithUser<T = any> extends Request {
+    body: T;
+    user: UserSession;
+  }
 }
+
+export {};

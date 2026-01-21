@@ -6,7 +6,6 @@ import { setupSwagger } from "./lib/swagger/swagger";
 import { errorHandler, NotFoundError } from "./utils/errors";
 import { initAPIRoutes } from "./routes";
 import { initServer } from "./config/server.init";
-import { tokenValidator } from "./middleware/auth.middleware";
 
 dotenv.config();
 const app = express();
@@ -18,7 +17,6 @@ const initiateApp = async (app: Express) => {
   app.use(express.urlencoded({ extended: true }));
 
   setupSwagger(app);
-  app.use(tokenValidator);
 
   app.get("/", (req, res) => {
     res.json({

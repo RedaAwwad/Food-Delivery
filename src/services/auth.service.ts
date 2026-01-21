@@ -1,16 +1,11 @@
 import { loginDTO } from "../dto/login.dto";
+import { prisma } from "../config/prisma.config";
+import { Prisma } from "../generated/prisma";
 import { SignupDTO } from "../dto/signup.dto";
-import { Request, Response } from "express";
 import { AuthResponse } from "../types/token";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-  verifyRefreshToken,
-} from "../utils/generateAndVerifyToken";
 import { cookieService } from "./cookie.service";
 import { PasswordUtils } from "../utils/password.utils";
 import { emailService } from "./email.service";
-import { v7 as uuidv7 } from "uuid";
 import { roleService } from "./role.service";
 import { BadRequestError, ConflictError, CustomError, UnauthorizedError } from "../utils/errors";
 import { userService } from "./user.service";
@@ -22,74 +17,69 @@ import { TokenPayload } from "../types/token";
 import { UserDTO } from "../dto/user.dto";
 import { StatusCodes } from "http-status-codes";
 import { userRepository } from "../repositories/user.repository";
+import { UserSession, UserWithRelations } from "../types/user.type";
 
 class AuthService {
   private readonly REFRESH_TOKEN_COOKIE_NAME = "refreshToken";
 
   async signup(signupDto: SignupDTO) {
-    const { userName, userPassword, userEmail, userPhoneNumber } = signupDto;
+    const { name, password, email, phone } = signupDto;
 
-    const userCheck = await userService.findUserByEmail(userEmail);
+    const userCheck = await userService.findUserByEmail(email);
     if (userCheck) throw ConflictError("Email already exists");
 
-    const hashedPassword = await PasswordUtils.hash(userPassword);
+    const hashedPassword = await PasswordUtils.hash(password);
 
-    // Transactional feeling, but manual for now
-    const newUser = await userService.createUser({
-      userId: uuidv7(),
-      userName,
-      userEmail,
-      userPassword: hashedPassword,
-      isActive: true,
-    });
+    await prisma
+      .$transaction(async (tx: Prisma.TransactionClient) => {
+        const newUser = await userService.createUser(
+          {
+            userName: name,
+            userEmail: email,
+            userPassword: hashedPassword,
+          },
+          tx
+        );
 
-    if (!newUser) throw BadRequestError("Failed to Create User");
+        if (!newUser) throw BadRequestError("Failed to Create User");
 
-    const newCustomer = await customerService.createCustomer({
-      customerId: uuidv7(),
-      userId: newUser.userId,
-      customerPhone: String(userPhoneNumber || ""),
-      customerAvatar: "",
-      createdById: newUser.userId,
-      updatedById: newUser.userId,
-    });
+        const newCustomer = await customerService.createCustomer(
+          {
+            userId: newUser.userId,
+            customerPhone: phone,
+            createdById: newUser.userId,
+            updatedById: newUser.userId,
+          },
+          tx
+        );
 
-    if (!newCustomer) throw BadRequestError("Failed to Create Customer");
+        if (!newCustomer) throw BadRequestError("Failed to Create Customer");
 
-    // Assign default 'Customer' role
-    const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "Customer");
-    if (!isRoleAssigned) throw BadRequestError("Failed to assign default Customer role");
+        // Assign default 'Customer' role
+        const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "CUSTOMER", tx);
+        if (!isRoleAssigned) throw BadRequestError("Failed to assign default Customer role");
 
-    // Generate verification token
-    const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10); // Default 24 hours
+        const token = jwtUtils.generateToken(
+          {
+            userId: newUser.userId,
+            userEmail: newUser.userEmail,
+          },
+          "1d"
+        );
 
-    const token = jwtUtils.generateToken(
-      {
-        userId: newUser.userId,
-        userEmail: newUser.userEmail,
-      },
-      "1d"
-    );
+        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
 
-    const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
-
-    // Send verification email
-    await emailService.sendVerificationEmail(newUser.userEmail, verificationLink, newUser.userName);
-
-    const returnedUser = {
-      userId: newUser.userId,
-      userName: newUser.userName,
-      userEmail: newUser.userEmail,
-    };
-    const returnedCustomer = {
-      customerId: newCustomer.customerId,
-      customerPhone: newCustomer.customerPhone,
-      customerAvatar: newCustomer.customerAvatar,
-    };
+        return { newUser, verificationLink };
+      })
+      .then(async ({ newUser, verificationLink }) => {
+        await emailService.sendVerificationEmail(
+          newUser.userEmail,
+          verificationLink,
+          newUser.userName
+        );
+      });
 
     return {
-      user: returnedUser,
-      customer: returnedCustomer,
       message: "Signup successful. Please verify your email.",
     };
   }
@@ -99,19 +89,23 @@ class AuthService {
 
     if (!email || !password) throw BadRequestError("Email and password are required!");
 
-    const user = await userService.findUserByEmail(email, {
+    const user = await userRepository.findUserByEmail<UserWithRelations>(email, {
       ...USER_DEFAULT_SELECT,
       userPassword: true,
     });
 
     if (!user) throw UnauthorizedError("Invalid credentials!");
 
+    if (!user.isActive) throw UnauthorizedError("You do not have access to login to the system!");
+
+    if (!user.isConfirmed) throw UnauthorizedError("You have not confirmed your email!");
+
     const match = await PasswordUtils.compare(password, user.userPassword);
     if (!match) throw UnauthorizedError("Invalid credentials!");
 
     let userRoleKeys: string[] = [];
     if (user?.userRoles) {
-      userRoleKeys = user.userRoles.map((role) => role.role.roleKey);
+      userRoleKeys = user.userRoles.map((role: any) => role.role.roleKey);
     }
 
     const tokenPayload: TokenPayload = {
@@ -125,16 +119,16 @@ class AuthService {
       tokenPayload.isAdmin = true;
     }
 
-    if (user?.customer && user.customer?.customerId) {
+    if (user?.customer) {
       tokenPayload.customerId = user.customer.customerId;
     }
 
-    if (user?.restaurant && user.restaurant?.restaurantId) {
+    if (user?.restaurant) {
       tokenPayload.restaurantId = user.restaurant.restaurantId;
     }
 
     const accessToken = jwtUtils.generateAccessToken(tokenPayload);
-    const refreshToken = generateRefreshToken(tokenPayload);
+    const refreshToken = jwtUtils.generateRefreshToken(tokenPayload);
 
     // Delete old refresh token
     await userTokenService.deleteRefreshTokensByUserId(user.userId);
@@ -159,7 +153,7 @@ class AuthService {
   }
 
   async me(userId: string): Promise<UserDTO> {
-    const user = await userRepository.findUserById(userId, USER_DEFAULT_SELECT);
+    const user = await userRepository.findUserById<UserWithRelations>(userId, USER_DEFAULT_SELECT);
 
     if (!user) {
       throw new CustomError({
@@ -218,92 +212,52 @@ class AuthService {
     console.log(`✅ Verification email resent to: ${email}`);
   }
 
-  async refreshToken(requestRefreshToken?: string): Promise<AuthResponse> {
-    const refreshToken = requestRefreshToken;
-
-    if (!refreshToken) throw UnauthorizedError("Refresh token is required");
-
-    const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
-
-    if (!isValid) throw UnauthorizedError("Invalid or expired refresh token");
-
-    // Generate new access token
-    const result = await this.refreshAccessToken(refreshToken);
-
-    // Generate new refresh token (optional: token rotation)
-    const newRefreshToken = generateRefreshToken({
-      userId: result.user.userId,
-      customerId: result.user.customerId,
-      userName: result.user.userName,
-      userEmail: result.user.userEmail,
-    });
-
-    const tokenData = await userTokenService.findTokenByToken(refreshToken);
-    if (tokenData) {
-      await userTokenService.revokeToken(refreshToken, "token_rotated");
-      await userTokenService.createToken({
-        userId: tokenData.userId,
-        token: newRefreshToken,
-        expiresAt: new Date(
-          Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRY || "15", 10) * 24 * 60 * 60 * 1000
-        ), // 15 days
-        tokenType: TokenType.REFRESH,
-      });
+  async refreshToken(token: string | null): Promise<{
+    accessToken: string;
+    user: UserDTO;
+  }> {
+    if (!token) {
+      throw UnauthorizedError("Invalid refresh token!");
     }
 
-    // Prepare new cookie
-    const refreshTokenCookie = cookieService.createRefreshTokenCookie(newRefreshToken);
+    // validate refresh token
+    const userData = jwtUtils.verifyRefreshToken(token);
 
-    const response: AuthResponse = {
-      data: result,
+    // Generate new access token
+    const payload: UserSession = {
+      userId: userData.userId,
+      userName: userData.userName,
+      userEmail: userData.userEmail,
+      userRoles: userData.userRoles,
     };
 
-    if (refreshTokenCookie) {
-      response.cookies = [refreshTokenCookie];
+    if (userData.isAdmin) {
+      payload.isAdmin = userData.isAdmin;
     }
 
-    return response;
-  }
+    if (userData.customerId) {
+      payload.customerId = userData.customerId;
+    }
 
-  async refreshAccessToken(refreshToken: string) {
-    // Verify JWT
-    const decoded = verifyRefreshToken(refreshToken);
+    if (userData.restaurantId) {
+      payload.restaurantId = userData.restaurantId;
+    }
 
-    if (typeof decoded === "string" || !decoded.userId)
-      throw UnauthorizedError("Invalid Refresh Token");
-
-    const isValid = await userTokenService.isValid(refreshToken, TokenType.REFRESH);
-    if (!isValid) throw UnauthorizedError("Invalid or expired refresh token");
-
-    // Generate new access token
-    const accessToken = generateAccessToken({
-      userId: decoded.userId,
-      customerId: decoded.customerId,
-      userName: decoded.userName,
-      userEmail: decoded.userEmail,
-      roles: decoded.roles || [],
-      isAdmin: decoded.isAdmin || false,
-    });
-
-    const accessTokenExpiresAt = new Date(
-      Date.now() + parseInt(process.env.ACCESS_TOKEN_EXPIRY || "15", 10) * 60 * 1000
-    );
+    const accessToken = jwtUtils.generateAccessToken(payload);
 
     return {
       accessToken,
-      accessTokenExpiresAt,
-      user: {
-        userId: decoded.userId,
-        customerId: decoded.customerId,
-        userName: decoded.userName,
-        userEmail: decoded.userEmail,
-      },
+      user: new UserDTO(userData as UserWithRelations),
     };
   }
 
+  // async refreshAccessToken(refreshToken: string) {
+
+  // }
+
   async logout(refreshToken?: string): Promise<AuthResponse> {
     if (refreshToken) {
-      await userTokenService.revokeToken(refreshToken, "user_logout");
+      await userTokenService.revokeToken(refreshToken);
     }
 
     // Prepare cookie clearance
@@ -333,35 +287,9 @@ class AuthService {
     };
   }
 
-  async getActiveSessions(userId: string): Promise<AuthResponse> {
-    const sessions = await userTokenService.findByUserIdAndType(userId, TokenType.REFRESH, true);
-
-    return {
-      data: { sessions },
-    };
-  }
-
   async cleanupExpiredTokens(): Promise<void> {
     await userTokenService.deleteExpiredTokens();
     await userTokenService.deleteOldRevokedTokens();
-  }
-
-  extractRefreshToken(req: Request) {
-    // 1. Check cookies first (primary method)
-    const cookieToken = cookieService.getCookieValue(req, this.REFRESH_TOKEN_COOKIE_NAME);
-    if (cookieToken) return cookieToken;
-
-    // 2. Check authorization header (fallback)
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith("Refresh ")) {
-      return authHeader.split(" ")[1];
-    }
-
-    // 3. Check body (fallback)
-    const bodyToken = req.body.refreshToken;
-    if (bodyToken) return bodyToken;
-
-    return null;
   }
 
   // Helper to apply cookies to response
@@ -397,7 +325,7 @@ class AuthService {
 
   // Validate session is still active
   async validateSession(refreshToken: string): Promise<boolean> {
-    return userTokenService.isValid(refreshToken, TokenType.REFRESH);
+    return userTokenService.isValid(refreshToken, "REFRESH");
   }
 
   // Get session count for user
@@ -419,11 +347,7 @@ class AuthService {
     }
 
     // Revoke any existing forgot password tokens for this user
-    await userTokenService.revokeAllUserTokensByType(
-      user.userId,
-      "FORGOT_PASSWORD",
-      "new_reset_requested"
-    );
+    await userTokenService.revokeAllUserTokensByType(user.userId, "FORGOT_PASSWORD");
 
     const token = jwtUtils.generateToken(
       {
@@ -477,14 +401,10 @@ class AuthService {
 
     await userService.updateUser(tokenData.userId, { userPassword: hashedPassword });
 
-    await userTokenService.revokeToken(token, "password_reset_completed");
+    await userTokenService.revokeToken(token);
 
     // Security: Revoke all refresh tokens (logout from all devices)
-    await userTokenService.revokeAllUserTokensByType(
-      tokenData.userId,
-      "REFRESH",
-      "password_changed"
-    );
+    await userTokenService.revokeAllUserTokensByType(tokenData.userId, "REFRESH");
   }
 }
 

@@ -4,10 +4,11 @@ import { ratingService } from "./rating.service";
 import { CustomError } from "../utils/errors";
 import { CreateCustomerRatingDto } from "../dto/rating.dto";
 import { orderService } from "./order.service";
+import { Prisma } from "../generated/prisma";
 
 class CustomerService {
-  async createCustomer(data: any) {
-    return await customerRepository.createCustomer(data);
+  async createCustomer(data: any, tx?: Prisma.TransactionClient) {
+    return await customerRepository.createCustomer(data, tx);
   }
 
   async getCustomerByCustomerId(customerId: string) {

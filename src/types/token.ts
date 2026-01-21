@@ -1,4 +1,4 @@
-import { TokenType } from "../generated/prisma";
+import { TokenType, RoleKey } from "../generated/prisma";
 
 export interface TokenPayload {
   userId: string;
@@ -7,7 +7,7 @@ export interface TokenPayload {
   isAdmin?: boolean;
   customerId?: string;
   restaurantId?: string;
-  userRoles: string[];
+  userRoles: RoleKey[];
 }
 
 export interface GenerateTokenOpts {
@@ -46,7 +46,7 @@ export interface CreateTokenData {
 
 export interface RefreshTokenFilter {
   userId?: string;
-  isRevoked?: boolean;
+  // isRevoked?: boolean;
   expired?: boolean;
 }
 

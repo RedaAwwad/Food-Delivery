@@ -7,6 +7,8 @@ import { PasswordUtils } from "../src/utils/password.utils";
 async function main() {
   await prisma.userRole.deleteMany({});
   await prisma.role.deleteMany({});
+  await prisma.userRole.deleteMany({});
+  await prisma.userToken.deleteMany({});
   await prisma.customer.deleteMany({});
   await prisma.user.deleteMany({
     where: { OR: [{ userEmail: "admin@admin.com" }, { userEmail: "customer@gmail.com" }] },
@@ -33,6 +35,8 @@ async function main() {
         userName: "System Admin",
         userEmail: "admin@admin.com",
         userPassword: await PasswordUtils.hash("Pass@123"),
+        isAdmin: true,
+        isConfirmed: true,
       },
       {
         userName: "New Customer",

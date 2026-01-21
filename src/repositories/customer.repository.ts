@@ -1,5 +1,6 @@
 import { prisma } from "../config/prisma.config";
 import { restaurantRepository } from "./restaurant.repository";
+import { Prisma } from "../generated/prisma";
 
 export class CustomerRepository {
   async findCustomerOrders(customerId: string) {
@@ -44,8 +45,8 @@ export class CustomerRepository {
     return prisma.customer.findUnique({ where: { userId } });
   }
 
-  async createCustomer(data: any) {
-    return prisma.customer.create({ data });
+  async createCustomer(data: any, tx?: Prisma.TransactionClient) {
+    return (tx || prisma).customer.create({ data });
   }
 
   async updateDeactivateAccount(customerId: string) {

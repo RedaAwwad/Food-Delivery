@@ -112,12 +112,6 @@ authRouter.get("/me", isAuthenticated, authController.me);
  *     summary: Refresh access token
  *     tags:
  *       - Auth
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: "#/components/schemas/RefreshTokenInput"
  *     responses:
  *       200:
  *         description: Access token refreshed successfully
@@ -251,31 +245,6 @@ authRouter.post("/logout", isAuthenticated, authController.logout);
  *               $ref: "#/components/schemas/ErrorResponse"
  */
 authRouter.post("/logout-all", isAuthenticated, authController.logoutAll);
-
-/**
- * @swagger
- * /api/auth/sessions:
- *   get:
- *     summary: Get active sessions
- *     tags:
- *       - Auth
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Active sessions retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/GetActiveSessionsResponse"
- *       401:
- *         description: Unauthorized
- *         content:
- *           application/json:
- *             schema:
- *               $ref: "#/components/schemas/ErrorResponse"
- */
-authRouter.get("/sessions", isAuthenticated, authController.getActiveSessions);
 
 /**
  * @swagger

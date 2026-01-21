@@ -33,7 +33,6 @@ class UserTokenRepository {
       where: {
         token,
         tokenType,
-        isRevoked: false,
         expiresAt: { gte: now },
       },
     });
@@ -46,61 +45,28 @@ class UserTokenRepository {
     });
   }
 
-  // Find all tokens for a user by type
-  async findByUserIdAndType(userId: string, tokenType: TokenType, onlyValid: boolean = false) {
-    const where: any = { userId, tokenType };
-
-    if (onlyValid) {
-      const now = new Date();
-      where.isRevoked = false;
-      where.expiresAt = { gte: now };
-    }
-
-    return prisma.userToken.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-    });
-  }
-
   // Revoke a specific token
-  async revokeToken(token: string, reason?: string) {
-    return prisma.userToken.update({
+  async revokeToken(token: string) {
+    return prisma.userToken.delete({
       where: { token },
-      data: {
-        isRevoked: true,
-        revokedAt: new Date(),
-        revokedReason: reason || "manual_revocation",
-      },
     });
   }
 
   // Revoke all tokens of a specific type for a user
-  async revokeAllUserTokensByType(userId: string, tokenType: TokenType, reason?: string) {
-    return prisma.userToken.updateMany({
+  async revokeAllUserTokensByType(userId: string, tokenType: TokenType) {
+    return prisma.userToken.deleteMany({
       where: {
         userId,
         tokenType,
-        isRevoked: false,
-      },
-      data: {
-        isRevoked: true,
-        revokedAt: new Date(),
-        revokedReason: reason || "bulk_revocation",
       },
     });
   }
 
   // Revoke all tokens for a user (all types)
-  async revokeAllUserTokens(userId: string, reason?: string) {
-    return prisma.userToken.updateMany({
+  async revokeAllUserTokens(userId: string) {
+    return prisma.userToken.deleteMany({
       where: {
         userId,
-        isRevoked: false,
-      },
-      data: {
-        isRevoked: true,
-        revokedAt: new Date(),
-        revokedReason: reason || "logout_all",
       },
     });
   }
@@ -115,7 +81,6 @@ class UserTokenRepository {
     const tokenData = await prisma.userToken.findFirst({ where });
 
     if (!tokenData) return false;
-    if (tokenData.isRevoked) return false;
     if (tokenData.expiresAt < new Date()) return false;
 
     return true;
@@ -136,7 +101,7 @@ class UserTokenRepository {
 
     return prisma.userToken.deleteMany({
       where: {
-        isRevoked: true,
+        // isRevoked: true,
         revokedAt: { lt: cutoffDate },
       },
     });
@@ -150,7 +115,7 @@ class UserTokenRepository {
       where: {
         userId,
         tokenType,
-        isRevoked: false,
+        // isRevoked: false,
         expiresAt: { gte: now },
       },
     });

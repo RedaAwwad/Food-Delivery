@@ -45,7 +45,7 @@
     "moduleDetection": "force",
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "types/express.d.ts"],
   "exclude": ["node_modules", "dist"],
   "ts-node": {
     "files": true

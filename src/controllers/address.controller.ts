@@ -1,86 +1,43 @@
-import { Request, Response, NextFunction } from "express";
+import { Response, Request } from "express";
 import { addressService } from "../services/address.service";
 import { SuccessResponse } from "../utils/response/success-response";
 import { StatusCodes } from "http-status-codes";
-import { CustomError } from "../utils/errors/custom-error";
+import { CreateAddressDTO } from "../dto/address.dto";
 
 export class AddressController {
-  async createAddress(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = (req as any).user?.customerId
+  async createAddress(req: Request<unknown, unknown, CreateAddressDTO>, res: Response) {
+    const customerId = req.user!.customerId!;
+    const address = await addressService.createAddress({
+      ...req.body,
+      customerId: customerId,
+    });
 
-      if (!customerId) {
-        throw new CustomError({
-          message: "User ID not found in token",
-          statusCode: StatusCodes.UNAUTHORIZED,
-        });
-      }
-
-      const address = await addressService.createAddress({
-        ...req.body,
-        customerId: customerId,
-      });
-      res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: address }));
-    } catch (error) {
-      next(error);
-    }
+    res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: address }));
   }
 
-  async getMyAddresses(req: Request, res: Response, next: NextFunction) {
-    try {
-      const customerId = (req as any).user?.customerId || (req as any).user?.userId;
-      if (!customerId) {
-        throw new CustomError({
-          message: "User ID not found in token",
-          statusCode: StatusCodes.UNAUTHORIZED,
-        });
-      }
-      const addresses = await addressService.getAddressesByCustomerId(customerId);
-      res.status(StatusCodes.OK).json(new SuccessResponse({ data: addresses }));
-    } catch (error) {
-      next(error);
-    }
+  async getMyAddresses(req: Request, res: Response) {
+    const customerId = req.user!.customerId!;
+    const addresses = await addressService.getAddressesByCustomerId(customerId);
+
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: addresses }));
   }
 
-  async updateAddress(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { addressId } = req.params;
-      const customerId = (req as any).user?.customerId
-      if (!customerId) {
-        throw new CustomError({
-          message: "User ID not found in token",
-          statusCode: StatusCodes.UNAUTHORIZED,
-        });
-      }
+  async updateAddress(req: Request<any, any, any>, res: Response) {
+    const { addressId } = req.params;
+    const customerId = req.user!.customerId!;
 
-      const address = await addressService.updateAddress(
-        addressId!,
-        customerId,
-        req.body
-      );
-      res.status(StatusCodes.OK).json(new SuccessResponse({ data: address }));
-    } catch (error) {
-      next(error);
-    }
+    const address = await addressService.updateAddress(addressId!, customerId, req.body);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: address }));
   }
 
-  async deleteAddress(req: Request, res: Response, next: NextFunction) {
-    try {
-      const { addressId } = req.params;
-      const customerId = (req as any).user?.customerId
-      if (!customerId) {
-        throw new CustomError({
-          message: "User ID not found in token",
-          statusCode: StatusCodes.UNAUTHORIZED,
-        });
-      }
-      await addressService.deleteAddress(addressId!, customerId);
-      res
-        .status(StatusCodes.OK)
-        .json(new SuccessResponse({ message: "Address deleted successfully" }));
-    } catch (error) {
-      next(error);
-    }
+  async deleteAddress(req: Request, res: Response) {
+    const { addressId } = req.params;
+    const customerId = req.user!.customerId!;
+
+    await addressService.deleteAddress(addressId!, customerId);
+    res
+      .status(StatusCodes.OK)
+      .json(new SuccessResponse({ message: "Address deleted successfully" }));
   }
 }
 

@@ -2,6 +2,8 @@ import { InternalServerError, UnauthorizedError } from "../errors";
 import { Request } from "express";
 import { TokenPayload } from "../../types/token";
 import { sign, Secret, SignOptions, JwtPayload, verify } from "jsonwebtoken";
+import { UserSession } from "../../types/user.type";
+import { REFRESH_TOKEN_COOKIE_NAME } from "../constants";
 
 class JWTUtils {
   private jwtSecret: string;
@@ -27,8 +29,8 @@ class JWTUtils {
     return authHeader.split(" ")[1] ?? null;
   }
 
-  getRefreshTokenFromCookies(req: Request): string | null {
-    const refreshToken = req.cookies?.refreshToken;
+  getRefreshTokenFromCookies(req: Request, key: string = REFRESH_TOKEN_COOKIE_NAME): string | null {
+    const refreshToken = req.cookies[key];
     if (!refreshToken) {
       return null;
     }
@@ -67,6 +69,7 @@ class JWTUtils {
     try {
       return verify(token, secret);
     } catch (err: any) {
+      console.log(err);
       if (err.name === "TokenExpiredError") {
         throw UnauthorizedError("Your token has expired!");
       }
@@ -76,20 +79,20 @@ class JWTUtils {
     }
   }
 
-  generateAccessToken(payload: TokenPayload): string {
+  generateAccessToken(payload: UserSession): string {
     return this.generateToken(payload, this.accessTokenExpiry, this.accessTokenSecret);
   }
 
-  generateRefreshToken(payload: TokenPayload): string {
+  generateRefreshToken(payload: UserSession): string {
     return this.generateToken(payload, this.refreshTokenExpiry, this.refreshTokenSecret);
   }
 
-  verifyAccessToken(token: string) {
-    return this.verifyToken(token, this.accessTokenSecret);
+  verifyAccessToken<T = UserSession>(token: string): T {
+    return this.verifyToken(token, this.accessTokenSecret) as T;
   }
 
-  verifyRefreshToken(token: string) {
-    return this.verifyToken(token, this.refreshTokenSecret);
+  verifyRefreshToken<T = UserSession>(token: string): T {
+    return this.verifyToken(token, this.refreshTokenSecret) as T;
   }
 }
 

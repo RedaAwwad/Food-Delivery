@@ -1,15 +1,15 @@
 import Joi from "joi";
 
 export const signUpSchema = Joi.object({
-  userName: Joi.string().required(),
-  userEmail: Joi.string()
+  name: Joi.string().required(),
+  email: Joi.string()
     .email({
       minDomainSegments: 2,
       maxDomainSegments: 4,
       tlds: { allow: ["com", "net"] },
     })
     .required(),
-  userPassword: Joi.string()
+  password: Joi.string()
     .pattern(new RegExp(/^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?=.*[a-zA-Z]).{8,}$/)) // at least 8 characters, 1 uppercase, 1 lowercase, 1 number
     .required()
     .min(8)
@@ -20,9 +20,9 @@ export const signUpSchema = Joi.object({
       "string.min": "Password must be at least 8 characters long",
       "string.max": "Password must be at most 32 characters long",
     }),
-  userConfirmPassword: Joi.string().valid(Joi.ref("userPassword")).required().messages({
+  passwordConfirmation: Joi.string().valid(Joi.ref("password")).required().messages({
     "any.only": "Passwords do not match",
     "any.required": "Confirm password is required",
   }),
-  userPhoneNumber: Joi.string().required(),
+  phone: Joi.string().required(),
 }).required();

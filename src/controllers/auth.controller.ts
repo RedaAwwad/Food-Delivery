@@ -4,14 +4,15 @@ import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
 import { CustomError } from "../utils/errors/custom-error";
 import { TokenPayload } from "../types/token";
+import { jwtUtils } from "../utils/jwt/jwt.utils";
+import { UnauthorizedError } from "../utils/errors";
 
 class AuthController {
   async signup(req: Request, res: Response) {
     const signupDto = req.body;
 
-    const result = await authService.signup(signupDto);
-
-    return res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: result }));
+    const data = await authService.signup(signupDto);
+    return res.status(StatusCodes.CREATED).json(new SuccessResponse({ data }));
   }
 
   async login(req: Request, res: Response) {
@@ -24,10 +25,9 @@ class AuthController {
   }
 
   async me(req: Request, res: Response) {
-    // @ts-ignore
-    const userId = req.user.userId;
-    const user = await authService.me(userId);
+    const userId = req.user!.userId;
 
+    const user = await authService.me(userId);
     return res.status(StatusCodes.OK).json(new SuccessResponse({ data: user }));
   }
 
@@ -56,12 +56,9 @@ class AuthController {
   }
 
   async refreshToken(req: Request, res: Response) {
-    const refreshToken = authService.extractRefreshToken(req);
+    const refreshToken = jwtUtils.getRefreshTokenFromCookies(req);
 
     const result = await authService.refreshToken(refreshToken);
-
-    authService.applyCookies(res, result);
-
     return res.status(StatusCodes.OK).json(new SuccessResponse({ data: result.data }));
   }
 
@@ -87,20 +84,6 @@ class AuthController {
     return res
       .status(StatusCodes.OK)
       .json(new SuccessResponse({ message: "Logged out from all devices" }));
-  }
-
-  async getActiveSessions(req: Request, res: Response) {
-    if (!req.user) {
-      throw new CustomError({
-        message: "User context not found",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-    const userId = req.user.userId;
-
-    const result = await authService.getActiveSessions(userId);
-
-    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: result.data }));
   }
 
   async forgetPassword(req: Request, res: Response) {

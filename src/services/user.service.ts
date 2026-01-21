@@ -6,8 +6,8 @@ class UserService {
     return await userRepository.findUserWithRestaurant(body.userId, body.userRole);
   }
 
-  async createUser(data: any) {
-    return await userRepository.createUser(data);
+  async createUser(data: any, tx?: Prisma.TransactionClient) {
+    return await userRepository.createUser(data, tx);
   }
 
   async updateUser(userId: string, data: any) {
