@@ -18,8 +18,8 @@ class UserService {
     return await userRepository.updateIsActive(userId, isActive);
   }
 
-  async findAndUpdateUserByEmail(email: string, data: any) {
-    return await userRepository.findAndUpdateUserByEmail(email, data);
+  async findAndUpdateUserByEmail(userId: string, email: string, data: any) {
+    return await userRepository.findAndUpdateUserByEmail(userId, email, data);
   }
 
   async findUserByEmail(email: string, select?: Prisma.UserSelect) {

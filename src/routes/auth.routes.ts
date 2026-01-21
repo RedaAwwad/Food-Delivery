@@ -161,7 +161,11 @@ authRouter.post("/refresh-token", authController.refreshToken);
  *             schema:
  *               $ref: "#/components/schemas/ErrorResponse"
  */
-authRouter.get("/verify-email", validateRequest(confirmEmailSchema), authController.verifyEmail);
+authRouter.get(
+  "/verify-email",
+  validateRequest(confirmEmailSchema, "query"),
+  authController.verifyEmail
+);
 
 /**
  * @swagger

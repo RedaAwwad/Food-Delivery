@@ -65,9 +65,9 @@ class JWTUtils {
     }
   }
 
-  verifyToken(token: string, secret: string = this.jwtSecret): JwtPayload | string {
+  verifyToken<T = JwtPayload>(token: string, secret: string = this.jwtSecret): T {
     try {
-      return verify(token, secret);
+      return verify(token, secret) as T;
     } catch (err: any) {
       console.log(err);
       if (err.name === "TokenExpiredError") {

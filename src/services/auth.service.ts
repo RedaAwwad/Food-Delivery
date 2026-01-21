@@ -5,7 +5,13 @@ import { SignupDTO } from "../dto/signup.dto";
 import { PasswordUtils } from "../utils/password.utils";
 import { emailService } from "./email.service";
 import { roleService } from "./role.service";
-import { BadRequestError, ConflictError, CustomError, UnauthorizedError } from "../utils/errors";
+import {
+  BadRequestError,
+  ConflictError,
+  CustomError,
+  InternalServerError,
+  UnauthorizedError,
+} from "../utils/errors";
 import { userService } from "./user.service";
 import { customerService } from "./customer.service";
 import { userTokenService } from "./user-token.service";
@@ -54,19 +60,11 @@ class AuthService {
         const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "CUSTOMER", tx);
         if (!isRoleAssigned) throw BadRequestError("Failed to assign default Customer role");
 
-        const token = jwtUtils.generateToken(
-          {
-            userId: newUser.userId,
-            userEmail: newUser.userEmail,
-          },
-          "1d"
-        );
-
-        const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
-
-        return { newUser, verificationLink };
+        return { newUser };
       })
-      .then(async ({ newUser, verificationLink }) => {
+      .then(async ({ newUser }) => {
+        const verificationLink = this.generateVerificationToken(newUser.userId, newUser.userEmail);
+
         await emailService.sendVerificationEmail(
           newUser.userEmail,
           verificationLink,
@@ -160,51 +158,36 @@ class AuthService {
   }
 
   async verifyEmail(token: string): Promise<void> {
-    const tokenData = jwtUtils.verifyToken(token);
+    const tokenData = jwtUtils.verifyToken<{ userId: string; userEmail: string }>(token);
 
-    if (!tokenData || typeof tokenData === "string" || !tokenData.userId || !tokenData.userEmail)
-      throw BadRequestError("Invalid or expired verification token");
+    const user = await userService.findUserByEmail(tokenData.userEmail, {
+      isConfirmed: true,
+      userEmail: true,
+      userId: true,
+    });
+    if (!user) throw BadRequestError("User not found!");
+
+    if (user.isConfirmed) throw BadRequestError("User is already verified!");
 
     try {
-      await userService.findAndUpdateUserByEmail(tokenData.userEmail, { isConfirmed: true });
+      await userService.findAndUpdateUserByEmail(user.userId, user.userEmail, {
+        isConfirmed: true,
+      });
     } catch (error) {
-      throw BadRequestError("User not found");
+      throw InternalServerError("Failed to verify email!");
     }
-
-    console.log(`✅ Email verified for user ${tokenData.userId}`);
   }
 
   async resendVerification(email: string): Promise<void> {
-    console.log(`📧 Resending verification email to: ${email}`);
-
     const user = await userService.findUserByEmail(email);
 
-    if (!user) {
-      console.log(`⚠️ User not found for email: ${email}, but returning success for security`);
-      return;
-    }
+    if (!user) return;
 
-    // Check if user is already verified
     if (user.isConfirmed) throw BadRequestError("Email is already verified");
 
-    // Create new verification token
-    const expiryTime = parseInt(process.env.EMAIL_VERIFICATION_TOKEN_EXPIRY || "86400000", 10);
-    const expiresAt = new Date(Date.now() + expiryTime);
+    const verificationLink = this.generateVerificationToken(user.userId, user.userEmail);
 
-    const token = jwtUtils.generateToken(
-      {
-        userId: user.userId,
-        userEmail: user.userEmail,
-      },
-      "1h"
-    );
-
-    const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
-
-    // Send verification email
     await emailService.sendVerificationEmail(user.userEmail, verificationLink, user.userName);
-
-    console.log(`✅ Verification email resent to: ${email}`);
   }
 
   async refreshToken(token: string | null): Promise<{
@@ -320,6 +303,22 @@ class AuthService {
 
     // Security: Revoke all refresh tokens (logout from all devices)
     await userTokenService.revokeAllUserTokensByType(tokenData.userId, "REFRESH");
+  }
+
+  generateVerificationToken(userId: string, email: string): string {
+    const token = jwtUtils.generateToken(
+      {
+        userId,
+        userEmail: email,
+      },
+      "1d"
+    );
+
+    const verificationLink = `${process.env.EMAIL_VERIFICATION_URL}?token=${token}`;
+
+    console.log("verificationLink", verificationLink);
+
+    return verificationLink;
   }
 }
 

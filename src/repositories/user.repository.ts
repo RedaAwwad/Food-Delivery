@@ -57,9 +57,9 @@ export class UserRepository {
     });
   }
 
-  async findAndUpdateUserByEmail(email: string, data: any) {
+  async findAndUpdateUserByEmail(userId: string, email: string, data: any) {
     return prisma.user.update({
-      where: { userEmail: email },
+      where: { userId, userEmail: email },
       data,
     });
   }

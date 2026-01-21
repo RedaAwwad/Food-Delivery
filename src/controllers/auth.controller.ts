@@ -2,10 +2,7 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
-import { CustomError } from "../utils/errors/custom-error";
-import { TokenPayload } from "../types/token";
 import { jwtUtils } from "../utils/jwt/jwt.utils";
-import { UnauthorizedError } from "../utils/errors";
 import { CookieUtils } from "../utils/cookie/cookie.utils";
 import { REFRESH_TOKEN_COOKIE_NAME } from "../utils/constants";
 
@@ -62,8 +59,7 @@ class AuthController {
 
     return res.json(
       new SuccessResponse({
-        message:
-          "If an account with that email exists and is not verified, a new verification email has been sent.",
+        message: "If you have this email registered, a new verification email will be sent.",
       })
     );
   }
