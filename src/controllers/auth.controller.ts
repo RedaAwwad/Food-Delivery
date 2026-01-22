@@ -10,8 +10,12 @@ class AuthController {
   async signup(req: Request, res: Response) {
     const signupDto = req.body;
 
-    const data = await authService.signup(signupDto);
-    return res.status(StatusCodes.CREATED).json(new SuccessResponse({ data }));
+    await authService.signup(signupDto);
+    return res.status(StatusCodes.CREATED).json(
+      new SuccessResponse({
+        message: "Signup successful. Please verify your email.",
+      })
+    );
   }
 
   async login(req: Request, res: Response) {
@@ -68,7 +72,12 @@ class AuthController {
     const refreshToken = jwtUtils.getRefreshTokenFromCookies(req);
 
     const { accessToken, user } = await authService.refreshToken(refreshToken);
-    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: { accessToken, user } }));
+    return res.status(StatusCodes.OK).json(
+      new SuccessResponse({
+        message: "Access token refreshed successfully.",
+        data: { accessToken, user },
+      })
+    );
   }
 
   async logout(req: Request, res: Response) {
@@ -92,7 +101,7 @@ class AuthController {
 
     return res
       .status(StatusCodes.OK)
-      .json(new SuccessResponse({ message: "Logged out from all devices" }));
+      .json(new SuccessResponse({ message: "Logged out from all sessions successfully." }));
   }
 
   async forgetPassword(req: Request, res: Response) {
