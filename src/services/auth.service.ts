@@ -71,10 +71,6 @@ class AuthService {
           newUser.userName
         );
       });
-
-    return {
-      message: "Signup successful. Please verify your email.",
-    };
   }
 
   async login(loginDto: loginDTO): Promise<{
