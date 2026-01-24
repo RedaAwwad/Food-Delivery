@@ -3,6 +3,8 @@ import { createMenuItemDto, updateMenuItemDto } from "../dto/menuItem.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
 import { PrismaClient } from "../generated/prisma";
+import { handleQueryPagination, PaginationDto } from "../utils/pagination.utils";
+import { Prisma } from "@prisma/client";
 
 class MenuItemRepository {
   async getAllMenuItemsByMenuCategoryId(menuCategoryId: string) {
@@ -82,11 +84,11 @@ class MenuItemRepository {
     return menuItem;
   }
 
-  async searchMenuItem(query: string) {
-    const menuItem = await prisma.menuItem.findMany({
+  async searchMenuItem(keyword: string, query: PaginationDto) {
+    const menuItems = await prisma.menuItem.findMany({
       where: {
         menuItemName: {
-          contains: query,
+          contains: keyword,
           mode: "insensitive",
         },
       },
@@ -95,9 +97,19 @@ class MenuItemRepository {
         menuItemImageUrl: true,
         price: true,
       },
+      ...handleQueryPagination(query),
     });
 
-    return menuItem;
+    const total = await prisma.menuItem.count({
+      where: {
+        menuItemName: {
+          contains: keyword,
+          mode: "insensitive",
+        },
+      },
+    });
+
+    return { menuItems, total };
   }
 
   async getMenuItemsForStockCheck(menuItemIds: string[], tx: PrismaTx | PrismaClient = prisma) {

@@ -5,6 +5,7 @@ import { ConflictError, NotFoundError } from "../utils/errors";
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
 import { performanceContext } from "../utils/performance.utils";
+import { formatPagination, PaginationDto } from "../utils/pagination.utils";
 
 class MenuItemService {
   async getAllMenuItemsByMenuCategoryId(menuCategoryId: string) {
@@ -32,10 +33,17 @@ class MenuItemService {
     return menuItem;
   }
 
-  async searchMenuItem(query: string) {
+  async searchMenuItem(keyword: string, query: PaginationDto) {
     return await performanceContext(async () => {
-      const menuItem = await menuItemRepository.searchMenuItem(query);
-      return menuItem;
+      const { menuItems, total } = await menuItemRepository.searchMenuItem(keyword, query);
+      return {
+        data: menuItems,
+        meta: formatPagination({
+          page: Number(query.page),
+          perPage: Number(query.perPage),
+          total,
+        }),
+      };
     });
   }
 

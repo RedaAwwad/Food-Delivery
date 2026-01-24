@@ -5,7 +5,6 @@ import { validateRequest } from "../middleware/validate-request";
 import {
   createMenuItemSchema,
   deleteMenuItemSchema,
-  searchMenuItemSchema,
   updateMenuItemSchema,
 } from "../validation/menuItem.schemas";
 
@@ -37,11 +36,7 @@ menuItemRouter.delete(
   validateRequest(deleteMenuItemSchema),
   menuItemController.deleteMenuItem
 );
-menuItemRouter.get(
-  "/search",
-  validateRequest(searchMenuItemSchema),
-  menuItemController.searchMenuItem
-);
+menuItemRouter.get("/search/:keyword", menuItemController.searchMenuItem);
 
 export default menuItemRouter;
 

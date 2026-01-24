@@ -5,14 +5,23 @@ import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
 import { PasswordUtils } from "../src/utils/password.utils";
 
 async function main() {
-  await prisma.userRole.deleteMany({});
-  await prisma.role.deleteMany({});
-  await prisma.userToken.deleteMany({});
-  await prisma.customer.deleteMany({});
-  await prisma.user.deleteMany({
-    where: { OR: [{ userEmail: "admin@admin.com" }, { userEmail: "customer@gmail.com" }] },
-  });
+  console.log("Cleaning up database...");
+  // Ordered cleanup to avoid foreign key constraint violations
+  await prisma.orderItem.deleteMany({});
+  await prisma.orderTracking.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.cartItem.deleteMany({});
+  await prisma.cart.deleteMany({});
+  await prisma.menuItem.deleteMany({});
+  await prisma.menuCategory.deleteMany({});
+  await prisma.menu.deleteMany({});
   await prisma.restaurant.deleteMany({});
+  await prisma.customer.deleteMany({});
+  await prisma.userToken.deleteMany({});
+  await prisma.userRole.deleteMany({});
+  await prisma.user.deleteMany({});
+  await prisma.role.deleteMany({});
+  await prisma.orderStatus.deleteMany({});
 
   const defaultRoles = await prisma.role.createManyAndReturn({
     data: [
@@ -58,11 +67,10 @@ async function main() {
   const startTime = performance.now();
 
   const BATCH_SIZE = 100;
-  const TOTAL_RESTAURANTS = 10000;
+  const TOTAL_RECORDS = 1000;
 
-  for (let i = 0; i < TOTAL_RESTAURANTS; i += BATCH_SIZE) {
-    const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_RESTAURANTS - i);
-    console.log(`Processing batch ${i / BATCH_SIZE + 1} (${i} to ${i + currentBatchSize})...`);
+  for (let i = 0; i < TOTAL_RECORDS; i += BATCH_SIZE) {
+    const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_RECORDS - i);
 
     await Promise.all(
       Array.from({ length: currentBatchSize }).map(async (_, index) => {
@@ -81,7 +89,7 @@ async function main() {
             },
             restaurant: {
               create: {
-                restaurantName: faker.company.name(),
+                restaurantName: `${faker.company.name()} ${globalIndex}`,
                 restaurantBio: faker.lorem.sentence(),
                 isAvailable: true,
               },
@@ -114,8 +122,6 @@ async function main() {
     ],
   });
 
-  // console.log(users);
-
   const customer = await prisma.customer.create({
     data: {
       userId: customerUserId,
@@ -130,13 +136,68 @@ async function main() {
 
   // console.log(customer);
 
-  // const users = prisma.user.createManyAndReturn({
-  //   data: Array.from({ length: 10 }).map(() => ({
-  //     name: faker.person.fullName(),
-  //     email: faker.internet.email(),
-  //     password: faker.internet.password(),
-  //   })),
-  // });
+  const restaurant = await prisma.restaurant.create({
+    data: {
+      restaurantName: faker.company.name(),
+      restaurantBio: faker.lorem.sentence(),
+      isAvailable: true,
+      manager: {
+        connect: {
+          userId: users.find((user) => user.userEmail === "admin@admin.com")?.userId as string,
+        },
+      },
+    },
+    select: {
+      restaurantId: true,
+    },
+  });
+
+  console.log(restaurant);
+
+  // create menu
+  const menuCategory = await prisma.menuCategory.create({
+    data: {
+      menuCategoryName: faker.lorem.sentence(),
+      menuCategoryImageUrl: faker.image.url(),
+      menu: {
+        create: {
+          menuDesc: faker.lorem.sentence(),
+          restaurant: {
+            connect: {
+              restaurantId: restaurant.restaurantId,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  console.log(menuCategory);
+
+  //add menu items records
+  for (let i = 0; i < TOTAL_RECORDS; i += BATCH_SIZE) {
+    const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_RECORDS - i);
+
+    await Promise.all(
+      Array.from({ length: currentBatchSize }).map(async (_, index) => {
+        await prisma.menuItem.create({
+          data: {
+            menuItemName: faker.person.fullName(),
+            menuItemImageUrl: faker.image.url(),
+            price: faker.number.int({ min: 1, max: 100 }),
+            stockQuantity: faker.number.int({ min: 10, max: 100 }),
+            menuItemDesc: faker.lorem.sentence(),
+            isActive: true,
+            menuCategory: {
+              connect: {
+                menuCategoryId: menuCategory.menuCategoryId,
+              },
+            },
+          },
+        });
+      })
+    );
+  }
 }
 main()
   .then(async () => {

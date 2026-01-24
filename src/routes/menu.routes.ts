@@ -18,6 +18,7 @@ menuRouter.get(
   validateRequest(getActiveMenuSchema),
   menuController.getActiveMenuByRestaurantId
 );
+
 menuRouter.post(
   "/",
   isAuthenticated,
