@@ -6,6 +6,8 @@ import {
 } from "../dto/restaurant.dto";
 import { restaurantRepository } from "../repositories/restaurant.repository";
 import { prisma } from "../config/prisma.config";
+import { formatPagination, PaginationDto } from "../utils/pagination.utils";
+import { Pagination } from "../utils/response/success-response";
 
 export class RestaurantService {
   async findRestaurantByManagerId(managerId: string) {
@@ -28,8 +30,26 @@ export class RestaurantService {
     return await restaurantRepository.findRestaurantByUserId(userId);
   }
 
-  async findAllRestaurants() {
-    return await restaurantRepository.findAllRestaurants();
+  async findAllRestaurants(query: PaginationDto): Promise<{
+    data: {
+      restaurantId: string;
+      restaurantName: string;
+      isAvailable: boolean;
+      averageRating: number;
+      ratingCount: number;
+    }[];
+    meta: Pagination;
+  }> {
+    const { restaurants, total } = await restaurantRepository.findAllRestaurants(query);
+
+    return {
+      data: restaurants,
+      meta: formatPagination({
+        page: Number(query.page),
+        perPage: Number(query.perPage),
+        total,
+      }),
+    };
   }
 
   async createRestaurant(data: createRestaurantDto) {

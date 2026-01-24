@@ -4,8 +4,7 @@ import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 
 const addressRouter = express.Router();
 
-addressRouter.use(isAuthenticated);
-addressRouter.use(isAuthorized(["CUSTOMER"]));
+addressRouter.use([isAuthenticated, isAuthorized(["CUSTOMER"])]);
 
 addressRouter.post("/", addressController.createAddress);
 addressRouter.get("/", addressController.getMyAddresses);

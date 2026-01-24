@@ -6,6 +6,7 @@ import { setupSwagger } from "./lib/swagger/swagger";
 import { errorHandler, NotFoundError } from "./utils/errors";
 import { initAPIRoutes } from "./routes";
 import { initServer } from "./config/server.init";
+import { prisma } from "./config/prisma.config";
 
 dotenv.config();
 const app = express();

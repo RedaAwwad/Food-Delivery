@@ -110,10 +110,10 @@ model Customer {
 model Restaurant {
   restaurantId String   @id @default(uuid()) @map("restaurant_id")
   managerId    String      @unique @map("manager_id")
-  restaurantName        String   
+  restaurantName        String  @unique 
   restaurantBio String  @map("restaurant_bio") 
   restaurantLogo        String? @map("restaurant_logo")   
-  isAvailable Boolean  @map("is_available")
+  isAvailable Boolean  @map("is_available") @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -126,6 +126,8 @@ model Restaurant {
   rating Rating[]
 
   orders Order[]
+
+  @@index([restaurantName])
 
   @@map("restaurants")
 }
@@ -211,6 +213,9 @@ model MenuItem {
   menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [menuCategoryId])
   cartItems     CartItem[]
   orderItems   OrderItem[]
+
+  @@index([menuItemName])
+
   @@map("menu_items")
 }
 

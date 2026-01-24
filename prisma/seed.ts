@@ -1,19 +1,27 @@
-// import { faker } from "@faker-js/faker";
+import { faker } from "@faker-js/faker";
 
 import { prisma } from "../src/config/prisma.config";
 import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
 import { PasswordUtils } from "../src/utils/password.utils";
 
 async function main() {
-  await prisma.userRole.deleteMany({});
-  await prisma.role.deleteMany({});
-  await prisma.userRole.deleteMany({});
-  await prisma.userToken.deleteMany({});
-  await prisma.customer.deleteMany({});
-  await prisma.user.deleteMany({
-    where: { OR: [{ userEmail: "admin@admin.com" }, { userEmail: "customer@gmail.com" }] },
-  });
+  console.log("Cleaning up database...");
+  // Ordered cleanup to avoid foreign key constraint violations
+  await prisma.orderItem.deleteMany({});
+  await prisma.orderTracking.deleteMany({});
+  await prisma.order.deleteMany({});
+  await prisma.cartItem.deleteMany({});
+  await prisma.cart.deleteMany({});
+  await prisma.menuItem.deleteMany({});
+  await prisma.menuCategory.deleteMany({});
+  await prisma.menu.deleteMany({});
   await prisma.restaurant.deleteMany({});
+  await prisma.customer.deleteMany({});
+  await prisma.userToken.deleteMany({});
+  await prisma.userRole.deleteMany({});
+  await prisma.user.deleteMany({});
+  await prisma.role.deleteMany({});
+  await prisma.orderStatus.deleteMany({});
 
   const defaultRoles = await prisma.role.createManyAndReturn({
     data: [
@@ -27,7 +35,7 @@ async function main() {
     },
   });
 
-  console.log(defaultRoles);
+  // console.log(defaultRoles);
 
   const users = await prisma.user.createManyAndReturn({
     data: [
@@ -50,6 +58,51 @@ async function main() {
     },
   });
 
+  const managerRole = defaultRoles.find(
+    (role) => role.roleKey === DEFAULT_ROLE_KEYS.RESTAURANT_MANAGER
+  );
+  const managerRoleId = managerRole?.roleId as string;
+
+  console.log("Seeding 10,000 restaurants and managers...");
+  const startTime = performance.now();
+
+  const BATCH_SIZE = 100;
+  const TOTAL_RECORDS = 1000;
+
+  for (let i = 0; i < TOTAL_RECORDS; i += BATCH_SIZE) {
+    const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_RECORDS - i);
+
+    await Promise.all(
+      Array.from({ length: currentBatchSize }).map(async (_, index) => {
+        const globalIndex = i + index;
+        const password = await PasswordUtils.hash("Pass@123");
+
+        await prisma.user.create({
+          data: {
+            userName: faker.person.fullName(),
+            userEmail: `manager${globalIndex}@example.com`,
+            userPassword: password,
+            userRoles: {
+              create: {
+                roleId: managerRoleId,
+              },
+            },
+            restaurant: {
+              create: {
+                restaurantName: `${faker.company.name()} ${globalIndex}`,
+                restaurantBio: faker.lorem.sentence(),
+                isAvailable: true,
+              },
+            },
+          },
+        });
+      })
+    );
+  }
+
+  const endTime = performance.now();
+  console.log(`Seeding completed in ${((endTime - startTime) / 1000).toFixed(2)}s`);
+
   const adminUserId = users.find((user) => user.userEmail === "admin@admin.com")?.userId as string;
   const customerUserId = users.find((user) => user.userEmail === "customer@gmail.com")
     ?.userId as string;
@@ -69,8 +122,6 @@ async function main() {
     ],
   });
 
-  console.log(users);
-
   const customer = await prisma.customer.create({
     data: {
       userId: customerUserId,
@@ -83,15 +134,70 @@ async function main() {
     },
   });
 
-  console.log(customer);
+  // console.log(customer);
 
-  // const users = prisma.user.createManyAndReturn({
-  //   data: Array.from({ length: 10 }).map(() => ({
-  //     name: faker.person.fullName(),
-  //     email: faker.internet.email(),
-  //     password: faker.internet.password(),
-  //   })),
-  // });
+  const restaurant = await prisma.restaurant.create({
+    data: {
+      restaurantName: faker.company.name(),
+      restaurantBio: faker.lorem.sentence(),
+      isAvailable: true,
+      manager: {
+        connect: {
+          userId: users.find((user) => user.userEmail === "admin@admin.com")?.userId as string,
+        },
+      },
+    },
+    select: {
+      restaurantId: true,
+    },
+  });
+
+  console.log(restaurant);
+
+  // create menu
+  const menuCategory = await prisma.menuCategory.create({
+    data: {
+      menuCategoryName: faker.lorem.sentence(),
+      menuCategoryImageUrl: faker.image.url(),
+      menu: {
+        create: {
+          menuDesc: faker.lorem.sentence(),
+          restaurant: {
+            connect: {
+              restaurantId: restaurant.restaurantId,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  console.log(menuCategory);
+
+  //add menu items records
+  for (let i = 0; i < TOTAL_RECORDS; i += BATCH_SIZE) {
+    const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_RECORDS - i);
+
+    await Promise.all(
+      Array.from({ length: currentBatchSize }).map(async (_, index) => {
+        await prisma.menuItem.create({
+          data: {
+            menuItemName: faker.person.fullName(),
+            menuItemImageUrl: faker.image.url(),
+            price: faker.number.int({ min: 1, max: 100 }),
+            stockQuantity: faker.number.int({ min: 10, max: 100 }),
+            menuItemDesc: faker.lorem.sentence(),
+            isActive: true,
+            menuCategory: {
+              connect: {
+                menuCategoryId: menuCategory.menuCategoryId,
+              },
+            },
+          },
+        });
+      })
+    );
+  }
 }
 main()
   .then(async () => {

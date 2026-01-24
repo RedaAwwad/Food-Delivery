@@ -1,9 +1,9 @@
 import express from "express";
-import { isAuthenticated } from "../middleware/auth.middleware";
+import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 
 const userRouter = express.Router();
 
 // Apply auth to all role routes
-userRouter.use(isAuthenticated);
+userRouter.use([isAuthenticated, isAuthorized(["ADMIN"])]);
 
 export { userRouter };
