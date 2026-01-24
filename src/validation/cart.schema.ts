@@ -10,11 +10,6 @@ const AddToCartSchema = Joi.object({
     "number.min": "Quantity must be at least 1",
     "any.required": "Quantity is required",
   }),
-  // price: Joi.number().min(1).required().messages({
-  //   "number.base": "price must be a number",
-  //   "number.min": "price must be at least 1",
-  //   "any.required": "price is required",
-  // }),
 }).required();
 
 const UpdateQuantitySchema = Joi.object({

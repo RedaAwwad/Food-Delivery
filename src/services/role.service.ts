@@ -2,13 +2,15 @@ import { roleRepository } from "../repositories/role.repository";
 import { userRoleRepository } from "../repositories/user-role.repository";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
+import { Prisma, RoleKey } from "../generated/prisma";
+import { InternalServerError } from "../utils/errors";
 
 class RoleService {
-  async createRole(data: { roleName: string; roleDesc?: string }) {
-    const existingRole = await roleRepository.findByName(data.roleName);
+  async createRole(data: { roleName: string; roleDesc?: string; roleKey: RoleKey }) {
+    const existingRole = await roleRepository.findRoleByKey(data.roleKey);
     if (existingRole) {
       throw new CustomError({
-        message: "Role with this name already exists",
+        message: "Role with this key already exists",
         statusCode: StatusCodes.CONFLICT,
       });
     }
@@ -19,22 +21,15 @@ class RoleService {
     return roleRepository.findAll();
   }
 
-  async assignRoleToUser(userId: string, roleName: string) {
-    // 1. Verify User exists -> using simple findUnique from prisma via repository if available or we can rely on foreign key constraint error, but explicit check is better for error messages.
-    // We added findUserByEmail, update, create in userRepo. Let's make sure we have findById or similar.
-    // Existing userRepository has findUserWithRestaurant which finds by ID. We can use that or assumes FK handles it.
-    // For better UX, let's verify role exists.
+  async assignRoleToUser(userId: string, roleKey: RoleKey, tx?: Prisma.TransactionClient) {
+    const role = await roleRepository.findRoleByKey(roleKey);
 
-    const role = await roleRepository.findByName(roleName);
     if (!role) {
-      throw new CustomError({
-        message: `Role '${roleName}' not found`,
-        statusCode: StatusCodes.NOT_FOUND,
-      });
+      throw InternalServerError("Something went wrong!");
     }
 
     try {
-      return await userRoleRepository.assignRole(userId, role.roleId);
+      return await userRoleRepository.assignRole(userId, role.roleId, tx);
     } catch (error: any) {
       if (error.code === "P2002") {
         // Prisma unique constraint violation
@@ -47,13 +42,10 @@ class RoleService {
     }
   }
 
-  async removeRoleByNameFromUser(userId: string, roleName: string) {
-    const role = await roleRepository.findByName(roleName);
+  async removeRoleByNameFromUser(userId: string, roleKey: RoleKey) {
+    const role = await roleRepository.findRoleByKey(roleKey);
     if (!role) {
-      throw new CustomError({
-        message: `Role '${roleName}' not found`,
-        statusCode: StatusCodes.NOT_FOUND,
-      });
+      throw InternalServerError("Something went wrong!");
     }
 
     try {
@@ -97,17 +89,14 @@ class RoleService {
     }
   }
 
-  async removeRoleByName(roleName: string) {
-    const role = await roleRepository.findByName(roleName);
+  async removeRoleByName(roleKey: RoleKey) {
+    const role = await roleRepository.findRoleByKey(roleKey);
     if (!role) {
-      throw new CustomError({
-        message: `Role '${roleName}' not found`,
-        statusCode: StatusCodes.NOT_FOUND,
-      });
+      throw InternalServerError("Something went wrong!");
     }
 
     try {
-      return await roleRepository.removeRoleByName(role.roleName);
+      return await roleRepository.removeRoleByKey(role.roleKey);
     } catch (error: any) {
       if (error.code === "P2025") {
         // Prisma record not found

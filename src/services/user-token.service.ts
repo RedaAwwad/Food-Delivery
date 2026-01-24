@@ -15,36 +15,20 @@ class UserTokenService {
     return userTokenRepository.findTokenByToken(token);
   }
 
-  async findByUserIdAndType(userId: string, tokenType: TokenType, onlyValid: boolean = false) {
-    return userTokenRepository.findByUserIdAndType(userId, tokenType, onlyValid);
+  async revokeToken(userId: string, token: string) {
+    return userTokenRepository.revokeToken(userId, token);
   }
 
-  async revokeToken(token: string, reason?: string) {
-    return userTokenRepository.revokeToken(token, reason);
+  async revokeAllUserTokensByType(userId: string, tokenType: TokenType) {
+    return userTokenRepository.revokeAllUserTokensByType(userId, tokenType);
   }
 
-  async revokeAllUserTokensByType(userId: string, tokenType: TokenType, reason?: string) {
-    return userTokenRepository.revokeAllUserTokensByType(userId, tokenType, reason);
-  }
-
-  async revokeAllUserTokens(userId: string, reason?: string) {
-    return userTokenRepository.revokeAllUserTokens(userId, reason);
+  async revokeAllUserTokens(userId: string) {
+    return userTokenRepository.revokeAllUserTokens(userId);
   }
 
   async isValid(token: string, tokenType?: TokenType): Promise<boolean> {
     return userTokenRepository.isValid(token, tokenType);
-  }
-
-  async deleteExpiredTokens() {
-    return userTokenRepository.deleteExpiredTokens();
-  }
-
-  async deleteOldRevokedTokens(daysOld: number = 30) {
-    return userTokenRepository.deleteOldRevokedTokens(daysOld);
-  }
-
-  async getActiveTokenCount(userId: string, tokenType: TokenType): Promise<number> {
-    return userTokenRepository.getActiveTokenCount(userId, tokenType);
   }
 
   async deleteRefreshTokensByUserId(userId: string) {

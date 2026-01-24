@@ -1,4 +1,5 @@
-import { User } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma";
+import { UserWithRelations } from "../types/user.type";
 
 export class UserDTO {
   userId: string;
@@ -9,13 +10,9 @@ export class UserDTO {
   isActive: boolean;
   customerId: string | null = null;
   restaurantId: string | null = null;
-  userRoles: string[] = [];
+  userRoles: RoleKey[] = [];
 
-  constructor(
-    user: User & { customer?: { customerId: string } } & {
-      restaurant?: { restaurantId: string };
-    } & { userRoles?: { role: { roleKey: string } }[] }
-  ) {
+  constructor(user: UserWithRelations) {
     this.userId = user.userId;
     this.userName = user.userName;
     this.userEmail = user.userEmail;
@@ -31,8 +28,20 @@ export class UserDTO {
       this.restaurantId = user.restaurant.restaurantId;
     }
 
-    if (user.userRoles) {
-      this.userRoles = user.userRoles.map((role) => role.role?.roleKey);
+    if (user.customerId) {
+      this.customerId = user.customerId;
     }
+
+    if (user.restaurantId) {
+      this.restaurantId = user.restaurantId;
+    }
+
+    this.userRoles = user.userRoles.map((role) => {
+      if (typeof role === "string") {
+        return role;
+      }
+
+      return role.role.roleKey;
+    });
   }
 }

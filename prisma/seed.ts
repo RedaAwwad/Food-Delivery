@@ -2,11 +2,13 @@
 
 import { prisma } from "../src/config/prisma.config";
 import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
-import { hash } from "../src/utils/HashAndCompare";
+import { PasswordUtils } from "../src/utils/password.utils";
 
 async function main() {
   await prisma.userRole.deleteMany({});
   await prisma.role.deleteMany({});
+  await prisma.userRole.deleteMany({});
+  await prisma.userToken.deleteMany({});
   await prisma.customer.deleteMany({});
   await prisma.user.deleteMany({
     where: { OR: [{ userEmail: "admin@admin.com" }, { userEmail: "customer@gmail.com" }] },
@@ -32,12 +34,14 @@ async function main() {
       {
         userName: "System Admin",
         userEmail: "admin@admin.com",
-        userPassword: await hash("11223344"),
+        userPassword: await PasswordUtils.hash("Pass@123"),
+        isAdmin: true,
+        isConfirmed: true,
       },
       {
         userName: "New Customer",
         userEmail: "customer@gmail.com",
-        userPassword: await hash("11223344"),
+        userPassword: await PasswordUtils.hash("Pass@123"),
       },
     ],
     select: {

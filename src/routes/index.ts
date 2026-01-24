@@ -13,12 +13,12 @@ import menuItemRouter from "./menuItem.routes";
 const initAPIRoutes = (app: Express) => {
   const apiPrefix = `/api/${process.env.API_VERSION || "v1"}`;
 
-  app.use(`${apiPrefix}/cart`, cartRouter);
-  app.use(`${apiPrefix}/orders`, orderRouter);
-  app.use(`${apiPrefix}/addresses`, addressRouter);
   app.use(`${apiPrefix}/auth`, authRouter);
   app.use(`${apiPrefix}/roles`, roleRouter);
   app.use(`${apiPrefix}/users`, userRouter);
+  app.use(`${apiPrefix}/cart`, cartRouter);
+  app.use(`${apiPrefix}/orders`, orderRouter);
+  app.use(`${apiPrefix}/addresses`, addressRouter);
   app.use(`${apiPrefix}/restaurant`, restaurantRouter);
   app.use(`${apiPrefix}/menu`, menuRouter);
   app.use(`${apiPrefix}/menuCategory`, menuCategoryRouter);

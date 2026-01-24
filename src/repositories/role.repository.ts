@@ -1,22 +1,21 @@
 import { prisma } from "../config/prisma.config";
+import { RoleKey } from "../generated/prisma";
 
 class RoleRepository {
-  async createRole(data: { roleName: string; roleDesc?: string }) {
+  async createRole(data: { roleName: string; roleDesc?: string; roleKey: any }) {
     return prisma.role.create({
       data: {
         roleName: data.roleName,
         roleDesc: data.roleDesc ?? null,
+        roleKey: data.roleKey,
       },
     });
   }
 
-  async findByName(roleName: string) {
+  async findRoleByKey(roleKey: RoleKey) {
     return prisma.role.findFirst({
       where: {
-        roleName: {
-          equals: roleName,
-          mode: "insensitive",
-        },
+        roleKey,
       },
     });
   }
@@ -37,9 +36,9 @@ class RoleRepository {
     });
   }
 
-  async removeRoleByName(roleName: string) {
-    return prisma.role.delete({
-      where: { roleName },
+  async removeRoleByKey(roleKey: RoleKey) {
+    return prisma.role.deleteMany({
+      where: { roleKey },
     });
   }
 }

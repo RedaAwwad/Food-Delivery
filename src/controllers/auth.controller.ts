@@ -2,31 +2,46 @@ import { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import { SuccessResponse } from "../utils/response/success-response";
 import { authService } from "../services/auth.service";
-import { CustomError } from "../utils/errors/custom-error";
-import { TokenPayload } from "../types/token";
+import { jwtUtils } from "../utils/jwt/jwt.utils";
+import { CookieUtils } from "../utils/cookie/cookie.utils";
+import { REFRESH_TOKEN_COOKIE_NAME } from "../utils/constants";
 
 class AuthController {
   async signup(req: Request, res: Response) {
     const signupDto = req.body;
 
-    const result = await authService.signup(signupDto);
-
-    return res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: result }));
+    await authService.signup(signupDto);
+    return res.status(StatusCodes.CREATED).json(
+      new SuccessResponse({
+        message: "Signup successful. Please verify your email.",
+      })
+    );
   }
 
   async login(req: Request, res: Response) {
     const loginDto = req.body;
 
-    const result = await authService.login(loginDto);
-    authService.applyCookies(res, result);
+    const { accessToken, refreshToken, user } = await authService.login(loginDto);
 
-    return res.json(new SuccessResponse({ data: result.data }));
+    CookieUtils.setCookie(res, REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
+      maxAge: 60 * 60 * 24 * 90,
+      httpOnly: true,
+    });
+
+    return res.json(
+      new SuccessResponse({
+        data: {
+          accessToken,
+          user,
+        },
+      })
+    );
   }
 
-  async me(req: Request & { user: TokenPayload }, res: Response) {
-    const userId = req.user.userId;
-    const user = await authService.me(userId);
+  async me(req: Request, res: Response) {
+    const userId = req.user!.userId;
 
+    const user = await authService.me(userId);
     return res.status(StatusCodes.OK).json(new SuccessResponse({ data: user }));
   }
 
@@ -48,28 +63,29 @@ class AuthController {
 
     return res.json(
       new SuccessResponse({
-        message:
-          "If an account with that email exists and is not verified, a new verification email has been sent.",
+        message: "If you have this email registered, a new verification email will be sent.",
       })
     );
   }
 
   async refreshToken(req: Request, res: Response) {
-    const refreshToken = authService.extractRefreshToken(req);
+    const refreshToken = jwtUtils.getRefreshTokenFromCookies(req);
 
-    const result = await authService.refreshToken(refreshToken);
-
-    authService.applyCookies(res, result);
-
-    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: result.data }));
+    const { accessToken, user } = await authService.refreshToken(refreshToken);
+    return res.status(StatusCodes.OK).json(
+      new SuccessResponse({
+        message: "Access token refreshed successfully.",
+        data: { accessToken, user },
+      })
+    );
   }
 
   async logout(req: Request, res: Response) {
-    const refreshToken = req.refreshToken;
+    const refreshToken = CookieUtils.getCookie(req, REFRESH_TOKEN_COOKIE_NAME);
 
-    const result = await authService.logout(refreshToken);
+    await authService.logout(req.user!.userId, refreshToken);
 
-    authService.applyCookies(res, result);
+    CookieUtils.deleteCookie(res, REFRESH_TOKEN_COOKIE_NAME);
 
     return res
       .status(StatusCodes.OK)
@@ -77,29 +93,15 @@ class AuthController {
   }
 
   async logoutAll(req: Request, res: Response) {
-    const refreshToken = req.refreshToken;
+    const refreshToken = CookieUtils.getCookie(req, REFRESH_TOKEN_COOKIE_NAME);
 
-    const result = await authService.logoutAll(refreshToken);
+    await authService.logoutAll(req.user!.userId, refreshToken);
 
-    authService.applyCookies(res, result);
+    CookieUtils.deleteCookie(res, REFRESH_TOKEN_COOKIE_NAME);
 
     return res
       .status(StatusCodes.OK)
-      .json(new SuccessResponse({ message: "Logged out from all devices" }));
-  }
-
-  async getActiveSessions(req: Request, res: Response) {
-    if (!req.user) {
-      throw new CustomError({
-        message: "User context not found",
-        statusCode: StatusCodes.UNAUTHORIZED,
-      });
-    }
-    const userId = req.user.userId;
-
-    const result = await authService.getActiveSessions(userId);
-
-    return res.status(StatusCodes.OK).json(new SuccessResponse({ data: result.data }));
+      .json(new SuccessResponse({ message: "Logged out from all sessions successfully." }));
   }
 
   async forgetPassword(req: Request, res: Response) {

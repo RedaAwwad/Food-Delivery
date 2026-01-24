@@ -1,13 +1,6 @@
 {
-  // ---------------------------
-  // 🌟 General Editor Settings
-  // ---------------------------
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-
-  // ---------------------------
-  // 💅 Prettier Formatting Rules
-  // ---------------------------
   "prettier.singleQuote": false,
   "prettier.trailingComma": "es5",
   "prettier.semi": true,

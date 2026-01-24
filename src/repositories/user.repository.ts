@@ -1,11 +1,11 @@
-import { Prisma } from "../generated/prisma";
+import { Prisma, User } from "../generated/prisma";
 import { prisma } from "../config/prisma.config";
 export class UserRepository {
-  async createUser(data: any) {
-    return prisma.user.create({ data });
+  async createUser(data: any, tx?: Prisma.TransactionClient) {
+    return (tx || prisma).user.create({ data });
   }
 
-  async findUserByEmail(email: string, select?: Prisma.UserSelect) {
+  async findUserByEmail<T = User>(email: string, select?: Prisma.UserSelect): Promise<T> {
     const q: Prisma.UserFindUniqueArgs = {
       where: { userEmail: email },
     };
@@ -14,10 +14,10 @@ export class UserRepository {
       q.select = select;
     }
 
-    return await prisma.user.findUnique(q);
+    return (await prisma.user.findUnique(q)) as T;
   }
 
-  async findUserById(userId: string, select?: Prisma.UserSelect) {
+  async findUserById<T = User>(userId: string, select?: Prisma.UserSelect): Promise<T> {
     const q: Prisma.UserFindUniqueArgs = {
       where: { userId },
     };
@@ -26,7 +26,7 @@ export class UserRepository {
       q.select = select;
     }
 
-    return await prisma.user.findUnique(q);
+    return (await prisma.user.findUnique(q)) as T;
   }
 
   async updateUser(userId: string, data: any) {
@@ -57,9 +57,9 @@ export class UserRepository {
     });
   }
 
-  async findAndUpdateUserByEmail(email: string, data: any) {
+  async findAndUpdateUserByEmail(userId: string, email: string, data: any) {
     return prisma.user.update({
-      where: { userEmail: email },
+      where: { userId, userEmail: email },
       data,
     });
   }

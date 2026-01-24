@@ -6,8 +6,8 @@ class UserService {
     return await userRepository.findUserWithRestaurant(body.userId, body.userRole);
   }
 
-  async createUser(data: any) {
-    return await userRepository.createUser(data);
+  async createUser(data: any, tx?: Prisma.TransactionClient) {
+    return await userRepository.createUser(data, tx);
   }
 
   async updateUser(userId: string, data: any) {
@@ -18,8 +18,8 @@ class UserService {
     return await userRepository.updateIsActive(userId, isActive);
   }
 
-  async findAndUpdateUserByEmail(email: string, data: any) {
-    return await userRepository.findAndUpdateUserByEmail(email, data);
+  async findAndUpdateUserByEmail(userId: string, email: string, data: any) {
+    return await userRepository.findAndUpdateUserByEmail(userId, email, data);
   }
 
   async findUserByEmail(email: string, select?: Prisma.UserSelect) {
