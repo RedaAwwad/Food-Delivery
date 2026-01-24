@@ -2,16 +2,46 @@ import express from "express";
 import { menuItemController } from "../controllers/menuItem.controller";
 import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate-request";
-import { createMenuItemSchema, deleteMenuItemSchema, getAllMenuItemByMenuCategoryIdSchema, getMenuItemByIdSchema, searchMenuItemSchema, updateMenuItemSchema } from "../validation/menuItem.schemas";
+import {
+  createMenuItemSchema,
+  deleteMenuItemSchema,
+  searchMenuItemSchema,
+  updateMenuItemSchema,
+} from "../validation/menuItem.schemas";
 
 const menuItemRouter = express.Router();
 
-menuItemRouter.get("/menu-category/:menuCategoryId", menuItemController.getAllMenuItemByMenuCategoryId);
+menuItemRouter.get(
+  "/menu-category/:menuCategoryId",
+  menuItemController.getAllMenuItemByMenuCategoryId
+);
 menuItemRouter.get("/:menuItemId", menuItemController.getMenuItemById);
-menuItemRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuItemSchema), menuItemController.createMenuItem);
-menuItemRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuItemSchema), menuItemController.updateMenuItem);
-menuItemRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuItemSchema), menuItemController.deleteMenuItem);
-menuItemRouter.get("/search", validateRequest(searchMenuItemSchema), menuItemController.searchMenuItem);
+menuItemRouter.post(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(createMenuItemSchema),
+  menuItemController.createMenuItem
+);
+menuItemRouter.put(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(updateMenuItemSchema),
+  menuItemController.updateMenuItem
+);
+menuItemRouter.delete(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(deleteMenuItemSchema),
+  menuItemController.deleteMenuItem
+);
+menuItemRouter.get(
+  "/search",
+  validateRequest(searchMenuItemSchema),
+  menuItemController.searchMenuItem
+);
 
 export default menuItemRouter;
 
@@ -42,7 +72,7 @@ export default menuItemRouter;
  *     responses:
  *       200:
  *         description: List of menu items
- * 
+ *
  *   post:
  *     summary: Create a new menu item
  *     tags: [MenuItem]
@@ -74,7 +104,7 @@ export default menuItemRouter;
  *     responses:
  *       201:
  *         description: Menu item created successfully
- * 
+ *
  *   put:
  *     summary: Update a menu item
  *     tags: [MenuItem]
@@ -106,7 +136,7 @@ export default menuItemRouter;
  *     responses:
  *       200:
  *         description: Menu item updated successfully
- * 
+ *
  *   delete:
  *     summary: Delete a menu item
  *     tags: [MenuItem]

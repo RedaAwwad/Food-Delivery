@@ -1,30 +1,30 @@
 export type Pagination = {
-  totalItems: number;
+  page: number;
+  perPage: number;
+  total: number;
   totalPages: number;
-  currentPage: number;
-  itemsPerPage: number;
 };
 
 export type SuccessResponseParams<T> = {
   data?: T;
   message?: string;
-  pagination?: Pagination;
+  meta?: Pagination;
 };
 
 class SuccessResponse<T> {
   success: boolean;
   data?: T;
   message?: string;
-  pagination?: Pagination;
+  meta?: Pagination;
 
-  constructor({ data, message, pagination }: SuccessResponseParams<T>) {
+  constructor({ data, message, meta }: SuccessResponseParams<T>) {
     this.success = true;
 
     if (data) this.data = data;
 
     if (message) this.message = message;
 
-    if (pagination) this.pagination = pagination;
+    if (meta) this.meta = meta;
   }
 }
 

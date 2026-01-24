@@ -19,10 +19,10 @@ const initAPIRoutes = (app: Express) => {
   app.use(`${apiPrefix}/cart`, cartRouter);
   app.use(`${apiPrefix}/orders`, orderRouter);
   app.use(`${apiPrefix}/addresses`, addressRouter);
-  app.use(`${apiPrefix}/restaurant`, restaurantRouter);
-  app.use(`${apiPrefix}/menu`, menuRouter);
-  app.use(`${apiPrefix}/menuCategory`, menuCategoryRouter);
-  app.use(`${apiPrefix}/menuItem`, menuItemRouter);
+  app.use(`${apiPrefix}/restaurants`, restaurantRouter);
+  app.use(`${apiPrefix}/menus`, menuRouter);
+  app.use(`${apiPrefix}/menu-categories`, menuCategoryRouter);
+  app.use(`${apiPrefix}/menu-items`, menuItemRouter);
 };
 
 export { initAPIRoutes };

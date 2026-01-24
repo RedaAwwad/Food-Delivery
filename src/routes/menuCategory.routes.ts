@@ -2,14 +2,36 @@ import express from "express";
 import { menuCategoryController } from "../controllers/menuCategory.controller";
 import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate-request";
-import { createMenuCategorySchema, deleteMenuCategorySchema, updateMenuCategorySchema } from "../validation/menuCategory.schema";
+import {
+  createMenuCategorySchema,
+  deleteMenuCategorySchema,
+  updateMenuCategorySchema,
+} from "../validation/menuCategory.schema";
 
 const menuCategoryRouter = express.Router();
 
 menuCategoryRouter.get("/", menuCategoryController.findAllMenuCategoriesByMenuId);
-menuCategoryRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuCategorySchema), menuCategoryController.createMenuCategory);
-menuCategoryRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuCategorySchema), menuCategoryController.updateMenuCategory);
-menuCategoryRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuCategorySchema), menuCategoryController.deleteMenuCategory);
+menuCategoryRouter.post(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(createMenuCategorySchema),
+  menuCategoryController.createMenuCategory
+);
+menuCategoryRouter.put(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(updateMenuCategorySchema),
+  menuCategoryController.updateMenuCategory
+);
+menuCategoryRouter.delete(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(deleteMenuCategorySchema),
+  menuCategoryController.deleteMenuCategory
+);
 
 export { menuCategoryRouter };
 
@@ -40,7 +62,7 @@ export { menuCategoryRouter };
  *     responses:
  *       200:
  *         description: List of menu categories
- * 
+ *
  *   post:
  *     summary: Create a new menu category
  *     tags: [MenuCategory]
@@ -65,7 +87,7 @@ export { menuCategoryRouter };
  *     responses:
  *       201:
  *         description: Menu category created successfully
- * 
+ *
  *   put:
  *     summary: Update a menu category
  *     tags: [MenuCategory]
@@ -89,7 +111,7 @@ export { menuCategoryRouter };
  *     responses:
  *       200:
  *         description: Menu category updated successfully
- * 
+ *
  *   delete:
  *     summary: Delete a menu category
  *     tags: [MenuCategory]

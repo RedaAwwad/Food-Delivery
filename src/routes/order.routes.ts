@@ -88,7 +88,7 @@ orderRouter.get("/:orderId", orderController.findOrderById);
 orderRouter.patch(
   "/:orderId/status",
   validateRequest(updateOrderStatusSchema),
-  isAuthorized(["restaurant", "admin"]),
+  isAuthorized(["ADMIN", "RESTAURANT_MANAGER"]),
   orderController.updateOrderStatus
 );
 
@@ -128,7 +128,11 @@ orderRouter.patch(
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:orderId/cancel", isAuthorized(["restaurant"]), orderController.cancelOrder);
+orderRouter.patch(
+  "/:orderId/cancel",
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  orderController.cancelOrder
+);
 
 orderRouter.post("/check-out", orderController.placeOrder);
 

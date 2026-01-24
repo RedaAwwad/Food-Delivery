@@ -90,7 +90,7 @@ customerRouter.patch("/deactivate", customerController.deactivateAccount);
 customerRouter.post(
   "/rating",
   validateRequest(createCustomerRatingSchema),
-  isAuthorized(["Customer"]),
+  isAuthorized(["CUSTOMER"]),
   customerController.createRatingByCustomer
 );
 

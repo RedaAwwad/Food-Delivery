@@ -110,7 +110,7 @@ model Customer {
 model Restaurant {
   restaurantId String   @id @default(uuid()) @map("restaurant_id")
   managerId    String      @unique @map("manager_id")
-  restaurantName        String   
+  restaurantName        String  @unique 
   restaurantBio String  @map("restaurant_bio") 
   restaurantLogo        String? @map("restaurant_logo")   
   isAvailable Boolean  @map("is_available")
@@ -126,6 +126,8 @@ model Restaurant {
   rating Rating[]
 
   orders Order[]
+
+  @@index([restaurantName])
 
   @@map("restaurants")
 }

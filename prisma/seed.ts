@@ -1,4 +1,4 @@
-// import { faker } from "@faker-js/faker";
+import { faker } from "@faker-js/faker";
 
 import { prisma } from "../src/config/prisma.config";
 import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
@@ -7,7 +7,6 @@ import { PasswordUtils } from "../src/utils/password.utils";
 async function main() {
   await prisma.userRole.deleteMany({});
   await prisma.role.deleteMany({});
-  await prisma.userRole.deleteMany({});
   await prisma.userToken.deleteMany({});
   await prisma.customer.deleteMany({});
   await prisma.user.deleteMany({
@@ -27,7 +26,7 @@ async function main() {
     },
   });
 
-  console.log(defaultRoles);
+  // console.log(defaultRoles);
 
   const users = await prisma.user.createManyAndReturn({
     data: [
@@ -50,6 +49,52 @@ async function main() {
     },
   });
 
+  const managerRole = defaultRoles.find(
+    (role) => role.roleKey === DEFAULT_ROLE_KEYS.RESTAURANT_MANAGER
+  );
+  const managerRoleId = managerRole?.roleId as string;
+
+  console.log("Seeding 10,000 restaurants and managers...");
+  const startTime = performance.now();
+
+  const BATCH_SIZE = 100;
+  const TOTAL_RESTAURANTS = 10000;
+
+  for (let i = 0; i < TOTAL_RESTAURANTS; i += BATCH_SIZE) {
+    const currentBatchSize = Math.min(BATCH_SIZE, TOTAL_RESTAURANTS - i);
+    console.log(`Processing batch ${i / BATCH_SIZE + 1} (${i} to ${i + currentBatchSize})...`);
+
+    await Promise.all(
+      Array.from({ length: currentBatchSize }).map(async (_, index) => {
+        const globalIndex = i + index;
+        const password = await PasswordUtils.hash("Pass@123");
+
+        await prisma.user.create({
+          data: {
+            userName: faker.person.fullName(),
+            userEmail: `manager${globalIndex}@example.com`,
+            userPassword: password,
+            userRoles: {
+              create: {
+                roleId: managerRoleId,
+              },
+            },
+            restaurant: {
+              create: {
+                restaurantName: faker.company.name(),
+                restaurantBio: faker.lorem.sentence(),
+                isAvailable: true,
+              },
+            },
+          },
+        });
+      })
+    );
+  }
+
+  const endTime = performance.now();
+  console.log(`Seeding completed in ${((endTime - startTime) / 1000).toFixed(2)}s`);
+
   const adminUserId = users.find((user) => user.userEmail === "admin@admin.com")?.userId as string;
   const customerUserId = users.find((user) => user.userEmail === "customer@gmail.com")
     ?.userId as string;
@@ -69,7 +114,7 @@ async function main() {
     ],
   });
 
-  console.log(users);
+  // console.log(users);
 
   const customer = await prisma.customer.create({
     data: {
@@ -83,7 +128,7 @@ async function main() {
     },
   });
 
-  console.log(customer);
+  // console.log(customer);
 
   // const users = prisma.user.createManyAndReturn({
   //   data: Array.from({ length: 10 }).map(() => ({

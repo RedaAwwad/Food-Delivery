@@ -2,18 +2,59 @@ import express from "express";
 import { menuController } from "../controllers/menu.controller";
 import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate-request";
-import { createMenuSchema, deleteMenuSchema, enableOrDisableMenuSchema, getActiveMenuSchema, updateMenuSchema, viewHistoryListOfRestaurantMenusSchema } from "../validation/menu.schema";
+import {
+  createMenuSchema,
+  deleteMenuSchema,
+  enableOrDisableMenuSchema,
+  getActiveMenuSchema,
+  updateMenuSchema,
+  viewHistoryListOfRestaurantMenusSchema,
+} from "../validation/menu.schema";
 
 const menuRouter = express.Router();
 
-menuRouter.get("/:menuId", validateRequest(getActiveMenuSchema), menuController.getActiveMenuByRestaurantId);
-menuRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuSchema), menuController.createMenu);
-menuRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuSchema), menuController.updateMenu);
-menuRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuSchema), menuController.deleteMenu);
-menuRouter.patch("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(enableOrDisableMenuSchema), menuController.enableOrDisableMenu);
-menuRouter.get("/all-menus", isAuthenticated, isAuthorized(["Owner"]), validateRequest(viewHistoryListOfRestaurantMenusSchema), menuController.viewHistoryListOfRestaurantMenus);
+menuRouter.get(
+  "/:menuId",
+  validateRequest(getActiveMenuSchema),
+  menuController.getActiveMenuByRestaurantId
+);
+menuRouter.post(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(createMenuSchema),
+  menuController.createMenu
+);
+menuRouter.put(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(updateMenuSchema),
+  menuController.updateMenu
+);
+menuRouter.delete(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(deleteMenuSchema),
+  menuController.deleteMenu
+);
+menuRouter.patch(
+  "/",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(enableOrDisableMenuSchema),
+  menuController.enableOrDisableMenu
+);
+menuRouter.get(
+  "/all-menus",
+  isAuthenticated,
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  validateRequest(viewHistoryListOfRestaurantMenusSchema),
+  menuController.viewHistoryListOfRestaurantMenus
+);
 
-export { menuRouter }
+export { menuRouter };
 
 /**
  * @swagger
@@ -42,7 +83,7 @@ export { menuRouter }
  *     responses:
  *       200:
  *         description: Active menu details
- * 
+ *
  *   post:
  *     summary: Create a new menu
  *     tags: [Menu]
@@ -68,7 +109,7 @@ export { menuRouter }
  *     responses:
  *       201:
  *         description: Menu created successfully
- * 
+ *
  *   put:
  *     summary: Update a menu
  *     tags: [Menu]
@@ -94,7 +135,7 @@ export { menuRouter }
  *     responses:
  *       200:
  *         description: Menu updated successfully
- * 
+ *
  *   delete:
  *     summary: Delete a menu
  *     tags: [Menu]
@@ -114,7 +155,7 @@ export { menuRouter }
  *     responses:
  *       200:
  *         description: Menu deleted successfully
- * 
+ *
  *   patch:
  *     summary: Enable or disable a menu
  *     tags: [Menu]
