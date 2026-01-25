@@ -6,13 +6,6 @@ import { createMenuCategorySchema, deleteMenuCategorySchema, updateMenuCategoryS
 
 const menuCategoryRouter = express.Router();
 
-menuCategoryRouter.get("/", menuCategoryController.findAllMenuCategoriesByMenuId);
-menuCategoryRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuCategorySchema), menuCategoryController.createMenuCategory);
-menuCategoryRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuCategorySchema), menuCategoryController.updateMenuCategory);
-menuCategoryRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuCategorySchema), menuCategoryController.deleteMenuCategory);
-
-export { menuCategoryRouter };
-
 /**
  * @swagger
  * tags:
@@ -22,12 +15,12 @@ export { menuCategoryRouter };
 
 /**
  * @swagger
- * /menu-category:
+ * /api/v1/menuCategory:
  *   get:
  *     summary: Find all menu categories by Menu ID
  *     tags: [MenuCategory]
  *     requestBody:
- *       description: "Expects menuId in body (based on schema convention, though validation middleware is missing on route)"
+ *       description: "Expects menuId in body"
  *       content:
  *         application/json:
  *           schema:
@@ -40,12 +33,17 @@ export { menuCategoryRouter };
  *     responses:
  *       200:
  *         description: List of menu categories
- * 
+ */
+menuCategoryRouter.get("/", menuCategoryController.findAllMenuCategoriesByMenuId);
+
+/**
+ * @swagger
+ * /api/v1/menuCategory:
  *   post:
  *     summary: Create a new menu category
  *     tags: [MenuCategory]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -65,12 +63,17 @@ export { menuCategoryRouter };
  *     responses:
  *       201:
  *         description: Menu category created successfully
- * 
+ */
+menuCategoryRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuCategorySchema), menuCategoryController.createMenuCategory);
+
+/**
+ * @swagger
+ * /api/v1/menuCategory:
  *   put:
  *     summary: Update a menu category
  *     tags: [MenuCategory]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -89,12 +92,17 @@ export { menuCategoryRouter };
  *     responses:
  *       200:
  *         description: Menu category updated successfully
- * 
+ */
+menuCategoryRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuCategorySchema), menuCategoryController.updateMenuCategory);
+
+/**
+ * @swagger
+ * /api/v1/menuCategory:
  *   delete:
  *     summary: Delete a menu category
  *     tags: [MenuCategory]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -110,3 +118,6 @@ export { menuCategoryRouter };
  *       200:
  *         description: Menu category deleted successfully
  */
+menuCategoryRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuCategorySchema), menuCategoryController.deleteMenuCategory);
+
+export { menuCategoryRouter };

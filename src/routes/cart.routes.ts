@@ -26,6 +26,8 @@ cartRouter.use(isAuthenticated);
  *   get:
  *     summary: View cart items
  *     tags: [Cart]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: List of cart items
@@ -69,6 +71,8 @@ cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId as RequestHa
  *   post:
  *     summary: Add an item to the cart
  *     tags: [Cart]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -78,17 +82,13 @@ cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId as RequestHa
  *             required:
  *               - menuItemId
  *               - quantity
- *               - price
  *             properties:
  *               menuItemId:
- *                 type: integer
- *                 example: 101
+ *                 type: string
+ *                 example: "123e4567-e89b-12d3-a456-426614174000"
  *               quantity:
  *                 type: integer
  *                 example: 2
- *               price:
- *                 type: number
- *                 example: 49.99
  *     responses:
  *       201:
  *         description: Item added to cart successfully
@@ -107,11 +107,11 @@ cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId as RequestHa
  *                   type: object
  *                   properties:
  *                     cartItemId:
- *                       type: integer
- *                       example: 1
+ *                       type: string
+ *                       example: "123e4567-e89b-12d3-a456-426614174001"
  *                     menuItemId:
- *                       type: integer
- *                       example: 101
+ *                       type: string
+ *                       example: "123e4567-e89b-12d3-a456-426614174000"
  *                     quantity:
  *                       type: integer
  *                       example: 2
@@ -170,6 +170,8 @@ cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController
  *   put:
  *     summary: Update item quantity in cart
  *     tags: [Cart]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -181,8 +183,8 @@ cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController
  *               - quantity
  *             properties:
  *               cartItemId:
- *                 type: integer
- *                 example: 1
+ *                 type: string
+ *                 example: "123e4567-e89b-12d3-a456-426614174001"
  *               quantity:
  *                 type: integer
  *                 example: 3
@@ -256,6 +258,8 @@ cartRouter.put(
  *   delete:
  *     summary: Remove an item from the cart
  *     tags: [Cart]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -266,8 +270,8 @@ cartRouter.put(
  *               - cartItemId
  *             properties:
  *               cartItemId:
- *                 type: integer
- *                 example: 1
+ *                 type: string
+ *                 example: "123e4567-e89b-12d3-a456-426614174001"
  *     responses:
  *       200:
  *         description: Cart item removed successfully
@@ -335,6 +339,8 @@ cartRouter.delete(
  *   delete:
  *     summary: Clear all items in the cart
  *     tags: [Cart]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: Cart cleared successfully

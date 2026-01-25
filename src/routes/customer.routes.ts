@@ -30,7 +30,7 @@ customerRouter.get("/orders", customerController.getCustomerOrdersByCustomerId);
 
 /**
  * @swagger
- * /api/v1/customers/orders/:order_id:
+ * /api/v1/customers/orders/{order_id}:
  *   get:
  *     summary: Get customer order details by orderId
  *     tags: [Customer]
@@ -49,6 +49,16 @@ customerRouter.get("/orders", customerController.getCustomerOrdersByCustomerId);
  */
 customerRouter.get("/orders/:order_id", customerController.findCustomerOrderByCustomerId);
 
+/**
+ * @swagger
+ * /api/v1/customers/deactivate:
+ *   patch:
+ *     summary: Deactivate customer account
+ *     tags: [Customer]
+ *     responses:
+ *       200:
+ *         description: Customer account deactivated successfully
+ */
 customerRouter.patch("/deactivate", customerController.deactivateAccount);
 
 /**

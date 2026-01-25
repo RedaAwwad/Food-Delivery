@@ -6,15 +6,6 @@ import { createMenuSchema, deleteMenuSchema, enableOrDisableMenuSchema, getActiv
 
 const menuRouter = express.Router();
 
-menuRouter.get("/:menuId", validateRequest(getActiveMenuSchema), menuController.getActiveMenuByRestaurantId);
-menuRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuSchema), menuController.createMenu);
-menuRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuSchema), menuController.updateMenu);
-menuRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuSchema), menuController.deleteMenu);
-menuRouter.patch("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(enableOrDisableMenuSchema), menuController.enableOrDisableMenu);
-menuRouter.get("/all-menus", isAuthenticated, isAuthorized(["Owner"]), validateRequest(viewHistoryListOfRestaurantMenusSchema), menuController.viewHistoryListOfRestaurantMenus);
-
-export { menuRouter }
-
 /**
  * @swagger
  * tags:
@@ -24,10 +15,18 @@ export { menuRouter }
 
 /**
  * @swagger
- * /menu:
+ * /api/v1/menu/{menuId}:
  *   get:
  *     summary: Get active menu by Restaurant ID
+ *     description: Retrieve the active menu for a specific restaurant. Note that the `menuId` path parameter is currently unused by the implementation, but required by the route pattern. The `restaurantId` must be provided in the request body.
  *     tags: [Menu]
+ *     parameters:
+ *       - in: path
+ *         name: menuId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Placeholder ID (unused)
  *     requestBody:
  *       required: true
  *       content:
@@ -39,15 +38,27 @@ export { menuRouter }
  *             properties:
  *               restaurantId:
  *                 type: string
+ *                 example: "rest_123"
  *     responses:
  *       200:
  *         description: Active menu details
- * 
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Menu'
+ *       400:
+ *         description: Bad Request (e.g. Menu not found)
+ */
+menuRouter.get("/:menuId", validateRequest(getActiveMenuSchema), menuController.getActiveMenuByRestaurantId);
+
+/**
+ * @swagger
+ * /api/v1/menu:
  *   post:
  *     summary: Create a new menu
  *     tags: [Menu]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -61,19 +72,33 @@ export { menuRouter }
  *             properties:
  *               restaurantId:
  *                 type: string
+ *                 example: "rest_123"
  *               menuDesc:
  *                 type: string
+ *                 example: "Lunch Menu"
  *               isActive:
  *                 type: boolean
+ *                 example: true
  *     responses:
  *       201:
  *         description: Menu created successfully
- * 
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Menu'
+ *       400:
+ *         description: Bad Request
+ */
+menuRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuSchema), menuController.createMenu);
+
+/**
+ * @swagger
+ * /api/v1/menu:
  *   put:
  *     summary: Update a menu
  *     tags: [Menu]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -87,19 +112,33 @@ export { menuRouter }
  *             properties:
  *               menuId:
  *                 type: string
+ *                 example: "menu_123"
  *               menuDesc:
  *                 type: string
+ *                 example: "Updated Lunch Menu"
  *               isActive:
  *                 type: boolean
+ *                 example: true
  *     responses:
  *       200:
  *         description: Menu updated successfully
- * 
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Menu'
+ *       400:
+ *         description: Bad Request
+ */
+menuRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuSchema), menuController.updateMenu);
+
+/**
+ * @swagger
+ * /api/v1/menu:
  *   delete:
  *     summary: Delete a menu
  *     tags: [Menu]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -111,15 +150,27 @@ export { menuRouter }
  *             properties:
  *               menuId:
  *                 type: string
+ *                 example: "menu_123"
  *     responses:
  *       200:
  *         description: Menu deleted successfully
- * 
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Menu'
+ *       400:
+ *         description: Bad Request
+ */
+menuRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuSchema), menuController.deleteMenu);
+
+/**
+ * @swagger
+ * /api/v1/menu:
  *   patch:
  *     summary: Enable or disable a menu
  *     tags: [Menu]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -131,19 +182,27 @@ export { menuRouter }
  *             properties:
  *               menuId:
  *                 type: string
+ *                 example: "menu_123"
  *     responses:
  *       200:
  *         description: Menu status updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Menu'
+ *       400:
+ *         description: Bad Request
  */
+menuRouter.patch("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(enableOrDisableMenuSchema), menuController.enableOrDisableMenu);
 
 /**
  * @swagger
- * /menu/all-menus:
+ * /api/v1/menu/all-menus:
  *   get:
  *     summary: View history list of restaurant menus
  *     tags: [Menu]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -155,7 +214,21 @@ export { menuRouter }
  *             properties:
  *               restaurantId:
  *                 type: string
+ *                 example: "rest_123"
  *     responses:
  *       200:
  *         description: List of restaurant menus
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Menu'
+ *       400:
+ *         description: Bad Request
  */
+menuRouter.get("/all-menus", isAuthenticated, isAuthorized(["Owner"]), validateRequest(viewHistoryListOfRestaurantMenusSchema), menuController.viewHistoryListOfRestaurantMenus);
+
+export { menuRouter }
+
+
