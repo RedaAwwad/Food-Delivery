@@ -1,4 +1,4 @@
-import express from "express";
+import express, { RequestHandler } from "express";
 import { cartController } from "../controllers/cart.controller";
 import { validateRequest } from "../middleware/validate-request";
 import {
@@ -61,7 +61,7 @@ cartRouter.use(isAuthenticated);
  *                   type: string
  *                   example: Cart not found!
  */
-cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId);
+cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId as RequestHandler);
 
 /**
  * @swagger
@@ -162,7 +162,7 @@ cartRouter.get("/", cartController.getCartWithCartItemsByCustomerId);
  *                             type: string
  *                             example: quantity
  */
-cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController.addToCart);
+cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController.addToCart as RequestHandler);
 
 /**
  * @swagger
@@ -247,7 +247,7 @@ cartRouter.post("/add-to-cart", validateRequest(AddToCartSchema), cartController
 cartRouter.put(
   "/update-quantity",
   validateRequest(UpdateQuantitySchema),
-  cartController.updateQuantity
+  cartController.updateQuantity as RequestHandler
 );
 
 /**
@@ -326,7 +326,7 @@ cartRouter.put(
 cartRouter.delete(
   "/remove-item",
   validateRequest(RemoveCartItemSchema),
-  cartController.removeCartItem
+  cartController.removeCartItem as RequestHandler
 );
 
 /**
@@ -374,6 +374,6 @@ cartRouter.delete(
  *                             type: string
  *                             example: "/api/v1/cart/clear"
  */
-cartRouter.delete("/clear", cartController.clearCart);
+cartRouter.delete("/clear", cartController.clearCart as RequestHandler);
 
 export { cartRouter };
