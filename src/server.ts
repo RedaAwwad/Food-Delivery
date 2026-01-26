@@ -34,5 +34,5 @@ const initiateApp = async (app: Express) => {
 
   await initServer(app);
 };
- 
+
 initiateApp(app);
