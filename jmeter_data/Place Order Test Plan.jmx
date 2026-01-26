@@ -8,8 +8,8 @@
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Thread Group">
-        <intProp name="ThreadGroup.num_threads">500</intProp>
-        <intProp name="ThreadGroup.ramp_time">10</intProp>
+        <intProp name="ThreadGroup.num_threads">5</intProp>
+        <intProp name="ThreadGroup.ramp_time">5</intProp>
         <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller">
@@ -59,8 +59,8 @@
             </JSONPostProcessor>
             <hashTree/>
           </hashTree>
-          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="add to cart">
-            <stringProp name="HTTPSampler.path">/api/v1/cart/add-to-cart</stringProp>
+          <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="add cart event">
+            <stringProp name="HTTPSampler.path">/api/v1/cart/add-cart-event</stringProp>
             <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
             <stringProp name="HTTPSampler.method">POST</stringProp>
             <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
@@ -70,9 +70,9 @@
                 <elementProp name="" elementType="HTTPArgument">
                   <boolProp name="HTTPArgument.always_encode">false</boolProp>
                   <stringProp name="Argument.value">{&#xd;
+  &quot;eventType&quot;: &quot;ADD_TO_CART&quot;,&#xd;
   &quot;menuItemId&quot;: &quot;${menuItemId}&quot;,&#xd;
-  &quot;quantity&quot;: 1,&#xd;
-  &quot;price&quot;: ${price}&#xd;
+  &quot;quantity&quot;: 1&#xd;
 }</stringProp>
                   <stringProp name="Argument.metadata">=</stringProp>
                 </elementProp>
