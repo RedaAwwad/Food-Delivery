@@ -1,5 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
+import { InternalServerError } from "../../utils/errors";
 import { menuItemService } from "../../services/menuItem.service";
 
 /**
@@ -10,7 +11,7 @@ export class CheckInventoryHandler extends OrderHandler {
         console.log(`[CheckInventoryHandler] Checking inventory availability`);
 
         if (!context.cartItems) {
-            throw new Error("Cart items not found in context");
+            throw InternalServerError("Cart items not found in context (CheckInventory)");
         }
 
         await menuItemService.validateStock(context.cartItems, context.tx);

@@ -1,6 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
 import { paymentService } from "../../services/payment.service";
+import { InternalServerError } from "../../utils/errors";
 
 /**
  * Processes payment through the payment service.
@@ -10,7 +11,7 @@ export class ProcessPaymentHandler extends OrderHandler {
         console.log(`[ProcessPaymentHandler] Processing payment`);
 
         if (!context.order) {
-            throw new Error("Order not found in context");
+            throw InternalServerError("Order not found in context (ProcessPayment)");
         }
 
         const paymentResult = await paymentService.processPayment(
