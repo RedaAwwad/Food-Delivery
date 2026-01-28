@@ -10,36 +10,6 @@ import {
 
 const menuItemRouter = express.Router();
 
-menuItemRouter.get(
-  "/menu-category/:menuCategoryId",
-  menuItemController.getAllMenuItemByMenuCategoryId
-);
-menuItemRouter.get("/:menuItemId", menuItemController.getMenuItemById);
-menuItemRouter.post(
-  "/",
-  isAuthenticated,
-  isAuthorized(["RESTAURANT_MANAGER"]),
-  validateRequest(createMenuItemSchema),
-  menuItemController.createMenuItem
-);
-menuItemRouter.put(
-  "/",
-  isAuthenticated,
-  isAuthorized(["RESTAURANT_MANAGER"]),
-  validateRequest(updateMenuItemSchema),
-  menuItemController.updateMenuItem
-);
-menuItemRouter.delete(
-  "/",
-  isAuthenticated,
-  isAuthorized(["RESTAURANT_MANAGER"]),
-  validateRequest(deleteMenuItemSchema),
-  menuItemController.deleteMenuItem
-);
-menuItemRouter.get("/search/:keyword", menuItemController.searchMenuItem);
-
-export default menuItemRouter;
-
 /**
  * @swagger
  * tags:
@@ -49,30 +19,48 @@ export default menuItemRouter;
 
 /**
  * @swagger
- * /menu-item:
+ * /api/v1/menuItem/menu-category/{menuCategoryId}:
  *   get:
  *     summary: Get all menu items by Menu Category ID
  *     tags: [MenuItem]
- *     requestBody:
- *       description: "Expects menuCategoryId in body (based on schema convention)"
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - menuCategoryId
- *             properties:
- *               menuCategoryId:
- *                 type: string
+ *     parameters:
+ *       - in: path
+ *         name: menuCategoryId
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       200:
  *         description: List of menu items
- *
+ */
+menuItemRouter.get("/menu-category/:menuCategoryId", menuItemController.getAllMenuItemByMenuCategoryId);
+
+/**
+ * @swagger
+ * /api/v1/menuItem/{menuItemId}:
+ *   get:
+ *     summary: Get menu item by ID
+ *     tags: [MenuItem]
+ *     parameters:
+ *       - in: path
+ *         name: menuItemId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Menu item details
+ */
+menuItemRouter.get("/:menuItemId", menuItemController.getMenuItemById);
+
+/**
+ * @swagger
+ * /api/v1/menuItem:
  *   post:
  *     summary: Create a new menu item
  *     tags: [MenuItem]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -99,12 +87,17 @@ export default menuItemRouter;
  *     responses:
  *       201:
  *         description: Menu item created successfully
- *
+ */
+menuItemRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuItemSchema), menuItemController.createMenuItem);
+
+/**
+ * @swagger
+ * /api/v1/menuItem:
  *   put:
  *     summary: Update a menu item
  *     tags: [MenuItem]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -131,12 +124,17 @@ export default menuItemRouter;
  *     responses:
  *       200:
  *         description: Menu item updated successfully
- *
+ */
+menuItemRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuItemSchema), menuItemController.updateMenuItem);
+
+/**
+ * @swagger
+ * /api/v1/menuItem:
  *   delete:
  *     summary: Delete a menu item
  *     tags: [MenuItem]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -152,10 +150,11 @@ export default menuItemRouter;
  *       200:
  *         description: Menu item deleted successfully
  */
+menuItemRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuItemSchema), menuItemController.deleteMenuItem);
 
 /**
  * @swagger
- * /menu-item/search:
+ * /api/v1/menuItem/search:
  *   get:
  *     summary: Search menu items
  *     tags: [MenuItem]
@@ -169,3 +168,7 @@ export default menuItemRouter;
  *       200:
  *         description: List of matching menu items
  */
+menuItemRouter.get("/search", validateRequest(searchMenuItemSchema), menuItemController.searchMenuItem);
+
+export default menuItemRouter;
+

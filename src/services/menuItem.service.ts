@@ -1,6 +1,6 @@
 import { createMenuItemDto, updateMenuItemDto } from "../dto/menuItem.dto";
 import { menuItemRepository } from "../repositories/menuItem.repository";
-import { CartItemWithMenuItem } from "../types/cartItemWithMenuItem.type";
+import { CartItemSummary } from "../types/CartItemSummary";
 import { ConflictError, NotFoundError } from "../utils/errors";
 import { StatusCodes } from "http-status-codes";
 import { CustomError } from "../utils/errors/custom-error";
@@ -47,9 +47,9 @@ class MenuItemService {
     });
   }
 
-  async validateStock(items: CartItemWithMenuItem[], tx?: any) {
-    const menuItemIds = items.map((item) => item.menuItemId);
-    const menuItems = await menuItemRepository.getMenuItemsForStockCheck(menuItemIds, tx);
+    async validateStock(items: CartItemSummary[], tx?: any) {
+        const menuItemIds = items.map((item) => item.menuItemId);
+        const menuItems = await menuItemRepository.getMenuItemsForStockCheck(menuItemIds, tx);
 
     const menuItemMap = new Map(menuItems.map((item) => [item.menuItemId, item]));
 
@@ -65,10 +65,10 @@ class MenuItemService {
     }
   }
 
-  async reduceStock(items: CartItemWithMenuItem[], tx?: any) {
-    const stockUpdates = items.map((item) => {
-      return menuItemRepository.reduceStock(item.menuItemId, item.quantity, tx);
-    });
+    async reduceStock(items: CartItemSummary[], tx?: any) {
+        const stockUpdates = items.map((item) => {
+            return menuItemRepository.reduceStock(item.menuItemId, item.quantity, tx);
+        });
 
     await Promise.all(stockUpdates);
   }

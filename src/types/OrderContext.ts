@@ -1,4 +1,4 @@
-import { CartItemWithMenuItem } from "./cartItemWithMenuItem.type";
+import { CartItemSummary } from "./CartItemSummary";
 import { PrismaTx } from "./prisma.types";
 
 export interface OrderContext {
@@ -8,7 +8,7 @@ export interface OrderContext {
     tx?: PrismaTx;
 
     // Data populated during chain execution
-    cartItems?: CartItemWithMenuItem[];
+    cartItems?: CartItemSummary[];
     order?: any; // The created order
     paymentResult?: {
         success: boolean;

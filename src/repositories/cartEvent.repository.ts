@@ -24,6 +24,13 @@ class CartEventRepository {
             },
         });
     }
+
+    async getEventsByCustomerId(customerId: string) {
+        return await prisma.cartEvent.findMany({
+            where: { customerId },
+            orderBy: { eventDate: "desc" },
+        });
+    }
 }
 
 export const cartEventRepository = new CartEventRepository();

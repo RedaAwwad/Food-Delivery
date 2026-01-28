@@ -14,8 +14,8 @@ class UserService {
     return await userRepository.updateUser(userId, data);
   }
 
-  async updateIsActive(userId: string, isActive: boolean) {
-    return await userRepository.updateIsActive(userId, isActive);
+  async updateIsActive(userId: string) {
+    return await userRepository.updateIsActive(userId);
   }
 
   async findAndUpdateUserByEmail(userId: string, email: string, data: any) {

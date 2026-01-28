@@ -1,6 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { CreateCartItemDTO, UpdateCartItemQuantityDTO } from "../dto/cartItem.dto";
-import { RemoveCartItemDTO } from "../dto/RemoveCartItem.dto";
+import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
 import { PrismaClient } from "../generated/prisma";
@@ -10,6 +9,47 @@ class CartRepository {
     const cart = await prisma.cart.findUnique({ where: { customerId } });
     if (!cart) throw NotFoundError("No Cart Yet; Add Some Items");
     return cart;
+  }
+
+  async findCartIdByCustomerId(customerId: string) {
+    const cart = await prisma.cart.findUnique({
+      where: { customerId },
+      select: { cartId: true }
+    });
+    if (!cart) throw NotFoundError("No Cart Yet; Add Some Items");
+    return cart.cartId;
+  }
+
+  async updateCartItemQuantityByCartIdAndMenuItemId(
+    cartId: string,
+    menuItemId: string,
+    quantity: number,
+    tx: PrismaTx = prisma
+  ) {
+    return await tx.cartItem.update({
+      where: {
+        cartId_menuItemId: {
+          cartId,
+          menuItemId
+        }
+      },
+      data: { quantity }
+    });
+  }
+
+  async removeCartItemByCartIdAndMenuItemId(
+    cartId: string,
+    menuItemId: string,
+    tx: PrismaTx = prisma
+  ) {
+    return await tx.cartItem.delete({
+      where: {
+        cartId_menuItemId: {
+          cartId,
+          menuItemId
+        }
+      }
+    });
   }
 
   async upsertCart(customerId: string, tx: PrismaTx | PrismaClient = prisma) {
@@ -26,28 +66,17 @@ class CartRepository {
       where: { customerId },
       update: {},
       create: { customerId },
-      include: {
-        cartItems: true
-      }
-    });
-  }
-
-  async getCartWithOneCartItemByCustomerIdAndCartItemId(customerId: string, cartItemId: string) {
-    const cart = await prisma.cart.findUnique({
-      where: { customerId },
       select: {
-        cartId: true,
-        customerId: true,
-        isLocked: true,
         cartItems: {
-          where: { cartItemId }
-        }
+          select: {
+            menuItemId: true,
+            quantity: true,
+            price: true,
+          },
+        },
+        cartId: true,
       }
     });
-
-    if (!cart) return null;
-
-    return cart;
   }
 
   async findCartItemByCartIdAndMenuItemId(cartId: string, menuItemId: string) {
@@ -80,23 +109,6 @@ class CartRepository {
         menuItemId: cartItem.menuItemId,
         price: itemDetails.price,
       },
-    });
-  }
-
-  async updateCartItemQuantity({
-    cartItemId,
-    quantity,
-  }: UpdateCartItemQuantityDTO, tx: PrismaTx = prisma) {
-
-    return await tx.cartItem.update({
-      where: { cartItemId },
-      data: { quantity },
-    });
-  }
-
-  async removeItemFromCart({ cartItemId }: RemoveCartItemDTO, cartId: string, tx: PrismaTx = prisma) {
-    return await tx.cartItem.delete({
-      where: { cartItemId, cartId },
     });
   }
 

@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { CartItemWithMenuItem } from "../types/cartItemWithMenuItem.type";
+import { CartItemWithMenuItem } from "../types/CartItemSummary";
 import { NotFoundError } from "../utils/errors";
 
 class InventoryRepository {

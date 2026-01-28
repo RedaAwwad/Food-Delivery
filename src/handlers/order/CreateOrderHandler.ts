@@ -2,6 +2,7 @@ import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
 import { orderRepository } from "../../repositories/order.repository";
 import { OrderStatusKey } from "../../generated/prisma";
+import { InternalServerError } from "../../utils/errors";
 
 /**
  * Creates the order record with PENDING status.
@@ -11,7 +12,7 @@ export class CreateOrderHandler extends OrderHandler {
         console.log(`[CreateOrderHandler] Creating order record`);
 
         if (!context.cartItems) {
-            throw new Error("Cart items not found in context");
+            throw InternalServerError("Cart items not found in context (CreateOrder)");
         }
 
         const order = await orderRepository.createOrder({

@@ -6,7 +6,7 @@ const initServer = async (app: Express) => {
     await prisma.$connect();
     console.log("✅ Database connected successfully");
 
-    const server = app.listen(process.env.PORT, () => {
+    const server = app.listen(Number(process.env.PORT), () => {
       console.log(`🚀 Server running on ${process.env.APP_BASE_URL}`);
       console.log(`📖 API docs: ${process.env.APP_BASE_URL}/api-docs`);
     });
