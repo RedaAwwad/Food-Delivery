@@ -96,7 +96,7 @@ menuRouter.get("/:menuId", validateRequest(getActiveMenuSchema), menuController.
  *       400:
  *         description: Bad Request
  */
-menuRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuSchema), menuController.createMenu);
+menuRouter.post("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(createMenuSchema), menuController.createMenu);
 
 /**
  * @swagger
@@ -136,7 +136,7 @@ menuRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(c
  *       400:
  *         description: Bad Request
  */
-menuRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuSchema), menuController.updateMenu);
+menuRouter.put("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(updateMenuSchema), menuController.updateMenu);
 
 /**
  * @swagger
@@ -168,7 +168,7 @@ menuRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(up
  *       400:
  *         description: Bad Request
  */
-menuRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuSchema), menuController.deleteMenu);
+menuRouter.delete("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(deleteMenuSchema), menuController.deleteMenu);
 
 /**
  * @swagger
@@ -200,7 +200,7 @@ menuRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest
  *       400:
  *         description: Bad Request
  */
-menuRouter.patch("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(enableOrDisableMenuSchema), menuController.enableOrDisableMenu);
+menuRouter.patch("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(enableOrDisableMenuSchema), menuController.enableOrDisableMenu);
 
 /**
  * @swagger
@@ -234,7 +234,7 @@ menuRouter.patch("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(
  *       400:
  *         description: Bad Request
  */
-menuRouter.get("/all-menus", isAuthenticated, isAuthorized(["Owner"]), validateRequest(viewHistoryListOfRestaurantMenusSchema), menuController.viewHistoryListOfRestaurantMenus);
+menuRouter.get("/all-menus", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(viewHistoryListOfRestaurantMenusSchema), menuController.viewHistoryListOfRestaurantMenus);
 
 export { menuRouter }
 

@@ -7,7 +7,8 @@ import { findAndUpdateUserSchema, findUserByIdSchema } from "../validation/user.
 const userRouter = express.Router();
 
 // Apply auth to all role routes
-userRouter.use([isAuthenticated, isAuthorized(["ADMIN"])]);
+userRouter.use(isAuthenticated);
+userRouter.use(isAuthorized(["ADMIN"]));
 
 userRouter.get("/manager/:userId", validateRequest(findUserByIdSchema, "params"), userController.findUserWithRestaurant);
 userRouter.put("/find-and-update-by-email", userController.findAndUpdateUserByEmail);

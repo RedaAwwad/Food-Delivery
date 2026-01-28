@@ -88,7 +88,7 @@ menuItemRouter.get("/:menuItemId", menuItemController.getMenuItemById);
  *       201:
  *         description: Menu item created successfully
  */
-menuItemRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuItemSchema), menuItemController.createMenuItem);
+menuItemRouter.post("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(createMenuItemSchema), menuItemController.createMenuItem);
 
 /**
  * @swagger
@@ -125,7 +125,7 @@ menuItemRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateReque
  *       200:
  *         description: Menu item updated successfully
  */
-menuItemRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuItemSchema), menuItemController.updateMenuItem);
+menuItemRouter.put("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(updateMenuItemSchema), menuItemController.updateMenuItem);
 
 /**
  * @swagger
@@ -150,7 +150,7 @@ menuItemRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateReques
  *       200:
  *         description: Menu item deleted successfully
  */
-menuItemRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuItemSchema), menuItemController.deleteMenuItem);
+menuItemRouter.delete("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(deleteMenuItemSchema), menuItemController.deleteMenuItem);
 
 /**
  * @swagger
@@ -168,7 +168,7 @@ menuItemRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateReq
  *       200:
  *         description: List of matching menu items
  */
-menuItemRouter.get("/search", validateRequest(searchMenuItemSchema), menuItemController.searchMenuItem);
+menuItemRouter.get("/search/:keyword", menuItemController.searchMenuItem);
 
 export default menuItemRouter;
 

@@ -2,8 +2,6 @@ import { createMenuItemDto, updateMenuItemDto } from "../dto/menuItem.dto";
 import { menuItemRepository } from "../repositories/menuItem.repository";
 import { CartItemSummary } from "../types/CartItemSummary";
 import { ConflictError, NotFoundError } from "../utils/errors";
-import { StatusCodes } from "http-status-codes";
-import { CustomError } from "../utils/errors/custom-error";
 import { performanceContext } from "../utils/performance.utils";
 import { formatPagination, PaginationDto } from "../utils/pagination.utils";
 

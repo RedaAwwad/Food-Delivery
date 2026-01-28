@@ -68,7 +68,7 @@ menuCategoryRouter.get("/", menuCategoryController.findAllMenuCategoriesByMenuId
  *       201:
  *         description: Menu category created successfully
  */
-menuCategoryRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(createMenuCategorySchema), menuCategoryController.createMenuCategory);
+menuCategoryRouter.post("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(createMenuCategorySchema), menuCategoryController.createMenuCategory);
 
 /**
  * @swagger
@@ -97,7 +97,7 @@ menuCategoryRouter.post("/", isAuthenticated, isAuthorized(["Owner"]), validateR
  *       200:
  *         description: Menu category updated successfully
  */
-menuCategoryRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(updateMenuCategorySchema), menuCategoryController.updateMenuCategory);
+menuCategoryRouter.put("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(updateMenuCategorySchema), menuCategoryController.updateMenuCategory);
 
 /**
  * @swagger
@@ -122,6 +122,6 @@ menuCategoryRouter.put("/", isAuthenticated, isAuthorized(["Owner"]), validateRe
  *       200:
  *         description: Menu category deleted successfully
  */
-menuCategoryRouter.delete("/", isAuthenticated, isAuthorized(["Owner"]), validateRequest(deleteMenuCategorySchema), menuCategoryController.deleteMenuCategory);
+menuCategoryRouter.delete("/", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), validateRequest(deleteMenuCategorySchema), menuCategoryController.deleteMenuCategory);
 
 export { menuCategoryRouter };
