@@ -1,5 +1,6 @@
 import { Prisma, User } from "../generated/prisma";
 import { prisma } from "../config/prisma.config";
+import { NotFoundError } from "../utils/errors";
 export class UserRepository {
   async createUser(data: any, tx?: Prisma.TransactionClient) {
     return (tx || prisma).user.create({ data });
@@ -36,14 +37,19 @@ export class UserRepository {
     });
   }
 
-  async updateIsActive(userId: string, isActive: boolean) {
+  async updateIsActive(userId: string) {
+    const user = await this.findUserById(userId, { isActive: true });
+
+    if (!user) throw NotFoundError("User not found");
+
     return prisma.user.update({
       where: { userId },
-      data: { isActive },
+      data: { isActive: !user.isActive },
       select: {
         userId: true,
         userName: true,
         userEmail: true,
+        isActive: true,
       },
     });
   }
