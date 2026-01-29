@@ -60,6 +60,40 @@ async function main() {
     }
   }
 
+  // 1.2 Create Default Admin User
+  console.log("Seeding Default Admin...");
+  const adminEmail = "admin@admin.com";
+  const adminPassword = await PasswordUtils.hash("Pass@123");
+  const adminRole = rolesMap.get(DEFAULT_ROLE_KEYS.ADMIN);
+
+  if (!adminRole) {
+    throw new Error("Admin role not found, check role seeding");
+  }
+
+  const existingAdmin = await prisma.user.findUnique({ where: { userEmail: adminEmail } });
+  if (!existingAdmin) {
+    const adminUser = await prisma.user.create({
+      data: {
+        userName: "Super Admin",
+        userEmail: adminEmail,
+        userPassword: adminPassword,
+        isAdmin: true,
+        isConfirmed: true,
+        isActive: true,
+      },
+    });
+
+    await prisma.userRole.create({
+      data: {
+        userId: adminUser.userId,
+        roleId: adminRole,
+      },
+    });
+    console.log("Default Admin created.");
+  } else {
+    console.log("Default Admin already exists.");
+  }
+
   // Helper to chunk arrays
   const chunk = <T>(arr: T[], size: number): T[][] =>
     Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
