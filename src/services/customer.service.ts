@@ -5,6 +5,8 @@ import { CustomError } from "../utils/errors";
 import { CreateCustomerRatingDto } from "../dto/rating.dto";
 import { orderService } from "./order.service";
 import { Prisma } from "../generated/prisma";
+import { prisma } from "../config/prisma.config";
+import { CreateAddressDTO, UpdateAddressDTO } from "../dto/address.dto";
 
 class CustomerService {
   async createCustomer(data: any, tx?: Prisma.TransactionClient) {
@@ -52,6 +54,37 @@ class CustomerService {
 
   async getCustomerByUserId(userId: string) {
     return await customerRepository.getCustomerByUserId(userId);
+  }
+
+  // Address Management
+  async addAddress(customerId: string, data: CreateAddressDTO) {
+    if (data.isPrimary) {
+      await prisma.customer.address().unsetPrimary(customerId);
+    }
+    return await prisma.customer.address().add(customerId, data);
+  }
+
+  async updateAddress(
+    customerId: string,
+    addressId: string,
+    data: UpdateAddressDTO
+  ) {
+    if (data.isPrimary) {
+      await prisma.customer.address().unsetPrimary(customerId, addressId);
+    }
+    return await prisma.customer.address().update(customerId, addressId, data);
+  }
+
+  async deleteAddress(customerId: string, addressId: string) {
+    return await prisma.customer.address().remove(customerId, addressId);
+  }
+
+  async getAddresses(customerId: string) {
+    return await prisma.customer.address().list(customerId);
+  }
+
+  async getAddressById(customerId: string, addressId: string) {
+    return await prisma.customer.address().findById(customerId, addressId);
   }
 }
 export const customerService = new CustomerService();

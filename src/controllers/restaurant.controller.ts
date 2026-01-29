@@ -100,6 +100,32 @@ class RestaurantController {
   //         data:menuItems
   //        }))
   //    }
+  // Address Management
+  async addAddress(req: Request, res: Response) {
+    const { restaurantId, ...addressData } = req.body;
+    const address = await restaurantService.addAddress(restaurantId, addressData);
+    res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: address }));
+  }
+
+  async updateAddress(req: Request, res: Response) {
+    const { addressId } = req.params;
+    const { restaurantId, ...updateData } = req.body;
+    const address = await restaurantService.updateAddress(restaurantId, addressId as string, updateData);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: address }));
+  }
+
+  async deleteAddress(req: Request, res: Response) {
+    const { addressId } = req.params;
+    const { restaurantId } = req.body;
+    await restaurantService.deleteAddress(restaurantId, addressId as string);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ message: "Address deleted successfully" }));
+  }
+
+  async getAddresses(req: Request, res: Response) {
+    const restaurantId = (req.params.restaurantId) as string;
+    const addresses = await restaurantService.getAddresses(restaurantId);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: addresses }));
+  }
 }
 export const restaurantController = new RestaurantController();
 

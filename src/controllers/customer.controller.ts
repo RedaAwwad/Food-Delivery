@@ -41,6 +41,35 @@ class CustomerController {
       .status(StatusCodes.CREATED)
       .json(new SuccessResponse({ message: "Rating created successfully", data: ratingCustomer }));
   }
+
+  // Address Management
+  async createAddress(req: Request, res: Response) {
+    const customerId = req.user!.customerId!;
+    const address = await customerService.addAddress(customerId, req.body);
+    res.status(StatusCodes.CREATED).json(new SuccessResponse({ data: address }));
+  }
+
+  async getMyAddresses(req: Request, res: Response) {
+    const customerId = req.user!.customerId!;
+    const addresses = await customerService.getAddresses(customerId);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: addresses }));
+  }
+
+  async updateAddress(req: Request, res: Response) {
+    const { addressId } = req.params;
+    const customerId = req.user!.customerId!;
+    const address = await customerService.updateAddress(customerId, addressId as string, req.body);
+    res.status(StatusCodes.OK).json(new SuccessResponse({ data: address }));
+  }
+
+  async deleteAddress(req: Request, res: Response) {
+    const { addressId } = req.params;
+    const customerId = req.user!.customerId!;
+    await customerService.deleteAddress(customerId, addressId as string);
+    res
+      .status(StatusCodes.OK)
+      .json(new SuccessResponse({ message: "Address deleted successfully" }));
+  }
 }
 
 export const customerController = new CustomerController();

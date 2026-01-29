@@ -4,6 +4,7 @@ import {
   updateRestaurantDto,
   updateRestaurantRatingDto,
 } from "../dto/restaurant.dto";
+import { CreateAddressDTO, UpdateAddressDTO } from "../dto/address.dto";
 import { restaurantRepository } from "../repositories/restaurant.repository";
 import { prisma } from "../config/prisma.config";
 import { formatPagination, PaginationDto } from "../utils/pagination.utils";
@@ -74,6 +75,37 @@ export class RestaurantService {
 
   async deleteRestaurant(restaurantId: string) {
     return await restaurantRepository.deleteRestaurant(restaurantId);
+  }
+
+  // Address Management
+  async addAddress(restaurantId: string, data: CreateAddressDTO) {
+    if (data.isPrimary) {
+      await prisma.restaurant.address().unsetPrimary(restaurantId);
+    }
+    return await prisma.restaurant.address().add(restaurantId, data);
+  }
+
+  async updateAddress(
+    restaurantId: string,
+    addressId: string,
+    data: UpdateAddressDTO
+  ) {
+    if (data.isPrimary) {
+      await prisma.restaurant.address().unsetPrimary(restaurantId, addressId);
+    }
+    return await prisma.restaurant.address().update(restaurantId, addressId, data);
+  }
+
+  async deleteAddress(restaurantId: string, addressId: string) {
+    return await prisma.restaurant.address().remove(restaurantId, addressId);
+  }
+
+  async getAddresses(restaurantId: string) {
+    return await prisma.restaurant.address().list(restaurantId);
+  }
+
+  async getAddressById(restaurantId: string, addressId: string) {
+    return await prisma.restaurant.address().findById(restaurantId, addressId);
   }
 }
 export const restaurantService = new RestaurantService();

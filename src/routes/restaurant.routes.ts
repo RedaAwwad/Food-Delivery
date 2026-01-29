@@ -289,3 +289,52 @@ restaurantRouter.put('/enable-disable', isAuthenticated, validateRequest(enableO
  *                 $ref: '#/components/schemas/Restaurant'
  */
 restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query"), restaurantController.searchRestaurants);
+
+// Address Routes
+/**
+ * @swagger
+ * /api/v1/restaurant/addresses:
+ *   post:
+ *     summary: Create address for restaurant
+ *     tags: [Restaurant]
+ *     responses:
+ *       201:
+ *         description: Address created
+ */
+restaurantRouter.post("/addresses", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.addAddress);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/{restaurantId}/addresses:
+ *   get:
+ *     summary: Get restaurant addresses
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: List of addresses
+ */
+restaurantRouter.get("/:restaurantId/addresses", restaurantController.getAddresses);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/addresses/{addressId}:
+ *   put:
+ *     summary: Update restaurant address
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: Address updated
+ */
+restaurantRouter.put("/addresses/:addressId", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.updateAddress);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/addresses/{addressId}:
+ *   delete:
+ *     summary: Delete restaurant address
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: Address deleted
+ */
+restaurantRouter.delete("/addresses/:addressId", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.deleteAddress);

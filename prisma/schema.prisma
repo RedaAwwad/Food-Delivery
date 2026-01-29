@@ -89,7 +89,7 @@ model Customer {
   cart Cart?
  
   orders Order[]
-  addresses Address[]
+  addresses Json? @default("[]") @map("addresses")
   rating Rating[]
   orderTracking OrderTracking[]
 
@@ -121,7 +121,7 @@ model Restaurant {
 
   manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
-  addresses Address[]
+  addresses Json? @default("[]") @map("addresses")
   rating Rating[]
 
   orders Order[]
@@ -291,31 +291,6 @@ model OrderItem {
   menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
 
   @@map("order_items")
-}
-
-
-model Address {
-  addressId     String      @id @default(uuid()) @map("address_id")
-  customerId   String?  @map("customer_id")
-  restaurantId String?  @map("restaurant_id")
-  street     String   
-  city       String   
-  area       String   
-  zipCode    Int   @map("zip_code")
-  block      String
-  apartmentNumber  String
-  floor      String  
-  latitude   Float
-  longitude  Float
-  isPrimary  Boolean   @default(false) @map("is_primary")
-
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @default(now()) @map("updated_at")
-
-  customer Customer? @relation(fields: [customerId], references: [customerId])
-  restaurant Restaurant? @relation(fields: [restaurantId], references: [restaurantId])
-  
-  @@map("addresses")
 }
 
 model PreferredPaymentSettings {

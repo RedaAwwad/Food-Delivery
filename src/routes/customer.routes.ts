@@ -104,4 +104,65 @@ customerRouter.post(
   customerController.createRatingByCustomer
 );
 
+// Address Routes
+/**
+ * @swagger
+ * /api/v1/customers/addresses:
+ *   post:
+ *     summary: Create address
+ *     tags: [Customer]
+ *     responses:
+ *       201:
+ *         description: Address created
+ */
+customerRouter.post("/addresses", customerController.createAddress);
+
+/**
+ * @swagger
+ * /api/v1/customers/addresses:
+ *   get:
+ *     summary: Get my addresses
+ *     tags: [Customer]
+ *     responses:
+ *       200:
+ *         description: List of addresses
+ */
+customerRouter.get("/addresses", customerController.getMyAddresses);
+
+/**
+ * @swagger
+ * /api/v1/customers/addresses/{addressId}:
+ *   put:
+ *     summary: Update address
+ *     tags: [Customer]
+ *     parameters:
+ *       - in: path
+ *         name: addressId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Address updated
+ */
+customerRouter.put("/addresses/:addressId", customerController.updateAddress);
+
+/**
+ * @swagger
+ * /api/v1/customers/addresses/{addressId}:
+ *   delete:
+ *     summary: Delete address
+ *     tags: [Customer]
+ *     parameters:
+ *       - in: path
+ *         name: addressId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Address deleted
+ */
+customerRouter.delete("/addresses/:addressId", customerController.deleteAddress);
+
 export { customerRouter };

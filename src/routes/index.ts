@@ -1,7 +1,6 @@
 import { Express } from "express";
 import { cartRouter } from "./cart.routes";
 import { orderRouter } from "./order.routes";
-import { addressRouter } from "./address.routes";
 import { authRouter } from "./auth.routes";
 import { roleRouter } from "./role.routes";
 import { userRouter } from "./user.routes";
@@ -18,7 +17,6 @@ const initAPIRoutes = (app: Express) => {
   app.use(`${apiPrefix}/users`, userRouter);
   app.use(`${apiPrefix}/cart`, cartRouter);
   app.use(`${apiPrefix}/orders`, orderRouter);
-  app.use(`${apiPrefix}/addresses`, addressRouter);
   app.use(`${apiPrefix}/restaurants`, restaurantRouter);
   app.use(`${apiPrefix}/menus`, menuRouter);
   app.use(`${apiPrefix}/menu-categories`, menuCategoryRouter);
