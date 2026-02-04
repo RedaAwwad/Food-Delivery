@@ -16,12 +16,10 @@ export class ParallelOrderHandler extends OrderHandler {
             const { tx, ...safeContext } = context;
 
             // Small delay to ensure the main transaction commits before background tasks try to read the Order
-            setTimeout(() => {
-                Promise.all(this.backgroundHandlers.map(h => h.execute(safeContext as OrderContext)))
-                    .catch(err => {
-                        console.error("[ParallelOrderHandler] Background handler error:", err);
-                    });
-            }, 500);
+            Promise.all(this.backgroundHandlers.map(h => h.execute(safeContext as OrderContext)))
+                .catch(err => {
+                    console.error("[ParallelOrderHandler] Background handler error:", err);
+                });
         }
     }
 }

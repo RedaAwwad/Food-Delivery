@@ -31,7 +31,15 @@ export class OrderHandlerChainBuilder {
         const unlockCart = new UnlockCartHandler();
 
         const parallelHandler = new ParallelOrderHandler(
-            [updateOrderStatus, reduceInventory, clearCart, unlockCart, notifyRestaurant, notifyCustomer, auditLog] // Background (Fire & Forget)
+            [
+                updateOrderStatus,
+                reduceInventory,
+                clearCart,
+                unlockCart,
+                notifyRestaurant,
+                notifyCustomer,
+                auditLog
+            ]   // Background (Fire & Forget)
         );
 
         lockCart
