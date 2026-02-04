@@ -7,11 +7,11 @@ export class UserRepository {
     return (tx || prisma).user.create({ data });
   }
 
-  async addRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+  async assignRoleToUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
     return (tx || prisma).user.role().add(userId, roleKey as any, tx);
   }
 
-  async removeRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+  async removeRoleFromUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
     return (tx || prisma).user.role().remove(userId, roleKey as any, tx);
   }
 
@@ -43,7 +43,7 @@ export class UserRepository {
     return (await prisma.user.findUnique(q)) as T;
   }
 
-  async updateUser(userId: string, data: any) {
+  async updateUserById(userId: string, data: any) {
     return prisma.user.update({
       where: { userId },
       data,

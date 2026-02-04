@@ -6,7 +6,7 @@ const roleRouter = Router();
 
 // Apply auth to all role routes
 roleRouter.use(isAuthenticated);
-roleRouter.use(isAuthorized(["admin"]))
+roleRouter.use(isAuthorized(["ADMIN"]));
 
 /**
  * @swagger
@@ -66,36 +66,8 @@ roleRouter.use(isAuthorized(["admin"]))
  *       201:
  *         description: Role created successfully
  */
-roleRouter.post("/", roleController.createRole);
 roleRouter.get("/", roleController.getAllRoles);
-
-/**
- * @swagger
- * /api/v1/roles/assign:
- *   post:
- *     summary: Assign a role to a user
- *     tags: [Role]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *               - roleName
- *             properties:
- *               userId:
- *                 type: string
- *               roleName:
- *                 type: string
- *     responses:
- *       200:
- *         description: Role assigned successfully
- */
-roleRouter.post("/assign", roleController.assignRole);
+roleRouter.post("/", roleController.createRole);
 
 /**
  * @swagger
@@ -146,33 +118,5 @@ roleRouter.delete("/delete-by-id", roleController.removeRoleById);
  *         description: Role deleted successfully
  */
 roleRouter.delete("/delete-by-name", roleController.removeRoleByName);
-
-/**
- * @swagger
- * /api/v1/roles/demote-user:
- *   delete:
- *     summary: Remove a role from a user
- *     tags: [Role]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - userId
- *               - roleName
- *             properties:
- *               userId:
- *                 type: string
- *               roleName:
- *                 type: string
- *     responses:
- *       200:
- *         description: Role removed from user successfully
- */
-roleRouter.delete("/demote-user", roleController.removeRoleFromUser);
 
 export { roleRouter };

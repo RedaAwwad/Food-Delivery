@@ -12,8 +12,8 @@ class UserController {
             .json(new SuccessResponse({ data: result }));
     }
 
-    async updateUser(req: Request, res: Response) {
-        const result = await userService.updateUser(req.user!.userId, req.body);
+    async updateUserById(req: Request, res: Response) {
+        const result = await userService.updateUserById(req.user!.userId, req.body);
 
         return res
             .status(StatusCodes.OK)
@@ -36,12 +36,28 @@ class UserController {
             .json(new SuccessResponse({ data: result }));
     }
 
-    async findUserByIdWithRoles(req: Request, res: Response) {
-        const result = await userService.findUserByIdWithRoles(req.body);
+    async findUserById(req: Request, res: Response) {
+        const result = await userService.findUserById(req.body);
 
         return res
             .status(StatusCodes.OK)
             .json(new SuccessResponse({ data: result }));
+    }
+
+    async assignRoleToUser(req: Request, res: Response) {
+        const { userId, roleName } = req.body;
+        const result = await userService.assignRoleToUser(userId, roleName);
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({ data: result, message: "Role assigned successfully" }));
+    }
+
+    async removeRoleFromUser(req: Request, res: Response) {
+        const { userId, roleName } = req.body;
+        const result = await userService.removeRoleFromUser(userId, roleName);
+        return res
+            .status(StatusCodes.OK)
+            .json(new SuccessResponse({ data: result, message: "Role removed successfully" }));
     }
 }
 

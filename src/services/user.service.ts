@@ -13,8 +13,8 @@ class UserService {
     return await userRepository.createUser(data, tx);
   }
 
-  async updateUser(userId: string, data: any) {
-    return await userRepository.updateUser(userId, data);
+  async updateUserById(userId: string, data: any) {
+    return await userRepository.updateUserById(userId, data);
   }
 
   async updateIsActive(userId: string) {
@@ -33,25 +33,22 @@ class UserService {
     return await userRepository.findUserById(userId, select);
   }
 
-  async assignRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+  async assignRoleToUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
     const roleExists = await roleService.findRoleByKey(roleKey as any);
     if (!roleExists) throw InternalServerError("Role definition not found");
 
     const hasRole = await userRepository.hasRole(userId, roleKey, tx);
     if (hasRole) throw ConflictError("User already has this role");
 
-    await userRepository.addRole(userId, roleKey, tx);
+    await userRepository.assignRoleToUser(userId, roleKey, tx);
     return true;
   }
 
-  async revokeRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
-    const roleExists = await roleService.findRoleByKey(roleKey as any);
-    if (!roleExists) throw InternalServerError("Role definition not found");
-
+  async removeRoleFromUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
     const hasRole = await userRepository.hasRole(userId, roleKey, tx);
     if (!hasRole) throw NotFoundError("User does not have this role");
 
-    await userRepository.removeRole(userId, roleKey, tx);
+    await userRepository.removeRoleFromUser(userId, roleKey, tx);
     return true;
   }
 }
