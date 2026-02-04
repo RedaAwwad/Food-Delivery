@@ -10,7 +10,12 @@ import { NotFoundError } from "../utils/errors/error-factories.js";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
-const pool = new pg.Pool({ connectionString });
+const pool = new pg.Pool({
+  connectionString,
+  max: 50, // Explicitly set pool limit (default is 10)
+  connectionTimeoutMillis: 20000, // 20 seconds
+  idleTimeoutMillis: 30000,
+});
 
 const adapter = new PrismaPg(pool);
 

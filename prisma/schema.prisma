@@ -31,6 +31,7 @@ model User {
   createdCustomers Customer[] @relation("CreatedCustomers")
   updatedCustomers Customer[] @relation("UpdatedCustomers")
 
+  @@index([roles], type: Gin)
   @@map("users")
 }
  
@@ -88,6 +89,7 @@ model Customer {
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
 
+  @@index([addresses], type: Gin)
   @@map("customers")
 }
 
@@ -113,7 +115,7 @@ model Restaurant {
   orders Order[]
 
   @@index([restaurantName])
-
+  @@index([addresses], type: Gin)
   @@map("restaurants")
 }
 
@@ -146,6 +148,7 @@ model CartItem {
   cart     Cart     @relation(fields: [cartId], references: [cartId])
   menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
   @@unique([cartId , menuItemId])
+  @@index([menuItemId])
   @@map("cart_items")
 }
 
@@ -222,7 +225,9 @@ model Order {
   orderTracking OrderTracking[]
 
   orderItems OrderItem[]
-
+  
+  @@index([customerId])
+  @@index([restaurantId]) 
   @@map("orders")
 }
 
@@ -276,6 +281,8 @@ model OrderItem {
   order    Order    @relation(fields: [orderId], references: [orderId])
   menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
 
+  @@index([orderId])
+  @@index([menuItemId])
   @@map("order_items")
 }
 
