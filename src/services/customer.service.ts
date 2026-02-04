@@ -1,15 +1,13 @@
-import { StatusCodes } from "http-status-codes";
 import { customerRepository } from "../repositories/customer.repository";
 import { ratingService } from "./rating.service";
-import { CustomError } from "../utils/errors";
+import { NotFoundError } from "../utils/errors";
 import { CreateCustomerRatingDto } from "../dto/rating.dto";
 import { orderService } from "./order.service";
-import { Prisma } from "../generated/prisma";
-import { prisma } from "../config/prisma.config";
+import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
 import { CreateAddressDTO, UpdateAddressDTO } from "../dto/address.dto";
 
 class CustomerService {
-  async createCustomer(data: any, tx?: Prisma.TransactionClient) {
+  async createCustomer(data: any, tx?: ExtendedTransactionClient) {
     return await customerRepository.createCustomer(data, tx);
   }
 
@@ -27,12 +25,7 @@ class CustomerService {
 
   async deactivateAccount(customerId: string) {
     const customer = await customerRepository.getCustomerByCustomerId(customerId);
-    if (!customer) {
-      throw new CustomError({
-        message: "NO found customer",
-        statusCode: StatusCodes.BAD_REQUEST,
-      });
-    }
+    if (!customer) throw NotFoundError("Customer Not found");
 
     return await customerRepository.deactivateAccount(customerId);
   }

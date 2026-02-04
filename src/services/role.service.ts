@@ -1,8 +1,7 @@
 import { roleRepository } from "../repositories/role.repository";
-import { userRoleRepository } from "../repositories/user-role.repository";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { Prisma, RoleKey } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma";
 import { InternalServerError } from "../utils/errors";
 
 class RoleService {
@@ -21,45 +20,8 @@ class RoleService {
     return roleRepository.findAll();
   }
 
-  async assignRoleToUser(userId: string, roleKey: RoleKey, tx?: Prisma.TransactionClient) {
-    const role = await roleRepository.findRoleByKey(roleKey);
-
-    if (!role) {
-      throw InternalServerError("Something went wrong!");
-    }
-
-    try {
-      return await userRoleRepository.assignRole(userId, role.roleId, tx);
-    } catch (error: any) {
-      if (error.code === "P2002") {
-        // Prisma unique constraint violation
-        throw new CustomError({
-          message: "User already has this role",
-          statusCode: StatusCodes.CONFLICT,
-        });
-      }
-      throw error;
-    }
-  }
-
-  async removeRoleByNameFromUser(userId: string, roleKey: RoleKey) {
-    const role = await roleRepository.findRoleByKey(roleKey);
-    if (!role) {
-      throw InternalServerError("Something went wrong!");
-    }
-
-    try {
-      return await userRoleRepository.removeRole(userId, role.roleId);
-    } catch (error: any) {
-      if (error.code === "P2025") {
-        // Prisma record not found
-        throw new CustomError({
-          message: "User does not have this role",
-          statusCode: StatusCodes.NOT_FOUND,
-        });
-      }
-      throw error;
-    }
+  async findRoleByKey(roleKey: RoleKey) {
+    return roleRepository.findRoleByKey(roleKey);
   }
 
   async removeRoleById(roleId: string) {

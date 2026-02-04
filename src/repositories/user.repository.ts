@@ -1,9 +1,22 @@
 import { Prisma, User } from "../generated/prisma";
-import { prisma } from "../config/prisma.config";
+import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
 import { NotFoundError } from "../utils/errors";
+
 export class UserRepository {
-  async createUser(data: any, tx?: Prisma.TransactionClient) {
+  async createUser(data: any, tx?: ExtendedTransactionClient) {
     return (tx || prisma).user.create({ data });
+  }
+
+  async addRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+    return (tx || prisma).user.role().add(userId, roleKey as any, tx);
+  }
+
+  async removeRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+    return (tx || prisma).user.role().remove(userId, roleKey as any, tx);
+  }
+
+  async hasRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+    return (tx || prisma).user.role().has(userId, roleKey as any, tx);
   }
 
   async findUserByEmail<T = User>(email: string, select?: Prisma.UserSelect): Promise<T> {
@@ -67,32 +80,6 @@ export class UserRepository {
     return prisma.user.update({
       where: { userId, userEmail: email },
       data,
-    });
-  }
-
-  async findUserByEmailWithRoles(email: string) {
-    return prisma.user.findUnique({
-      where: { userEmail: email },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-  }
-
-  async findUserByIdWithRoles(userId: string) {
-    return prisma.user.findUnique({
-      where: { userId },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
     });
   }
 }

@@ -36,12 +36,6 @@ export class UserDTO {
       this.restaurantId = user.restaurantId;
     }
 
-    this.userRoles = user.userRoles.map((role) => {
-      if (typeof role === "string") {
-        return role;
-      }
-
-      return role.role.roleKey;
-    });
+    this.userRoles = user.roles || [];
   }
 }

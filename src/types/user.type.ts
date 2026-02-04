@@ -13,13 +13,7 @@ export type UserSession = Pick<User, "userId" | "userName" | "userEmail"> & {
 };
 
 export interface UserWithRelations extends PickUser {
-  userRoles:
-    | {
-        role: {
-          roleKey: RoleKey;
-        };
-      }[]
-    | RoleKey[];
+  roles: RoleKey[];
   customer?: {
     customerId: string;
   };

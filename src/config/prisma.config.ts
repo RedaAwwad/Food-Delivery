@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { v7 as uuidv7 } from "uuid";
 import { Address } from "../types/address.type.js";
 import { NotFoundError } from "../utils/errors/error-factories.js";
+import { RoleKey } from "../generated/prisma/index.js";
 
 dotenv.config();
 
@@ -17,6 +18,69 @@ const baseClient = new PrismaClient({
   adapter,
   log: ["query", "error"],
 });
+
+
+const createRoleMethods = () => {
+  return {
+    async add(userId: string, role: RoleKey, tx?: any): Promise<void> {
+      const client = tx || baseClient;
+
+      const roleJson = JSON.stringify([role]);
+
+      const query = `
+        UPDATE "users"
+        SET roles = CASE 
+            WHEN roles @> $1::jsonb THEN roles 
+            ELSE COALESCE(roles, '[]'::jsonb) || $1::jsonb 
+        END
+        WHERE "user_id" = $2
+       `;
+
+      await client.$executeRawUnsafe(query, roleJson, userId);
+    },
+
+    async remove(userId: string, role: RoleKey, tx?: any): Promise<void> {
+      const client = tx || baseClient;
+      // Postgres operator '-' removes element from JSONB array
+      const query = `
+        UPDATE "users"
+        SET roles = roles - $1
+        WHERE "user_id" = $2
+       `;
+      // Note: '-' with text expects the string value to remove
+      await client.$executeRawUnsafe(query, role, userId);
+    },
+
+    async list(userId: string, tx?: any): Promise<RoleKey[]> {
+      const client = tx || baseClient;
+      const query = `SELECT roles FROM "users" WHERE "user_id" = $1`;
+      const result = (await client.$queryRawUnsafe(
+        query,
+        userId
+      )) as Array<{ roles: any }>;
+
+      if (!result || result.length === 0 || !result[0] || !result[0].roles) return [];
+      return result[0].roles as RoleKey[];
+    },
+
+    async has(userId: string, role: RoleKey, tx?: any): Promise<boolean> {
+      const client = tx || baseClient;
+      // Check if roles contains the specific role
+      const roleJson = JSON.stringify([role]);
+      const query = `
+         SELECT 1 as exists 
+         FROM "users" 
+         WHERE "user_id" = $1 AND roles @> $2::jsonb
+       `;
+      const result = (await client.$queryRawUnsafe(
+        query,
+        userId,
+        roleJson
+      )) as any[];
+      return result.length > 0;
+    }
+  };
+};
 
 const createAddressMethods = (modelName: "customer" | "restaurant") => {
   const tableName = modelName === "customer" ? "customers" : "restaurants";
@@ -69,7 +133,7 @@ const createAddressMethods = (modelName: "customer" | "restaurant") => {
       return {
         ...storedAddress,
         ...(modelName === "customer" ? { customerId: parentId } : { restaurantId: parentId })
-      };
+      } as Address;
     },
 
     async update(
@@ -95,16 +159,29 @@ const createAddressMethods = (modelName: "customer" | "restaurant") => {
         )
         WHERE "${idColumn}" = $3
         AND addresses @> ('[{"addressId": "' || $1 || '"}]')::jsonb
+        RETURNING addresses
       `;
 
-      await baseClient.$executeRawUnsafe(query, addressId, updateJson, parentId);
+      const result = await baseClient.$queryRawUnsafe<Array<{ addresses: any }>>(
+        query,
+        addressId,
+        updateJson,
+        parentId
+      );
 
-      // Return the updated address (simulated, as we don't fetch it back from DB to save perf)
-      // Ideally we would fetch it, but for now merging input
-      // To be accurate, let's fetch it.
-      const found = await this.findById(parentId, addressId);
-      if (!found) throw NotFoundError("Address not found after update");
-      return found;
+      if (!result || result.length === 0) throw NotFoundError("Address not found or update failed");
+      
+
+      const updatedAddresses = result[0]!.addresses as any[];
+      const updatedAddress = updatedAddresses.find((a) => a.addressId === addressId);
+
+      if (!updatedAddress) throw NotFoundError("Address not found in updated list");
+
+      return {
+        ...updatedAddress,
+        customerId: modelName === "customer" ? parentId : null,
+        restaurantId: modelName === "restaurant" ? parentId : null,
+      } as Address;
     },
 
     async remove(parentId: string, addressId: string): Promise<void> {
@@ -177,6 +254,11 @@ const createAddressMethods = (modelName: "customer" | "restaurant") => {
 
 export const prisma = baseClient.$extends({
   model: {
+    user: {
+      role() {
+        return createRoleMethods();
+      },
+    },
     customer: {
       address() {
         return createAddressMethods("customer");
@@ -189,3 +271,10 @@ export const prisma = baseClient.$extends({
     },
   },
 });
+
+export type ExtendedPrismaClient = typeof prisma;
+
+export type ExtendedTransactionClient = Omit<
+  ExtendedPrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;

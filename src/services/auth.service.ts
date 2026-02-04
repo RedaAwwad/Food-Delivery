@@ -1,10 +1,9 @@
 import { loginDTO } from "../dto/login.dto";
-import { prisma } from "../config/prisma.config";
-import { Prisma, RoleKey } from "../generated/prisma";
+import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
+import { RoleKey } from "../generated/prisma";
 import { SignupDTO } from "../dto/signup.dto";
 import { PasswordUtils } from "../utils/password.utils";
 import { emailService } from "./email.service";
-import { roleService } from "./role.service";
 import {
   BadRequestError,
   ConflictError,
@@ -32,7 +31,7 @@ class AuthService {
     const hashedPassword = await PasswordUtils.hash(password);
 
     await prisma
-      .$transaction(async (tx: Prisma.TransactionClient) => {
+      .$transaction(async (tx: ExtendedTransactionClient) => {
         const newUser = await userService.createUser(
           {
             userName: name,
@@ -57,8 +56,7 @@ class AuthService {
         if (!newCustomer) throw BadRequestError("Failed to Create Customer");
 
         // Assign default 'Customer' role
-        const isRoleAssigned = await roleService.assignRoleToUser(newUser.userId, "CUSTOMER", tx);
-        if (!isRoleAssigned) throw BadRequestError("Failed to assign default Customer role");
+        await userService.assignRole(newUser.userId, "CUSTOMER", tx);
 
         return { newUser };
       })
@@ -97,8 +95,8 @@ class AuthService {
     if (!match) throw UnauthorizedError("Invalid credentials!");
 
     let userRoleKeys: RoleKey[] = [];
-    if (user?.userRoles) {
-      userRoleKeys = user.userRoles.map((role: any) => role.role.roleKey);
+    if (user.roles && Array.isArray(user.roles)) {
+      userRoleKeys = user.roles as RoleKey[];
     }
 
     const tokenPayload: UserSession = {
@@ -197,31 +195,40 @@ class AuthService {
     // validate refresh token
     const userData = jwtUtils.verifyRefreshToken(token);
 
+    // Fetch latest user data from DB to ensure valid status and roles
+    const user = await userRepository.findUserById<UserWithRelations>(userData.userId, {
+      ...USER_DEFAULT_SELECT,
+      userPassword: true,
+    });
+
+    if (!user) throw UnauthorizedError("User not found!");
+    if (!user.isActive) throw UnauthorizedError("User is inactive!");
+
     // Generate new access token
     const payload: UserSession = {
-      userId: userData.userId,
-      userName: userData.userName,
-      userEmail: userData.userEmail,
-      userRoles: userData.userRoles,
+      userId: user.userId,
+      userName: user.userName,
+      userEmail: user.userEmail,
+      userRoles: user.roles || [], // RoleKey[]
     };
 
-    if (userData.isAdmin) {
-      payload.isAdmin = userData.isAdmin;
+    if (user.isAdmin) {
+      payload.isAdmin = true;
     }
 
-    if (userData.customerId) {
-      payload.customerId = userData.customerId;
+    if (user.customer) {
+      payload.customerId = user.customer.customerId;
     }
 
-    if (userData.restaurantId) {
-      payload.restaurantId = userData.restaurantId;
+    if (user.restaurant) {
+      payload.restaurantId = user.restaurant.restaurantId;
     }
 
     const accessToken = jwtUtils.generateAccessToken(payload);
 
     return {
       accessToken,
-      user: new UserDTO(userData as UserWithRelations),
+      user: new UserDTO(user),
     };
   }
 

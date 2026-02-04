@@ -1,6 +1,4 @@
-import { prisma } from "../config/prisma.config";
-import { restaurantRepository } from "./restaurant.repository";
-import { Prisma } from "../generated/prisma";
+import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
 
 export class CustomerRepository {
   async findCustomerOrders(customerId: string) {
@@ -45,7 +43,7 @@ export class CustomerRepository {
     return prisma.customer.findUnique({ where: { userId } });
   }
 
-  async createCustomer(data: any, tx?: Prisma.TransactionClient) {
+  async createCustomer(data: any, tx?: ExtendedTransactionClient) {
     return (tx || prisma).customer.create({ data });
   }
 
@@ -59,6 +57,6 @@ export class CustomerRepository {
   }
 
   // TODO: Add deactivate account
-  async deactivateAccount(customerId: string) {}
+  async deactivateAccount(customerId: string) { }
 }
 export const customerRepository = new CustomerRepository();
