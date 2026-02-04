@@ -1,6 +1,6 @@
 import { loginDTO } from "../dto/login.dto";
 import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
-import { RoleKey } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma/enums";
 import { SignupDTO } from "../dto/signup.dto";
 import { PasswordUtils } from "../utils/password.utils";
 import { emailService } from "./email.service";
@@ -80,7 +80,7 @@ class AuthService {
 
     if (!email || !password) throw BadRequestError("Email and password are required!");
 
-    const user = await userRepository.findUserByEmail<UserWithRelations>(email, {
+    const user = await userService.findUserByEmail<UserWithRelations>(email, {
       ...USER_DEFAULT_SELECT,
       userPassword: true,
     });

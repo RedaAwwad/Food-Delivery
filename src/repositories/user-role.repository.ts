@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { Prisma } from "../generated/prisma";
+import { Prisma } from "../generated/prisma/client";
 
 class UserRoleRepository {
   async assignRole(userId: string, roleId: string, tx?: Prisma.TransactionClient) {

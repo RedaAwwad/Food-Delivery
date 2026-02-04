@@ -1,4 +1,4 @@
-import { RoleKey } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma/client";
 import { UserWithRelations } from "../types/user.type";
 
 export class UserDTO {

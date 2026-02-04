@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { CustomError, ForbiddenError } from "../utils/errors";
 import { StatusCodes } from "http-status-codes";
 import { jwtUtils } from "../utils/jwt/jwt.utils";
-import { RoleKey } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma/client";
 
 export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
   try {

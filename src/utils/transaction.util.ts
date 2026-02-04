@@ -1,8 +1,7 @@
-import { prisma } from "../config/prisma.config";
+import { ExtendedTransactionClient, prisma } from "../config/prisma.config";
 import { PrismaTx } from "../types/prisma.types";
-import { PrismaClient } from "../generated/prisma";
 
-type TxClient = PrismaTx | PrismaClient;
+type TxClient = PrismaTx | ExtendedTransactionClient;
 
 export async function withTransaction<T>(
     externalTx: TxClient | undefined,

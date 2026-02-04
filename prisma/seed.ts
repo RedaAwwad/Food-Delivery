@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-
+import { v7 as uuidv7 } from "uuid";
 import { prisma } from "../src/config/prisma.config";
 import { DEFAULT_ROLE_KEYS } from "../src/utils/constants";
 import { PasswordUtils } from "../src/utils/password.utils";
@@ -18,30 +18,27 @@ async function main() {
   await prisma.restaurant.deleteMany({});
   await prisma.customer.deleteMany({});
   await prisma.userToken.deleteMany({});
-  await prisma.userRole.deleteMany({});
+  // await prisma.userRole.deleteMany({}); // Removed
   await prisma.user.deleteMany({});
   await prisma.role.deleteMany({});
   await prisma.orderStatus.deleteMany({});
 
   console.log("Seeding started...");
 
-  // 1. Ensure Roles exist (Idempotent)
+  // 1. Ensure Roles exist (Idempotent) - Still keeping Role table for definitions
   const roleKeys = [
     { name: "Admin", key: DEFAULT_ROLE_KEYS.ADMIN },
     { name: "Customer", key: DEFAULT_ROLE_KEYS.CUSTOMER },
     { name: "Restaurant Manager", key: DEFAULT_ROLE_KEYS.RESTAURANT_MANAGER },
   ];
 
-  const rolesMap = new Map<string, string>(); // Key -> ID
-
   for (const r of roleKeys) {
     let role = await prisma.role.findUnique({ where: { roleKey: r.key } });
     if (!role) {
-      role = await prisma.role.create({
+      await prisma.role.create({
         data: { roleName: r.name, roleKey: r.key },
       });
     }
-    rolesMap.set(r.key, role.roleId);
   }
 
   // 1.1 Ensure Order Statuses exist
@@ -64,15 +61,10 @@ async function main() {
   console.log("Seeding Default Admin...");
   const adminEmail = "admin@admin.com";
   const adminPassword = await PasswordUtils.hash("Pass@123");
-  const adminRole = rolesMap.get(DEFAULT_ROLE_KEYS.ADMIN);
-
-  if (!adminRole) {
-    throw new Error("Admin role not found, check role seeding");
-  }
 
   const existingAdmin = await prisma.user.findUnique({ where: { userEmail: adminEmail } });
   if (!existingAdmin) {
-    const adminUser = await prisma.user.create({
+    await prisma.user.create({
       data: {
         userName: "Super Admin",
         userEmail: adminEmail,
@@ -80,13 +72,7 @@ async function main() {
         isAdmin: true,
         isConfirmed: true,
         isActive: true,
-      },
-    });
-
-    await prisma.userRole.create({
-      data: {
-        userId: adminUser.userId,
-        roleId: adminRole,
+        roles: [DEFAULT_ROLE_KEYS.ADMIN], // JSONB Roles
       },
     });
     console.log("Default Admin created.");
@@ -109,39 +95,56 @@ async function main() {
   const restaurantManagersData = Array.from({ length: NUM_RESTAURANTS }).map(() => ({
     userName: faker.person.fullName(),
     userEmail: faker.internet.email(),
-    userPassword: "Pass@123", // In a real scenario, hash this. For speed in seed, maybe skip hashing or hash once.
+    userPassword: "Pass@123",
+    roles: [DEFAULT_ROLE_KEYS.RESTAURANT_MANAGER], // JSONB Roles
+    isActive: true,
+    isConfirmed: true,
   }));
 
   // Hash password once for performance
   const hashedPwd = await PasswordUtils.hash("Pass@123");
   restaurantManagersData.forEach(m => m.userPassword = hashedPwd);
 
-  const createdManagers = await prisma.$transaction(
-    chunk(restaurantManagersData, 100).map((batch) =>
-      prisma.user.createManyAndReturn({ data: batch })
-    )
-  ).then(res => res.flat());
+  const createdManagers = await prisma.$transaction(async (tx) => {
+    const batches = chunk(restaurantManagersData, 100).map((batch) =>
+      tx.user.createManyAndReturn({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
-  // Assign Manager Role
-  const managerRoleId = rolesMap.get(DEFAULT_ROLE_KEYS.RESTAURANT_MANAGER)!;
-  await prisma.userRole.createMany({
-    data: createdManagers.map((m) => ({ userId: m.userId, roleId: managerRoleId })),
-  });
 
   // Create Restaurants
   const validManagerIds = createdManagers.map(m => m.userId);
-  const restaurantsData = validManagerIds.map((managerId) => ({
-    managerId,
-    restaurantName: faker.company.name() + " " + faker.word.noun(),
-    restaurantBio: faker.lorem.sentence(),
-    isAvailable: true,
-  }));
+  const restaurantsData = validManagerIds.map((managerId) => {
+    // Generate Address for Restaurant
+    const address = {
+      addressId: uuidv7(),
+      street: faker.location.streetAddress(),
+      city: faker.location.city(),
+      area: faker.location.state(), // approximating area
+      zipCode: faker.location.zipCode(),
+      latitude: faker.location.latitude(),
+      longitude: faker.location.longitude(),
+      isPrimary: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
 
-  const createdRestaurants = await prisma.$transaction(
-    chunk(restaurantsData, 100).map((batch) =>
-      prisma.restaurant.createManyAndReturn({ data: batch })
-    )
-  ).then(res => res.flat());
+    return {
+      managerId,
+      restaurantName: faker.company.name() + " " + faker.word.noun(),
+      restaurantBio: faker.lorem.sentence(),
+      isAvailable: true,
+      addresses: [address], // JSONB Addresses
+    };
+  });
+
+  const createdRestaurants = await prisma.$transaction(async (tx) => {
+    const batches = chunk(restaurantsData, 100).map((batch) =>
+      tx.restaurant.createManyAndReturn({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
   // Create Menus (1 per restaurant)
   const menusData = createdRestaurants.map((r) => ({
@@ -149,11 +152,12 @@ async function main() {
     menuDesc: "Standard Menu",
   }));
 
-  const createdMenus = await prisma.$transaction(
-    chunk(menusData, 100).map((batch) =>
-      prisma.menu.createManyAndReturn({ data: batch })
-    )
-  ).then(res => res.flat());
+  const createdMenus = await prisma.$transaction(async (tx) => {
+    const batches = chunk(menusData, 100).map((batch) =>
+      tx.menu.createManyAndReturn({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
   // Create Menu Categories (1 per Menu)
   const categoriesData = createdMenus.map(m => ({
@@ -162,11 +166,12 @@ async function main() {
     menuCategoryImageUrl: faker.image.urlLoremFlickr({ category: 'food' }),
   }));
 
-  const createdCategories = await prisma.$transaction(
-    chunk(categoriesData, 100).map(batch =>
-      prisma.menuCategory.createManyAndReturn({ data: batch })
-    )
-  ).then(res => res.flat());
+  const createdCategories = await prisma.$transaction(async (tx) => {
+    const batches = chunk(categoriesData, 100).map(batch =>
+      tx.menuCategory.createManyAndReturn({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
 
   // Create Menu Items
@@ -181,11 +186,12 @@ async function main() {
     }))
   );
 
-  await prisma.$transaction(
-    chunk(menuItemsData, 500).map((batch) =>
-      prisma.menuItem.createMany({ data: batch })
-    )
-  );
+  await prisma.$transaction(async (tx) => {
+    const batches = chunk(menuItemsData, 500).map((batch) =>
+      tx.menuItem.createMany({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 });
 
   console.log(`Created ${NUM_RESTAURANTS} restaurants and ~${NUM_RESTAURANTS * MENU_ITEMS_PER_RESTAURANT} items.`);
 
@@ -199,32 +205,48 @@ async function main() {
     userEmail: faker.internet.email(), // Potentially duplicates, but low chance with faker + large range
     userPassword: hashedPwd,
     isConfirmed: true,
+    isActive: true,
+    roles: [DEFAULT_ROLE_KEYS.CUSTOMER], // JSONB Roles
   }));
 
-  const createdUserCustomers = await prisma.$transaction(
-    chunk(costumersData, 100).map((batch) =>
-      prisma.user.createManyAndReturn({ data: batch, skipDuplicates: true }) // Skip if email collides
-    )
-  ).then(res => res.flat());
+  const createdUserCustomers = await prisma.$transaction(async (tx) => {
+    const batches = chunk(costumersData, 100).map((batch) =>
+      tx.user.createManyAndReturn({ data: batch, skipDuplicates: true }) // Skip if email collides
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
 
-  const customerRoleId = rolesMap.get(DEFAULT_ROLE_KEYS.CUSTOMER)!;
-  await prisma.userRole.createMany({
-    data: createdUserCustomers.map((u) => ({ userId: u.userId, roleId: customerRoleId })),
+  const customerProfilesData = createdUserCustomers.map((u) => {
+    // Generate Address for Customer
+    const address = {
+      addressId: uuidv7(),
+      street: faker.location.streetAddress(),
+      city: faker.location.city(),
+      area: faker.location.state(),
+      zipCode: faker.location.zipCode(),
+      latitude: faker.location.latitude(),
+      longitude: faker.location.longitude(),
+      isPrimary: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    return {
+      userId: u.userId,
+      customerPhone: faker.phone.number(),
+      createdById: u.userId,
+      updatedById: u.userId,
+      addresses: [address], // JSONB Addresses
+    };
   });
 
-  const customerProfilesData = createdUserCustomers.map((u) => ({
-    userId: u.userId,
-    customerPhone: faker.phone.number(),
-    createdById: u.userId,
-    updatedById: u.userId,
-  }));
-
-  const createdCustomers = await prisma.$transaction(
-    chunk(customerProfilesData, 100).map(batch =>
-      prisma.customer.createManyAndReturn({ data: batch })
-    )
-  ).then(res => res.flat());
+  const createdCustomers = await prisma.$transaction(async (tx) => {
+    const batches = chunk(customerProfilesData, 100).map(batch =>
+      tx.customer.createManyAndReturn({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
 
   // --- SEED CARTS & CART ITEMS ---
@@ -237,11 +259,12 @@ async function main() {
     customerId: c.customerId
   }));
 
-  const createdCarts = await prisma.$transaction(
-    chunk(cartsData, 100).map(batch =>
-      prisma.cart.createManyAndReturn({ data: batch })
-    )
-  ).then(res => res.flat());
+  const createdCarts = await prisma.$transaction(async (tx) => {
+    const batches = chunk(cartsData, 100).map(batch =>
+      tx.cart.createManyAndReturn({ data: batch })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 }).then(res => res.flat());
 
   const cartItemsData: any[] = [];
 
@@ -261,11 +284,12 @@ async function main() {
     }
   });
 
-  await prisma.$transaction(
-    chunk(cartItemsData, 500).map(batch =>
-      prisma.cartItem.createMany({ data: batch, skipDuplicates: true })
-    )
-  );
+  await prisma.$transaction(async (tx) => {
+    const batches = chunk(cartItemsData, 500).map(batch =>
+      tx.cartItem.createMany({ data: batch, skipDuplicates: true })
+    );
+    return Promise.all(batches);
+  }, { timeout: 60000 });
 
   console.log(`Seeding complete! Created ${createdUserCustomers.length} customers and ${createdCarts.length} carts.`);
 }

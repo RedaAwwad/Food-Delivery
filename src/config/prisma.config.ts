@@ -1,17 +1,17 @@
-import { PrismaClient, Prisma } from "../generated/prisma/index.js";
-import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
 import dotenv from "dotenv";
+dotenv.config();
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../generated/prisma/client";
+import pg from "pg";
 import { v7 as uuidv7 } from "uuid";
 import { Address } from "../types/address.type.js";
+import { RoleKey } from "../generated/prisma/enums.js";
 import { NotFoundError } from "../utils/errors/error-factories.js";
-import { RoleKey } from "../generated/prisma/index.js";
-
-dotenv.config();
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
 const pool = new pg.Pool({ connectionString });
+
 const adapter = new PrismaPg(pool);
 
 const baseClient = new PrismaClient({
@@ -170,7 +170,7 @@ const createAddressMethods = (modelName: "customer" | "restaurant") => {
       );
 
       if (!result || result.length === 0) throw NotFoundError("Address not found or update failed");
-      
+
 
       const updatedAddresses = result[0]!.addresses as any[];
       const updatedAddress = updatedAddresses.find((a) => a.addressId === addressId);

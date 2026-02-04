@@ -1,4 +1,4 @@
-import { Prisma } from "../generated/prisma";
+import { Prisma, User } from "../generated/prisma/client";
 import { userRepository } from "../repositories/user.repository";
 import { roleService } from "./role.service";
 import { ConflictError, InternalServerError, NotFoundError } from "../utils/errors";
@@ -25,8 +25,8 @@ class UserService {
     return await userRepository.findAndUpdateUserByEmail(userId, email, data);
   }
 
-  async findUserByEmail(email: string, select?: Prisma.UserSelect) {
-    return await userRepository.findUserByEmail(email, select);
+  async findUserByEmail<T = User>(email: string, select?: Prisma.UserSelect) {
+    return await userRepository.findUserByEmail<T>(email, select);
   }
 
   async findUserById(userId: string, select?: Prisma.UserSelect) {

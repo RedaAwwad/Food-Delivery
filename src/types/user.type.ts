@@ -1,4 +1,4 @@
-import { RoleKey, User } from "../generated/prisma";
+import { RoleKey, User } from "../generated/prisma/client";
 
 type PickUser = Pick<
   User,

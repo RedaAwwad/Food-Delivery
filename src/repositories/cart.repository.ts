@@ -2,7 +2,7 @@ import { prisma } from "../config/prisma.config";
 import { CreateCartItemDTO } from "../dto/cartItem.dto";
 import { NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
-import { PrismaClient } from "../generated/prisma";
+import { PrismaClient } from "../generated/prisma/client";
 
 class CartRepository {
   async findCartByCustomerId(customerId: string) {

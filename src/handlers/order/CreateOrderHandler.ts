@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
 import { orderRepository } from "../../repositories/order.repository";
-import { OrderStatusKey } from "../../generated/prisma";
+import { OrderStatusKey } from "../../generated/prisma/client";
 import { InternalServerError } from "../../utils/errors";
 
 /**

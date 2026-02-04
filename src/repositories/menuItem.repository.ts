@@ -2,7 +2,7 @@ import { prisma } from "../config/prisma.config";
 import { createMenuItemDto, updateMenuItemDto } from "../dto/menuItem.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
-import { PrismaClient } from "../generated/prisma";
+import { PrismaClient } from "../generated/prisma/client";
 import { handleQueryPagination, PaginationDto } from "../utils/pagination.utils";
 import { Prisma } from "@prisma/client";
 

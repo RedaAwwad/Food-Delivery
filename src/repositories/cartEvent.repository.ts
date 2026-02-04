@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { CartEventType } from "../generated/prisma";
+import { CartEventType } from "../generated/prisma/client";
 import { PrismaTx } from "../types/prisma.types";
 
 export interface CreateCartEventDTO {

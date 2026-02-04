@@ -1,4 +1,3 @@
-
 import { prisma } from "../src/config/prisma.config";
 import * as fs from "fs";
 import * as path from "path";
@@ -21,12 +20,8 @@ async function main() {
     console.log("Fetching customers...");
     const customers = await prisma.user.findMany({
         where: {
-            userRoles: {
-                some: {
-                    role: {
-                        roleKey: "CUSTOMER",
-                    },
-                },
+            roles: {
+                array_contains: "CUSTOMER",
             },
         },
         take: 10000, // Limit to seeded amount

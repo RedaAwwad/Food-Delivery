@@ -1,7 +1,7 @@
 import { roleRepository } from "../repositories/role.repository";
 import { CustomError } from "../utils/errors/custom-error";
 import { StatusCodes } from "http-status-codes";
-import { RoleKey } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma/client";
 import { InternalServerError } from "../utils/errors";
 
 class RoleService {

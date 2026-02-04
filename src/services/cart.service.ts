@@ -4,10 +4,9 @@ import { CartEventDTO } from "../dto/cartEvent.dto";
 import { cartRepository } from "../repositories/cart.repository";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { cartEventService } from "./cartEvent.service";
-import { prisma } from "../config/prisma.config";
-import { CartEventType } from "../generated/prisma";
+import { ExtendedTransactionClient, prisma } from "../config/prisma.config";
+import { CartEventType } from "../generated/prisma/client";
 import { PrismaTx } from "../types/prisma.types";
-import { PrismaClient } from "../generated/prisma";
 import { withTransaction } from "../utils/transaction.util";
 
 class CartService {
@@ -68,7 +67,7 @@ class CartService {
     return { cart };
   }
 
-  async getCartWithCartItemsByCustomerId(customerId: string, tx?: PrismaTx | PrismaClient) {
+  async getCartWithCartItemsByCustomerId(customerId: string, tx?: PrismaTx | ExtendedTransactionClient) {
     return await withTransaction(tx, async (activeTx) => {
       return await cartRepository.getCartWithCartItemsByCustomerId(customerId, activeTx);
     });
@@ -117,7 +116,7 @@ class CartService {
     });
   }
 
-  async clearCart(customerId: string, tx?: PrismaTx | PrismaClient) {
+  async clearCart(customerId: string, tx?: PrismaTx | ExtendedTransactionClient) {
     const cart = await cartRepository.findCartByCustomerId(customerId);
     if (!cart) throw NotFoundError("Cart not found!");
 
@@ -131,7 +130,7 @@ class CartService {
     });
   }
 
-  async lockCart(customerId: string, tx?: PrismaTx | PrismaClient) {
+  async lockCart(customerId: string, tx?: PrismaTx | ExtendedTransactionClient) {
     await withTransaction(tx, async (activeTx) => {
       await cartEventService.createEvent({
         customerId,
@@ -142,7 +141,7 @@ class CartService {
     });
   }
 
-  async unlockCart(customerId: string, tx?: PrismaTx | PrismaClient) {
+  async unlockCart(customerId: string, tx?: PrismaTx | ExtendedTransactionClient) {
     await withTransaction(tx, async (activeTx) => {
       await cartEventService.createEvent({
         customerId,
@@ -153,7 +152,7 @@ class CartService {
     });
   }
 
-  async clearCartByCustomerId(customerId: string, tx?: PrismaTx | PrismaClient) {
+  async clearCartByCustomerId(customerId: string, tx?: PrismaTx | ExtendedTransactionClient) {
     await this.clearCart(customerId, tx);
   }
 }

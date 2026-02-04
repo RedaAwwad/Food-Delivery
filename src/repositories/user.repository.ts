@@ -1,4 +1,4 @@
-import { Prisma, User } from "../generated/prisma";
+import { Prisma, User } from "../generated/prisma/client";
 import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
 import { NotFoundError } from "../utils/errors";
 
