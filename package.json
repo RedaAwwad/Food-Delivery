@@ -10,7 +10,8 @@
     "start": "nodemon ./src/server.ts",
     "swagger": "tsx ./src/lib/swagger/swagger.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx prisma/seed.ts",
+    "generate-jmeter": "tsx scripts/generate_jmeter_data.ts"
   },
   "repository": {
     "type": "git",
