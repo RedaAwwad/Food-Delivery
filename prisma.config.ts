@@ -7,7 +7,7 @@ const DATABASE_LOCAL_PORT = process.env.DB_LOCAL_PORT;
 const DATABASE_NAME = process.env.DB_NAME;
 
 
-const DATABASE_URL = `postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@localhost:${DATABASE_LOCAL_PORT}/${DATABASE_NAME}?schema=public`
+const DATABASE_URL = `postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@localhost:${DATABASE_LOCAL_PORT}/${DATABASE_NAME}?schema=public&connection_limit=50&pool_timeout=20`
 
 
 export default defineConfig({
