@@ -56,7 +56,7 @@ class AuthService {
         if (!newCustomer) throw BadRequestError("Failed to Create Customer");
 
         // Assign default 'Customer' role
-        await userService.assignRole(newUser.userId, "CUSTOMER", tx);
+        await userService.assignRoleToUser(newUser.userId, "CUSTOMER", tx);
 
         return { newUser };
       })
@@ -300,7 +300,7 @@ class AuthService {
 
     const hashedPassword = await PasswordUtils.hash(newPassword);
 
-    await userService.updateUser(tokenData.userId, { userPassword: hashedPassword });
+    await userService.updateUserById(tokenData.userId, { userPassword: hashedPassword });
 
     await userTokenService.revokeToken(tokenData.userId, token);
 

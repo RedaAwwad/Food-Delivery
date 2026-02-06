@@ -1,9 +1,9 @@
 import { prisma } from "../config/prisma.config";
-import { CartItemWithMenuItem } from "../types/CartItemSummary";
+import { CartItemSummary } from "../types/CartItemSummary";
 import { NotFoundError } from "../utils/errors";
 
 class InventoryRepository {
-    async checkItemsAvailability(items: CartItemWithMenuItem[]) {
+    async checkItemsAvailability(items: CartItemSummary[]) {
         const menuItemIds = items.map((item) => item.menuItemId);
 
         const menuItems = await prisma.menuItem.findMany({
@@ -32,7 +32,7 @@ class InventoryRepository {
      * Reduces the stock for the given items. This should be called after a successful payment.
      * This operation is done in a transaction to ensure all stock updates succeed or none do.
      */
-    async reduceStock(items: CartItemWithMenuItem[]) {
+    async reduceStock(items: CartItemSummary[]) {
         const stockUpdates = items.map((item) => {
             return prisma.menuItem.update({
                 where: { menuItemId: item.menuItemId },
