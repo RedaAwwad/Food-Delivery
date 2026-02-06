@@ -526,7 +526,7 @@ enum PaymentAttemptStatus {
 ```prisma
 model PaymentAttempt {
   idempotencyKey String   @id @map("idempotency_key")
-  orderId        String   @map("order_id")
+  orderId        String?  @map("order_id")  // Nullable - set after order creation
   status         PaymentAttemptStatus @map("status")
   provider       String   @map("provider")
   transactionId  String?  @map("transaction_id")
@@ -535,7 +535,7 @@ model PaymentAttempt {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  order Order @relation(fields: [orderId], references: [orderId])
+  order Order? @relation(fields: [orderId], references: [orderId])
 
   @@index([orderId])
   @@index([status])
