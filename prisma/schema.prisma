@@ -310,7 +310,7 @@ model PaymentMethod {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [paymentMethodId], references: [preferredPaymentSettingsId])
+  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [preferredPaymentSettingsId], references: [preferredPaymentSettingsId])
 
   @@map("payment_methods")
 }
