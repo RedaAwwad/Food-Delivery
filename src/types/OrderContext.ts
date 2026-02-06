@@ -5,6 +5,7 @@ export interface OrderContext {
     // Input data
     customerId: string;
     restaurantId: string;
+    requestTimestamp: Date; // For consistent audit trails
     tx?: PrismaTx;
 
     // Data populated during chain execution
