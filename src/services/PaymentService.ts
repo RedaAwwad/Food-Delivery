@@ -2,7 +2,6 @@ import { PaymentStrategyFactory } from './payment/PaymentStrategyFactory';
 import { preferredPaymentSettingsService } from './PreferredPaymentSettingsService';
 import { UnprocessableEntityError, InternalServerError } from '../utils/errors/error-factories';
 import { PaymentResult } from './payment/strategies/IPaymentStrategy';
-import { ErrorDetails } from '../utils/errors/error.types';
 import { CustomError } from '../utils/errors';
 
 export class PaymentService {

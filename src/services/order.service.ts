@@ -10,6 +10,9 @@ import { paymentAttemptService } from "./PaymentAttemptService";
 import { PaymentAttemptStatus } from '../generated/prisma/client';
 import { ConflictError } from "../utils/errors/error-factories";
 import { refundService } from "./RefundService";
+import { menuItemService } from "./menuItem.service";
+import { OrderStatusKey } from "../generated/prisma/client";
+import { BadRequestError, ForbiddenError } from "../utils/errors";
 
 class OrderService {
   private async createPendingAttempt(
@@ -93,25 +96,26 @@ class OrderService {
     return updateOrder;
   }
 
-  async cancelOrder(orderId: string) {
+  async cancelOrder(orderId: string, customerId: string) {
     const order = await orderRepository.findOrderById(orderId);
 
-    if (!order)
-      throw NotFoundError("The order not found");
+    if (!order) throw NotFoundError("Order not found");
+    if (order.customerId !== customerId) throw ForbiddenError("Not your order");
+    if (order.orderStatus === OrderStatusKey.COMPLETED) throw BadRequestError("Cannot cancel delivered order");
 
-    // Process refund before cancelling
-    try {
-      await refundService.refundOrder(orderId);
-    } catch (error) {
-      console.error(`Refund failed for order ${orderId}`, error);
-      // We might want to block cancellation or flag it? 
-      // For now, logged error but strictly speaking, cancellation should probably proceed 
-      // or be flagged as "CANCELLED_REFUND_FAILED" if we had that status.
-      // Let's assume we proceed but log it.
-    }
+    // 1. Process refund
+    await refundService.refundOrder(orderId);
 
-    const updateOrder = await orderRepository.cancelOrder(orderId);
-    return updateOrder;
+    // 2. Update order status
+    await orderRepository.updateOrderStatus({
+      orderId,
+      newOrderStatus: OrderStatusKey.CANCELED
+    });
+
+    // 3. Restore inventory
+    await menuItemService.restoreStock(orderId);
+
+    return { message: "Order cancelled and refund processed" };
   }
 
   async placeOrder(customerId: string, restaurantId: string) {

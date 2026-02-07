@@ -136,6 +136,38 @@ class MenuItemRepository {
       },
     });
   }
+
+  async restoreStockBatch(items: { menuItemId: string; quantity: number }[]) {
+    if (items.length === 0) return;
+
+    // Parameters for safety: [id1, qty1, id2, qty2...]
+    const params: (string | number)[] = [];
+    const valuesStrings: string[] = [];
+
+    items.forEach((item, index) => {
+      // $1, $2, etc. (1-based index)
+      const idParamIndex = index * 2 + 1;
+      const qtyParamIndex = index * 2 + 2;
+
+      params.push(item.menuItemId);
+      params.push(item.quantity);
+
+      valuesStrings.push(`($${idParamIndex}, $${qtyParamIndex}::int)`);
+    });
+
+    const valuesCondition = valuesStrings.join(", ");
+
+    // Using executeRawUnsafe to dynamically inject the VALUES list structure,
+    // but the actual data is passed as parameters.
+    const query = `
+      UPDATE "menu_items" as m
+      SET "stock_quantity" = m."stock_quantity" + v.quantity
+      FROM (VALUES ${valuesCondition}) as v(id, quantity)
+      WHERE m."menu_item_id" = v.id
+    `;
+
+    return await prisma.$executeRawUnsafe(query, ...params);
+  }
 }
 
 export const menuItemRepository = new MenuItemRepository();
