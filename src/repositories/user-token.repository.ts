@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { TokenType } from "../generated/prisma";
+import { TokenType } from "../generated/prisma/client";
 import { v7 as uuidv7 } from "uuid";
 import crypto from "crypto";
 import { CreateTokenData } from "../types/token";

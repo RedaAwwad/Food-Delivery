@@ -1,3 +1,3 @@
-import { PrismaClient } from "../generated/prisma";
+import { ExtendedTransactionClient } from "../config/prisma.config";
 
-export type PrismaTx = Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;
+export type PrismaTx = Omit<ExtendedTransactionClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">;

@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { RoleKey } from "../generated/prisma";
+import { RoleKey } from "../generated/prisma/client";
 
 class RoleRepository {
   async createRole(data: { roleName: string; roleDesc?: string; roleKey: any }) {

@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma.config";
-import { CartEventType } from "../generated/prisma";
+import { CartEventType } from "../generated/prisma/client";
 import { PrismaTx } from "../types/prisma.types";
 
 export interface CreateCartEventDTO {
@@ -22,6 +22,13 @@ class CartEventRepository {
                 quantity: data.quantity ?? null,
                 price: data.price ?? null,
             },
+        });
+    }
+
+    async getEventsByCustomerId(customerId: string) {
+        return await prisma.cartEvent.findMany({
+            where: { customerId },
+            orderBy: { eventDate: "desc" },
         });
     }
 }

@@ -88,7 +88,7 @@ orderRouter.get("/:orderId", orderController.findOrderById);
 orderRouter.patch(
   "/:orderId/status",
   validateRequest(updateOrderStatusSchema),
-  isAuthorized(["restaurant", "admin"]),
+  isAuthorized(["ADMIN", "RESTAURANT_MANAGER"]),
   orderController.updateOrderStatus
 );
 
@@ -128,8 +128,35 @@ orderRouter.patch(
  *       500:
  *         description: Internal server error
  */
-orderRouter.patch("/:orderId/cancel", isAuthorized(["restaurant"]), orderController.cancelOrder);
+orderRouter.patch(
+  "/:orderId/cancel",
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  orderController.cancelOrder
+);
 
+/**
+ * @swagger
+ * /api/v1/orders/check-out:
+ *   post:
+ *     summary: Place an order
+ *     tags: [Order]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Order placed successfully
+ */
 orderRouter.post("/check-out", orderController.placeOrder);
 
 export { orderRouter };

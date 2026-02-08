@@ -2,7 +2,7 @@ import { prisma } from "../config/prisma.config";
 import { orderRepository } from "../repositories/order.repository";
 import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
-import { InternalServerError, NotFoundError } from "../utils/errors";
+import { InternalServerError, NotFoundError, CustomError } from "../utils/errors";
 import { UpdateOrderStatusDto } from "../dto/order.dto";
 import { PrismaTx } from "../types/prisma.types";
 import { PrismaClient } from "@prisma/client/extension";
@@ -67,6 +67,9 @@ class OrderService {
 
       return result.finalOrder;
     } catch (err: any) {
+      if (err instanceof CustomError) {
+        throw err;
+      }
       throw InternalServerError("Failed to place order", err);
     }
   }

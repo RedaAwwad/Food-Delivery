@@ -1,4 +1,4 @@
-import { RoleKey, User } from "../generated/prisma";
+import { RoleKey, User } from "../generated/prisma/client";
 
 type PickUser = Pick<
   User,
@@ -13,13 +13,7 @@ export type UserSession = Pick<User, "userId" | "userName" | "userEmail"> & {
 };
 
 export interface UserWithRelations extends PickUser {
-  userRoles:
-    | {
-        role: {
-          roleKey: RoleKey;
-        };
-      }[]
-    | RoleKey[];
+  roles: RoleKey[];
   customer?: {
     customerId: string;
   };

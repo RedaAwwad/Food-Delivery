@@ -1,4 +1,4 @@
-import { RatingScore } from "../generated/prisma";
+import { RatingScore } from "../generated/prisma/client";
 
 export type CreateCustomerRatingDto = {
   restaurantId: string;

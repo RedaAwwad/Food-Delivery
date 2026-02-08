@@ -1,4 +1,4 @@
-import { TokenType, RoleKey } from "../generated/prisma";
+import { TokenType, RoleKey } from "../generated/prisma/client";
 
 export interface TokenPayload {
   userId: string;

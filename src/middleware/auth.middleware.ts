@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { CustomError, ForbiddenError } from "../utils/errors";
 import { StatusCodes } from "http-status-codes";
 import { jwtUtils } from "../utils/jwt/jwt.utils";
+import { RoleKey } from "../generated/prisma/client";
 
 export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -38,11 +39,11 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
 
 };
 
-export const isAuthorized = (roles: string[]) => {
+export const isAuthorized = (roles: RoleKey[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const userRoles: string[] = req.user!.userRoles || [];
+    const userRoles: RoleKey[] = req.user!.userRoles || [];
 
-    const hasPermission = userRoles.some((roleKey: string) => roles.includes(roleKey));
+    const hasPermission = userRoles.some((roleKey: RoleKey) => roles.includes(roleKey));
     if (!hasPermission) {
       throw ForbiddenError("You are not authorized to perform this action!");
     }

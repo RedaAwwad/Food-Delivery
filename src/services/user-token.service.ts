@@ -1,4 +1,4 @@
-import { TokenType } from "../generated/prisma";
+import { TokenType } from "../generated/prisma/client";
 import { userTokenRepository } from "../repositories/user-token.repository";
 import { CreateTokenData } from "../types/token";
 

@@ -2,7 +2,7 @@ import { prisma } from "../config/prisma.config";
 import { CreateOrderDto, UpdateOrderStatusDto } from "../dto/order.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
-import { OrderStatusKey, PrismaClient } from "../generated/prisma";
+import { OrderStatusKey, PrismaClient } from "../generated/prisma/client";
 
 class OrderRepository {
   async findAllCustomerOrdersByCustomerId(customerId: string) {

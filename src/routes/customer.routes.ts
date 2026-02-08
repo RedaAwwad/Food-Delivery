@@ -3,13 +3,11 @@ import { customerController } from "../controllers/customer.controller";
 import { validateRequest } from "../middleware/validate-request";
 import { createCustomerRatingSchema } from "../validation/customer.schema";
 import { isAuthorized, isAuthenticated } from "../middleware/auth.middleware";
-import { isCustomer } from "../middleware/customer.middleware";
 
 const customerRouter = express.Router();
 
 // Apply auth to all role routes
 customerRouter.use(isAuthenticated);
-customerRouter.use(isCustomer);
 
 /**
  * @swagger
@@ -32,7 +30,7 @@ customerRouter.get("/orders", customerController.getCustomerOrdersByCustomerId);
 
 /**
  * @swagger
- * /api/v1/customers/orders/:order_id:
+ * /api/v1/customers/orders/{order_id}:
  *   get:
  *     summary: Get customer order details by orderId
  *     tags: [Customer]
@@ -51,6 +49,16 @@ customerRouter.get("/orders", customerController.getCustomerOrdersByCustomerId);
  */
 customerRouter.get("/orders/:order_id", customerController.findCustomerOrderByCustomerId);
 
+/**
+ * @swagger
+ * /api/v1/customers/deactivate:
+ *   patch:
+ *     summary: Deactivate customer account
+ *     tags: [Customer]
+ *     responses:
+ *       200:
+ *         description: Customer account deactivated successfully
+ */
 customerRouter.patch("/deactivate", customerController.deactivateAccount);
 
 /**
@@ -92,30 +100,69 @@ customerRouter.patch("/deactivate", customerController.deactivateAccount);
 customerRouter.post(
   "/rating",
   validateRequest(createCustomerRatingSchema),
+  isAuthorized(["CUSTOMER"]),
   customerController.createRatingByCustomer
 );
 
+// Address Routes
 /**
  * @swagger
- * /api/v1/customers/orders/{orderId}/orderTracking:
+ * /api/v1/customers/addresses:
+ *   post:
+ *     summary: Create address
+ *     tags: [Customer]
+ *     responses:
+ *       201:
+ *         description: Address created
+ */
+customerRouter.post("/addresses", customerController.createAddress);
+
+/**
+ * @swagger
+ * /api/v1/customers/addresses:
  *   get:
- *     summary: Get customer order details by orderId
- *     tags:
- *       - Customer
+ *     summary: Get my addresses
+ *     tags: [Customer]
+ *     responses:
+ *       200:
+ *         description: List of addresses
+ */
+customerRouter.get("/addresses", customerController.getMyAddresses);
+
+/**
+ * @swagger
+ * /api/v1/customers/addresses/{addressId}:
+ *   put:
+ *     summary: Update address
+ *     tags: [Customer]
  *     parameters:
  *       - in: path
- *         name: orderId
+ *         name: addressId
  *         required: true
  *         schema:
  *           type: string
- *         description: orderId of the customer order
  *     responses:
  *       200:
- *         description: Customer details retrieved successfully
- *       404:
- *         description: Customer not found
+ *         description: Address updated
  */
+customerRouter.put("/addresses/:addressId", customerController.updateAddress);
 
-customerRouter.get("/orders/:orderId/order-tracking", customerController.getOrderTrackingStatus);
+/**
+ * @swagger
+ * /api/v1/customers/addresses/{addressId}:
+ *   delete:
+ *     summary: Delete address
+ *     tags: [Customer]
+ *     parameters:
+ *       - in: path
+ *         name: addressId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Address deleted
+ */
+customerRouter.delete("/addresses/:addressId", customerController.deleteAddress);
 
 export { customerRouter };

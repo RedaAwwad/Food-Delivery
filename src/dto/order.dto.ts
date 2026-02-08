@@ -1,14 +1,14 @@
-import { CartItemWithMenuItem } from "../types/cartItemWithMenuItem.type";
-import { OrderStatusKey } from "../generated/prisma";
+import { CartItemSummary } from "../types/CartItemSummary";
+import { OrderStatusKey } from "../generated/prisma/client";
 
 export type FindOrdersByIdDto = {
-    orderId: string;
+  orderId: string;
 }
 
 export type CreateOrderDto = {
   customerId: string;
   restaurantId: string;
-  cartItems: CartItemWithMenuItem[];
+  cartItems: CartItemSummary[];
   orderStatus: OrderStatusKey;
 };
 

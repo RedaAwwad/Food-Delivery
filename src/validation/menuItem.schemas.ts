@@ -28,7 +28,3 @@ export const updateMenuItemSchema = Joi.object({
 export const deleteMenuItemSchema = Joi.object({
   menuItemId: Joi.string().required(),
 }).required();
-
-export const searchMenuItemSchema = Joi.object({
-  menuItemName: Joi.string().min(1).max(100).optional(),
-}).required();

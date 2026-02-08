@@ -1,21 +1,18 @@
-import express from 'express';
-import { validateRequest } from '../middleware/validate-request';
-import { createRestaurantSchema, deleteRestaurantSchema, enableOrDisableRestaurantSchema, findRestaurantByRestaurantIdSchema, searchRestaurantSchema, updateRestaurantRatingSchema, updateRestaurantSchema } from '../validation/restaurant.schema';
-import { restaurantController } from '../controllers/restaurant.controller';
-import { isAuthenticated, isAuthorized } from '../middleware/auth.middleware';
+import express from "express";
+import { validateRequest } from "../middleware/validate-request";
+import {
+  createRestaurantSchema,
+  deleteRestaurantSchema,
+  enableOrDisableRestaurantSchema,
+  findRestaurantByRestaurantIdSchema,
+  searchRestaurantSchema,
+  updateRestaurantRatingSchema,
+  updateRestaurantSchema,
+} from "../validation/restaurant.schema";
+import { restaurantController } from "../controllers/restaurant.controller";
+import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 
 export const restaurantRouter = express.Router()
-
-restaurantRouter.get('/', restaurantController.findAllRestaurants);
-restaurantRouter.get('/user', isAuthenticated, isAuthorized(["Owner"]), restaurantController.findRestaurantByUserId);
-restaurantRouter.get('/:restaurantId', validateRequest(findRestaurantByRestaurantIdSchema), restaurantController.findRestaurantByRestaurantId);
-restaurantRouter.post('/', isAuthenticated, validateRequest(createRestaurantSchema), restaurantController.createRestaurant);
-restaurantRouter.put('/update', isAuthenticated, validateRequest(updateRestaurantSchema), restaurantController.updateRestaurant);
-restaurantRouter.put('/update-rating', isAuthenticated, validateRequest(updateRestaurantRatingSchema), restaurantController.updateRestaurantRating);
-restaurantRouter.delete('/', isAuthenticated, validateRequest(deleteRestaurantSchema), restaurantController.deleteRestaurant);
-restaurantRouter.put('/enable-disable', isAuthenticated, validateRequest(enableOrDisableRestaurantSchema), restaurantController.enableOrDisableRestaurant);
-restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query"), restaurantController.searchRestaurants);
-
 
 /**
  * @swagger
@@ -26,19 +23,82 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query")
 
 /**
  * @swagger
- * /restaurant:
+ * /api/v1/restaurant:
  *   get:
  *     summary: Retrieve all restaurants
  *     tags: [Restaurant]
  *     responses:
  *       200:
  *         description: List of all restaurants
- *
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Restaurant'
+ */
+restaurantRouter.get('/', restaurantController.findAllRestaurants);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/user:
+ *   get:
+ *     summary: Get restaurant by User ID
+ *     tags: [Restaurant]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Restaurant details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
+ */
+restaurantRouter.get('/user', isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.findRestaurantByUserId);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/{restaurantId}:
+ *   get:
+ *     summary: Get restaurant by Restaurant ID
+ *     description: Retrieve a restaurant by its ID. Note that the path parameter is currently ignored by the implementation, which expects `restaurantId` in the request body.
+ *     tags: [Restaurant]
+ *     parameters:
+ *       - in: path
+ *         name: restaurantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Restaurant details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
+ */
+restaurantRouter.get('/:restaurantId', validateRequest(findRestaurantByRestaurantIdSchema), restaurantController.findRestaurantByRestaurantId);
+
+/**
+ * @swagger
+ * /api/v1/restaurant:
  *   post:
  *     summary: Create a new restaurant
  *     tags: [Restaurant]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -65,78 +125,21 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query")
  *     responses:
  *       201:
  *         description: Restaurant created successfully
- *
- *   delete:
- *     summary: Delete a restaurant
- *     tags: [Restaurant]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - restaurantId
- *             properties:
- *               restaurantId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Restaurant deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
  */
+restaurantRouter.post('/', isAuthenticated, validateRequest(createRestaurantSchema), restaurantController.createRestaurant);
 
 /**
  * @swagger
- * /restaurant/user:
- *   get:
- *     summary: Get restaurant by User ID
- *     tags: [Restaurant]
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       200:
- *         description: Restaurant details
- */
-
-/**
- * @swagger
- * /restaurant/restaurant:
- *   get:
- *     summary: Get restaurant by Restaurant ID
- *     tags: [Restaurant]
- *     parameters:
- *       - in: query
- *         name: restaurantId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID of the restaurant to retrieve
- *     requestQuery:
- *       description: Restaurant ID
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - restaurantId
- *             properties:
- *               restaurantId:
- *                 type: string
- *     responses:
- *       200:
- *         description: Restaurant details
- */
-
-/**
- * @swagger
- * /restaurant/update:
+ * /api/v1/restaurant/update:
  *   put:
  *     summary: Update restaurant details
  *     tags: [Restaurant]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -163,16 +166,21 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query")
  *     responses:
  *       202:
  *         description: Restaurant updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
  */
+restaurantRouter.put('/update', isAuthenticated, validateRequest(updateRestaurantSchema), restaurantController.updateRestaurant);
 
 /**
  * @swagger
- * /restaurant/update-rating:
+ * /api/v1/restaurant/update-rating:
  *   put:
  *     summary: Update restaurant rating
  *     tags: [Restaurant]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -193,16 +201,50 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query")
  *     responses:
  *       200:
  *         description: Rating updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
  */
+restaurantRouter.put('/update-rating', isAuthenticated, validateRequest(updateRestaurantRatingSchema), restaurantController.updateRestaurantRating);
 
 /**
  * @swagger
- * /restaurant/enable-disable:
+ * /api/v1/restaurant:
+ *   delete:
+ *     summary: Delete a restaurant
+ *     tags: [Restaurant]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - restaurantId
+ *             properties:
+ *               restaurantId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Restaurant deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
+ */
+restaurantRouter.delete('/', isAuthenticated, validateRequest(deleteRestaurantSchema), restaurantController.deleteRestaurant);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/enable-disable:
  *   put:
  *     summary: Enable or disable a restaurant
  *     tags: [Restaurant]
  *     security:
- *       - BearerAuth: []
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -217,11 +259,16 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query")
  *     responses:
  *       200:
  *         description: Restaurant status updated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Restaurant'
  */
+restaurantRouter.put('/enable-disable', isAuthenticated, validateRequest(enableOrDisableRestaurantSchema), restaurantController.enableOrDisableRestaurant);
 
 /**
  * @swagger
- * /restaurant/search:
+ * /api/v1/restaurant/search:
  *   get:
  *     summary: Search restaurants
  *     tags: [Restaurant]
@@ -234,4 +281,60 @@ restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query")
  *     responses:
  *       200:
  *         description: List of matching restaurants
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Restaurant'
  */
+restaurantRouter.get('/search', validateRequest(searchRestaurantSchema, "query"), restaurantController.searchRestaurants);
+
+// Address Routes
+/**
+ * @swagger
+ * /api/v1/restaurant/addresses:
+ *   post:
+ *     summary: Create address for restaurant
+ *     tags: [Restaurant]
+ *     responses:
+ *       201:
+ *         description: Address created
+ */
+restaurantRouter.post("/addresses", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.addAddress);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/{restaurantId}/addresses:
+ *   get:
+ *     summary: Get restaurant addresses
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: List of addresses
+ */
+restaurantRouter.get("/:restaurantId/addresses", restaurantController.getAddresses);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/addresses/{addressId}:
+ *   put:
+ *     summary: Update restaurant address
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: Address updated
+ */
+restaurantRouter.put("/addresses/:addressId", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.updateAddress);
+
+/**
+ * @swagger
+ * /api/v1/restaurant/addresses/{addressId}:
+ *   delete:
+ *     summary: Delete restaurant address
+ *     tags: [Restaurant]
+ *     responses:
+ *       200:
+ *         description: Address deleted
+ */
+restaurantRouter.delete("/addresses/:addressId", isAuthenticated, isAuthorized(["RESTAURANT_MANAGER"]), restaurantController.deleteAddress);

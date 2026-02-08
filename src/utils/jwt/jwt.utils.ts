@@ -1,7 +1,7 @@
 import { InternalServerError, UnauthorizedError } from "../errors";
 import { Request } from "express";
 import { TokenPayload } from "../../types/token";
-import { sign, Secret, SignOptions, JwtPayload, verify } from "jsonwebtoken";
+import jwt, { Secret, SignOptions, JwtPayload } from "jsonwebtoken";
 import { UserSession } from "../../types/user.type";
 import { REFRESH_TOKEN_COOKIE_NAME } from "../constants";
 
@@ -58,7 +58,7 @@ class JWTUtils {
     secret: string = this.jwtSecret
   ): string {
     try {
-      return sign(payload, secret as Secret, { expiresIn: expiry } as SignOptions);
+      return jwt.sign(payload, secret as Secret, { expiresIn: expiry } as SignOptions);
     } catch (err: any) {
       console.error(err);
       throw InternalServerError("Internal server error!");
@@ -67,7 +67,7 @@ class JWTUtils {
 
   verifyToken<T = JwtPayload>(token: string, secret: string = this.jwtSecret): T {
     try {
-      return verify(token, secret) as T;
+      return jwt.verify(token, secret) as T;
     } catch (err: any) {
       console.log(err);
       if (err.name === "TokenExpiredError") {

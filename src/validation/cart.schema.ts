@@ -1,8 +1,8 @@
 import Joi from "joi";
 
 const AddToCartSchema = Joi.object({
-  menuItemId: Joi.string().required().messages({
-    "any.required": "Item ID is required",
+  menuItemId: Joi.string().uuid().required().messages({
+    "any.required": "MenuItem ID is required",
   }),
   quantity: Joi.number().integer().min(1).required().messages({
     "number.base": "Quantity must be a number",
@@ -13,8 +13,8 @@ const AddToCartSchema = Joi.object({
 }).required();
 
 const UpdateQuantitySchema = Joi.object({
-  itemId: Joi.number().integer().required().messages({
-    "any.required": "Item ID is required",
+  cartItemId: Joi.string().uuid().required().messages({
+    "any.required": "Cart Item ID is required",
   }),
   quantity: Joi.number().integer().min(1).required().messages({
     "number.base": "Quantity must be a number",
@@ -25,8 +25,8 @@ const UpdateQuantitySchema = Joi.object({
 }).required();
 
 const RemoveCartItemSchema = Joi.object({
-  itemId: Joi.number().integer().required().messages({
-    "any.required": "Item ID is required",
+  cartItemId: Joi.string().uuid().required().messages({
+    "any.required": "Cart Item ID is required",
   }),
 }).required();
 

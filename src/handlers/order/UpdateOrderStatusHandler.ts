@@ -1,7 +1,7 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
 import { orderService } from "../../services/order.service";
-import { OrderStatusKey } from "../../generated/prisma";
+import { OrderStatusKey } from "../../generated/prisma/client";
 
 /**
  * Updates order status based on payment result (COMPLETED or CANCELED).

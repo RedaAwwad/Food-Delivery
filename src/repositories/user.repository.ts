@@ -1,8 +1,22 @@
-import { Prisma, User } from "../generated/prisma";
-import { prisma } from "../config/prisma.config";
+import { Prisma, User } from "../generated/prisma/client";
+import { prisma, ExtendedTransactionClient } from "../config/prisma.config";
+import { NotFoundError } from "../utils/errors";
+
 export class UserRepository {
-  async createUser(data: any, tx?: Prisma.TransactionClient) {
+  async createUser(data: any, tx?: ExtendedTransactionClient) {
     return (tx || prisma).user.create({ data });
+  }
+
+  async assignRoleToUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+    return (tx || prisma).user.role().add(userId, roleKey as any, tx);
+  }
+
+  async removeRoleFromUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+    return (tx || prisma).user.role().remove(userId, roleKey as any, tx);
+  }
+
+  async hasRole(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
+    return (tx || prisma).user.role().has(userId, roleKey as any, tx);
   }
 
   async findUserByEmail<T = User>(email: string, select?: Prisma.UserSelect): Promise<T> {
@@ -29,21 +43,26 @@ export class UserRepository {
     return (await prisma.user.findUnique(q)) as T;
   }
 
-  async updateUser(userId: string, data: any) {
+  async updateUserById(userId: string, data: any) {
     return prisma.user.update({
       where: { userId },
       data,
     });
   }
 
-  async updateIsActive(userId: string, isActive: boolean) {
+  async updateIsActive(userId: string) {
+    const user = await this.findUserById(userId, { isActive: true });
+
+    if (!user) throw NotFoundError("User not found");
+
     return prisma.user.update({
       where: { userId },
-      data: { isActive },
+      data: { isActive: !user.isActive },
       select: {
         userId: true,
         userName: true,
         userEmail: true,
+        isActive: true,
       },
     });
   }
@@ -61,32 +80,6 @@ export class UserRepository {
     return prisma.user.update({
       where: { userId, userEmail: email },
       data,
-    });
-  }
-
-  async findUserByEmailWithRoles(email: string) {
-    return prisma.user.findUnique({
-      where: { userEmail: email },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
-    });
-  }
-
-  async findUserByIdWithRoles(userId: string) {
-    return prisma.user.findUnique({
-      where: { userId },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-      },
     });
   }
 }

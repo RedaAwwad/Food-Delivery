@@ -17,22 +17,6 @@ class RoleController {
     return res.status(StatusCodes.OK).json(new SuccessResponse({ data: roles }));
   }
 
-  async assignRole(req: Request, res: Response) {
-    const { userId, roleName } = req.body;
-    const result = await roleService.assignRoleToUser(userId, roleName);
-    return res
-      .status(StatusCodes.OK)
-      .json(new SuccessResponse({ data: result, message: "Role assigned successfully" }));
-  }
-
-  async removeRoleFromUser(req: Request, res: Response) {
-    const { userId, roleName } = req.body;
-    const result = await roleService.removeRoleByNameFromUser(userId, roleName);
-    return res
-      .status(StatusCodes.OK)
-      .json(new SuccessResponse({ data: result, message: "Role removed successfully" }));
-  }
-
   async removeRoleById(req: Request, res: Response) {
     const { roleId } = req.body;
     const result = await roleService.removeRoleById(roleId);

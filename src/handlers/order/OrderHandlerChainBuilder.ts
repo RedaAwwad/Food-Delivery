@@ -11,6 +11,7 @@ import { ValidateCartHandler } from "./ValidateCartHandler";
 import { ProcessPaymentHandler } from "./ProcessPaymentHandler";
 import { UpdateOrderStatusHandler } from "./UpdateOrderStatusHandler";
 import { UnlockCartHandler } from "./UnlockCartHandler";
+import { ParallelOrderHandler } from "./ParallelOrderHandler";
 
 export class OrderHandlerChainBuilder {
 
@@ -29,18 +30,24 @@ export class OrderHandlerChainBuilder {
         const auditLog = new AuditLogHandler();
         const unlockCart = new UnlockCartHandler();
 
+        const parallelHandler = new ParallelOrderHandler(
+            [
+                updateOrderStatus,
+                reduceInventory,
+                clearCart,
+                unlockCart,
+                notifyRestaurant,
+                notifyCustomer,
+                auditLog
+            ]   // Background (Fire & Forget)
+        );
+
         lockCart
             .setNext(validateCart)
             .setNext(checkInventory)
             .setNext(createOrder)
             .setNext(processPayment)
-            .setNext(updateOrderStatus)
-            .setNext(reduceInventory)
-            .setNext(clearCart)
-            .setNext(notifyRestaurant)
-            .setNext(notifyCustomer)
-            .setNext(auditLog)
-            .setNext(unlockCart);
+            .setNext(parallelHandler);
 
         return lockCart;
     }

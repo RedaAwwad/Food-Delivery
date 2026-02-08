@@ -1,4 +1,4 @@
-import { Address } from "../generated/prisma";
+import { Address } from "../types/address.type";
 
 export type CreateAddressDTO = Pick<
   Address,

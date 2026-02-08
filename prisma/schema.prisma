@@ -1,12 +1,11 @@
 generator client {
-  provider = "prisma-client-js"
+  provider = "prisma-client"
   output   = "../src/generated/prisma"
-  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x", "windows"]
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ====== User ======
@@ -23,7 +22,7 @@ model User {
 
   isAdmin  Boolean  @default(false) @map("is_admin")
 
-  userRoles  UserRole[]
+  roles      Json     @default("[]") @map("roles")
   customer    Customer?
   restaurant  Restaurant?
   userToken   UserToken[]
@@ -32,6 +31,7 @@ model User {
   createdCustomers Customer[] @relation("CreatedCustomers")
   updatedCustomers Customer[] @relation("UpdatedCustomers")
 
+  @@index([roles], type: Gin)
   @@map("users")
 }
  
@@ -44,21 +44,7 @@ model Role {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  userRoles UserRole[]
-
   @@map("roles")
-}
-
-// ====== UserRole ======
-model UserRole { 
-  userId String @map("user_id")
-  roleId String @map("role_id")
-
-  user User @relation(fields: [userId], references: [userId])
-  role Role @relation(fields: [roleId], references: [roleId])
-
-  @@unique([userId, roleId])
-  @@map("users_roles")
 }
 
 model UserToken {
@@ -90,10 +76,9 @@ model Customer {
   cart Cart?
  
   orders Order[]
-  orderTracking OrderTracking[]
-  addresses Address[]
+  addresses Json? @default("[]") @map("addresses")
   rating Rating[]
-
+  orderTracking OrderTracking?
   createdById String
   updatedById String
 
@@ -103,6 +88,7 @@ model Customer {
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
 
+  @@index([addresses], type: Gin)
   @@map("customers")
 }
 
@@ -110,10 +96,10 @@ model Customer {
 model Restaurant {
   restaurantId String   @id @default(uuid()) @map("restaurant_id")
   managerId    String      @unique @map("manager_id")
-  restaurantName        String   
+  restaurantName        String  @unique 
   restaurantBio String  @map("restaurant_bio") 
   restaurantLogo        String? @map("restaurant_logo")   
-  isAvailable Boolean  @map("is_available")
+  isAvailable Boolean  @map("is_available") @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -122,11 +108,13 @@ model Restaurant {
 
   manager User @relation(fields: [managerId], references: [userId])
   menu    Menu?
-  addresses Address[]
+  addresses Json? @default("[]") @map("addresses")
   rating Rating[]
 
   orders Order[]
 
+  @@index([restaurantName])
+  @@index([addresses], type: Gin)
   @@map("restaurants")
 }
 
@@ -159,6 +147,7 @@ model CartItem {
   cart     Cart     @relation(fields: [cartId], references: [cartId])
   menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
   @@unique([cartId , menuItemId])
+  @@index([menuItemId])
   @@map("cart_items")
 }
 
@@ -211,6 +200,9 @@ model MenuItem {
   menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [menuCategoryId])
   cartItems     CartItem[]
   orderItems   OrderItem[]
+
+  @@index([menuItemName])
+
   @@map("menu_items")
 }
 
@@ -232,7 +224,9 @@ model Order {
   orderTracking OrderTracking[]
 
   orderItems OrderItem[]
-
+  
+  @@index([customerId])
+  @@index([restaurantId]) 
   @@map("orders")
 }
 
@@ -260,7 +254,7 @@ enum OrderStatusKey {
 model OrderTracking {
     orderTrackingId     String              @id @default(uuid()) @map("order_tracking_id") 
     orderId             String   @map("order_id")
-    customerId          String   @map("customer_id")
+    customerId          String   @map("customer_id") @unique
     trackingStatus      Json   @map("tracking_status")
     createdAt           DateTime  @default(now())     @map("created_at")
     updatedAt           DateTime  @updatedAt          @map("updated_at")
@@ -287,32 +281,9 @@ model OrderItem {
   order    Order    @relation(fields: [orderId], references: [orderId])
   menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
 
+  @@index([orderId])
+  @@index([menuItemId])
   @@map("order_items")
-}
-
-
-model Address {
-  addressId     String      @id @default(uuid()) @map("address_id")
-  customerId   String?  @map("customer_id")
-  restaurantId String?  @map("restaurant_id")
-  street     String   
-  city       String   
-  area       String   
-  zipCode    Int   @map("zip_code")
-  block      String
-  apartmentNumber  String
-  floor      String  
-  latitude   Float
-  longitude  Float
-  isPrimary  Boolean   @default(false) @map("is_primary")
-
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @default(now()) @map("updated_at")
-
-  customer Customer? @relation(fields: [customerId], references: [customerId])
-  restaurant Restaurant? @relation(fields: [restaurantId], references: [restaurantId])
-  
-  @@map("addresses")
 }
 
 model PreferredPaymentSettings {
