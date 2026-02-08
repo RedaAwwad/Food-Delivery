@@ -1,38 +1,55 @@
 # Payment Gateway Integration - Technical Design Document
 
-**Date:** 2026-02-06  
-**Purpose:** Multi-Gateway Payment Integration using Strategy Pattern  
-**Scope:** Stripe, PayPal, Amadeus, Cash on Delivery
+**Date:** 2026-02-08  
+**Purpose:** Multi-Gateway Payment Integration using Strategy Pattern with Async Architecture  
+**Scope:** Stripe, PayPal, Amadeus, Paymob, Cash on Delivery
 
 ---
 
 ## 1. Overview
 
-This document outlines the technical design for integrating multiple payment gateways into the food delivery application. The solution uses the **Strategy Pattern** to support multiple providers while maintaining clean architecture principles.
+This document outlines the technical design for integrating multiple payment gateways into the food delivery application using **asynchronous payment processing** with webhooks.
 
 ### Key Features
-- ✅ Multiple payment providers (Stripe, PayPal, Amadeus, COD)
+- ✅ Multiple payment providers (Stripe, PayPal, Amadeus, Paymob, COD)
+- ✅ **Async payment processing** (Payment Intents + Webhooks)
+- ✅ Global banking system support (3D Secure, OTP, bank transfers)
 - ✅ Idempotency protection (prevents duplicate charges)
 - ✅ Transaction-safe architecture
-- ✅ Timestamp consistency for audit trails
+- ✅ Provider-agnostic customer management
 - ✅ Clean Architecture (Repository/Service pattern)
+
+### Critical Architectural Decision: Async-First
+
+**Why Async?**
+- **Real-world payment times**: 10-15 seconds minimum, up to 10+ minutes for OTP
+- **Database transaction limits**: Cannot hold locks for minutes
+- **Global compliance**: EU PSD2 requires 3D Secure (async by design)
+- **Banking variance**: Different countries have different processing speeds
 
 ---
 
 ## 2. Entity Relationship Diagram
 
-The following diagram shows how payment data is structured in the database:
-
 ```mermaid
 erDiagram
     CUSTOMER ||--o| PREFERRED_PAYMENT_SETTINGS : "has"
+    CUSTOMER ||--o{ PROVIDER_CUSTOMER : "has provider accounts"
     PREFERRED_PAYMENT_SETTINGS ||--|{ PAYMENT_METHOD : "contains saved methods"
     PREFERRED_PAYMENT_SETTINGS }|--|| PAYMENT_METHOD : "has default"
     ORDER ||--o{ PAYMENT_ATTEMPT : "has attempts"
+    ORDER ||--o{ REFUND : "has refunds"
     
     CUSTOMER {
         string customerId PK
         string userId FK
+    }
+
+    PROVIDER_CUSTOMER {
+        string providerCustomerId PK
+        string customerId FK
+        string provider "STRIPE, PAYPAL, AMADEUS, PAYMOB"
+        string externalCustomerId "cus_ABC123, PAYPAL_XYZ"
     }
 
     PREFERRED_PAYMENT_SETTINGS {
@@ -55,162 +72,122 @@ erDiagram
         string provider
         string transactionId "Gateway Transaction ID"
         json responseData
-        dateTime createdAt
-        dateTime updatedAt
+    }
+    
+    REFUND {
+        string refundId PK
+        string orderId FK
+        string paymentAttemptId FK
+        string refundTransactionId
+        decimal amount
+        string status "PENDING COMPLETED FAILED"
     }
     
     ORDER {
         string orderId PK
         string customerId FK
-        string restaurantId FK
-        string status
+        string orderStatus "PENDING COMPLETED CANCELED"
     }
 ```
 
 **Key Points:**
-- `PaymentMethod.paymentMethodName` = User-friendly display name
-- `PaymentMethod.paymentMethodData.provider` = Actual gateway identifier
-- `PaymentAttempt` tracks idempotency and prevents duplicate payments
+- `ProviderCustomer` maps customers to provider-specific IDs (scalable for any number of providers)
+- `OrderStatusKey` is payment-specific: PENDING (awaiting payment), COMPLETED (paid), CANCELED
+- `OrderTracking.trackingStatus` (JSON) handles fulfillment: preparing, received, outForDelivery, delivered
+- `PaymentAttempt` tracks async payment lifecycle
 
 ---
 
-## 3. Complete Order Placement Flow
-
-This flowchart shows the **entire** order placement process, including payment:
+## 3. Async Payment Flow (Payment Intents)
 
 ```mermaid
 flowchart TD
-    Start([User: Place Order]) --> CheckIdem{Check Idempotency}
+    Start([User: Place Order]) --> CreateOrder[Create Order: PENDING]
+    CreateOrder --> CreateIntent[Create Payment Intent]
+    CreateIntent --> ReturnSecret[Return clientSecret to Frontend]
     
-    CheckIdem -->|SUCCESS| ReturnExisting[Return Existing Order]
-    CheckIdem -->|PENDING less than 5min| RejectDupe[Throw: Order In Progress]
-    CheckIdem -->|PENDING over 5min| MarkStale[Mark as FAILED]
-    CheckIdem -->|FAILED or None| CreatePending[Create PENDING Attempt]
+    ReturnSecret --> UserAction{User Completes Payment}
+    UserAction -->|Simple Card| Instant[Payment Confirms Instantly]
+    UserAction -->|3D Secure/OTP| Redirect[Redirect to Bank]
     
-    MarkStale --> CreatePending
-    CreatePending --> StartTx[Start Transaction]
+    Redirect --> BankAuth[User Enters OTP<br/>10+ minutes]
+    BankAuth --> BankConfirm[Bank Confirms to Gateway]
     
-    StartTx --> LockCart[Lock Cart]
-    LockCart --> ValidateCart{Cart Valid?}
-    ValidateCart -->|No| RollbackTx1[Rollback Transaction]
-    ValidateCart -->|Yes| CheckInv[Check Inventory]
+    Instant --> Webhook[Webhook: payment_intent.succeeded]
+    BankConfirm --> Webhook
     
-    CheckInv --> InvOK{Inventory OK?}
-    InvOK -->|No| RollbackTx2[Rollback Transaction]
-    InvOK -->|Yes| CreateOrder[Create Order Record]
+    Webhook --> UpdateOrder[Update Order: COMPLETED]
+    UpdateOrder --> UpdateAttempt[Update PaymentAttempt: SUCCESS]
+    UpdateAttempt --> Notify[Send Confirmation Email]
+    Notify --> End([Order Confirmed])
     
-    CreateOrder --> ProcessPay[Process Payment]
-    ProcessPay --> GetSettings[Get Customer Payment Settings]
-    GetSettings --> FindMethod{Default Method Exists?}
+    UserAction -->|Abandons| Timeout[Webhook: payment_intent.payment_failed]
+    Timeout --> CancelOrder[Update Order: CANCELED]
+    CancelOrder --> RestoreInv[Restore Inventory]
+    RestoreInv --> End
     
-    FindMethod -->|No| RollbackTx3[Rollback Transaction]
-    FindMethod -->|Yes| ExtractProvider[Extract Provider]
-    
-    ExtractProvider --> GetStrategy[Get Strategy from Factory]
-    GetStrategy --> ExecStrategy[Execute Strategy.process]
-    
-    ExecStrategy --> PaySuccess{Payment Success?}
-    PaySuccess -->|No| RollbackTx4[Rollback Transaction]
-    PaySuccess -->|Yes| CommitTx[Commit Transaction]
-    
-    CommitTx --> UpdateAttempt[Update PaymentAttempt:<br/>SUCCESS + orderId]
-    UpdateAttempt --> ParallelTasks[Fire Parallel Tasks]
-    
-    ParallelTasks --> End([Return Order])
-    
-    RollbackTx1 --> MarkFailed1[Mark PaymentAttempt FAILED]
-    RollbackTx2 --> MarkFailed2[Mark PaymentAttempt FAILED]
-    RollbackTx3 --> MarkFailed3[Mark PaymentAttempt FAILED]
-    RollbackTx4 --> MarkFailed4[Mark PaymentAttempt FAILED]
-    
-    MarkFailed1 --> Error1[Throw Error]
-    MarkFailed2 --> Error2[Throw Error]
-    MarkFailed3 --> Error3[Throw Error]
-    MarkFailed4 --> Error4[Throw Error]
-    
-    ReturnExisting --> End
-    RejectDupe --> End
-    
-    style CreatePending fill:#fff3cd
-    style StartTx fill:#d1ecf1
-    style CommitTx fill:#d4edda
-    style UpdateAttempt fill:#d4edda
-    style RollbackTx1 fill:#f8d7da
-    style RollbackTx2 fill:#f8d7da
-    style RollbackTx3 fill:#f8d7da
-    style RollbackTx4 fill:#f8d7da
+    style CreateOrder fill:#fff3cd
+    style Webhook fill:#d4edda
+    style UpdateOrder fill:#d4edda
+    style CancelOrder fill:#f8d7da
 ```
 
-**Critical Architecture Note:**
-- `PaymentAttempt` is created **BEFORE** the transaction
-- Transaction rollback does **NOT** delete the `PaymentAttempt`
-- This enables idempotency across retries
+**Critical Differences from Sync:**
+- Order created **immediately** with status PENDING
+- Payment confirmation happens **asynchronously** via webhook
+- Database transaction does NOT wait for payment
+- Supports 10+ minute payment flows (OTP, bank transfers)
 
 ---
 
-## 4. Payment Processing Sequence Diagram
-
-Detailed interaction between components during payment:
+## 4. Complete Order Placement Sequence
 
 ```mermaid
 sequenceDiagram
     participant User
+    participant Frontend
     participant OrderService
-    participant PaymentAttemptService
-    participant Transaction
-    participant ProcessPaymentHandler
     participant PaymentService
-    participant PreferredSettingsService
-    participant StrategyFactory
-    participant Strategy
-    participant Gateway
+    participant StripeAPI
+    participant Webhook
+    participant Database
 
-    User->>OrderService: placeOrder(customerId, restaurantId)
+    User->>Frontend: Click "Place Order"
+    Frontend->>OrderService: POST /orders/create
     
-    Note over OrderService: OUTSIDE TRANSACTION
-    OrderService->>PaymentAttemptService: findAttempt(idempotencyKey)
-    PaymentAttemptService-->>OrderService: existingAttempt or null
+    Note over OrderService: Fast Transaction (<500ms)
+    OrderService->>Database: Create Order (status: PENDING)
+    OrderService->>Database: Reduce Inventory
+    OrderService->>Database: Commit Transaction
     
-    alt Already SUCCESS
-        OrderService-->>User: Return existing order
-    else PENDING < 5min
-        OrderService-->>User: Throw ConflictError
-    else PENDING > 5min or FAILED or null
-        OrderService->>PaymentAttemptService: createPendingAttempt()
-        PaymentAttemptService-->>OrderService: PENDING created
-        
-        Note over OrderService: START TRANSACTION
-        OrderService->>Transaction: Begin
-        Transaction->>ProcessPaymentHandler: execute(context)
-        ProcessPaymentHandler->>PaymentService: processPayment(customerId, amount, orderId)
-        
-        PaymentService->>PreferredSettingsService: getCustomerSettings(customerId)
-        PreferredSettingsService-->>PaymentService: settings with paymentMethods[]
-        
-        Note over PaymentService: Extract provider from<br/>paymentMethodData.provider
-        PaymentService->>StrategyFactory: getStrategy(provider)
-        StrategyFactory-->>PaymentService: StripeStrategy instance
-        
-        PaymentService->>Strategy: process(amount, metadata, idempotencyKey)
-        Strategy->>Gateway: Charge API Call
-        Gateway-->>Strategy: Success/Failure Response
-        Strategy-->>PaymentService: PaymentResult
-        
-        PaymentService-->>ProcessPaymentHandler: PaymentResult
-        ProcessPaymentHandler-->>Transaction: Continue or Fail
-        
-        alt Payment Success
-            Transaction->>Transaction: Commit
-            Note over OrderService: AFTER TRANSACTION
-            OrderService->>PaymentAttemptService: finalizeAttempt(SUCCESS)
-            OrderService-->>User: Return order
-        else Payment Failed
-            Transaction->>Transaction: Rollback
-            Note over OrderService: AFTER TRANSACTION
-            OrderService->>PaymentAttemptService: finalizeAttempt(FAILED)
-            OrderService-->>User: Throw error
-        end
+    OrderService->>PaymentService: createPaymentIntent(orderId, amount)
+    PaymentService->>StripeAPI: Create Payment Intent
+    StripeAPI-->>PaymentService: { clientSecret, paymentIntentId }
+    
+    PaymentService->>Database: Create PaymentAttempt (PENDING)
+    PaymentService-->>OrderService: { clientSecret }
+    OrderService-->>Frontend: { orderId, clientSecret, status: PENDING }
+    
+    Note over Frontend: User sees "Processing Payment..."
+    Frontend->>StripeAPI: Confirm Payment (clientSecret)
+    
+    alt Simple Card (2-5 sec)
+        StripeAPI-->>Frontend: Success
+        StripeAPI->>Webhook: payment_intent.succeeded
+    else 3D Secure (1-10 min)
+        StripeAPI-->>Frontend: Redirect to Bank
+        User->>Bank: Enter OTP
+        Bank->>StripeAPI: Confirm
+        StripeAPI->>Webhook: payment_intent.succeeded
     end
+    
+    Webhook->>Database: Update Order (COMPLETED)
+    Webhook->>Database: Update PaymentAttempt (SUCCESS)
+    Webhook->>User: Send Email Confirmation
+    
+    Frontend->>OrderService: GET /orders/{orderId}
+    OrderService-->>Frontend: { status: COMPLETED }
+    Frontend->>User: Show "Order Confirmed!"
 ```
 
 ---
@@ -220,6 +197,11 @@ sequenceDiagram
 ### Interface Definition
 
 ```typescript
+interface PaymentIntentResult {
+    clientSecret: string;
+    paymentIntentId: string;
+}
+
 interface PaymentResult {
     success: boolean;
     transactionId?: string;
@@ -233,10 +215,16 @@ interface RefundResult {
 }
 
 interface IPaymentStrategy {
-    process(
-        amount: number, 
-        metadata: any, 
+    // NEW: Create payment intent (async flow)
+    createPaymentIntent(
+        amount: number,
+        metadata: any,
         idempotencyKey: string
+    ): Promise<PaymentIntentResult>;
+    
+    // LEGACY: For webhook confirmation
+    confirmPayment(
+        paymentIntentId: string
     ): Promise<PaymentResult>;
     
     refund(
@@ -246,32 +234,53 @@ interface IPaymentStrategy {
 }
 ```
 
-### Strategy Implementations
+### Stripe Strategy (Payment Intents)
 
 ```typescript
 class StripeStrategy implements IPaymentStrategy {
-    async process(amount: number, metadata: any, idempotencyKey: string): Promise<PaymentResult> {
-        // Stripe SDK integration
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-        const charge = await stripe.charges.create({
-            amount: amount * 100, // Convert to cents
-            currency: 'usd',
-            customer: metadata.customerId,
-            source: metadata.cardToken,
-            idempotency_key: idempotencyKey
-        });
+    async createPaymentIntent(
+        amount: number,
+        metadata: any,
+        idempotencyKey: string
+    ): Promise<PaymentIntentResult> {
+        // 1. Get or create Stripe customer
+        const stripeCustomerId = await providerCustomerService.getOrCreateStripeCustomer(
+            metadata.customerId,
+            metadata.email
+        );
         
-        return { 
-            success: charge.status === 'succeeded', 
-            transactionId: charge.id 
+        // 2. Create payment intent
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100), // Convert to cents
+            currency: 'usd',
+            customer: stripeCustomerId,
+            metadata: { 
+                orderId: metadata.orderId,
+                customerId: metadata.customerId
+            },
+            automatic_payment_methods: { enabled: true }
+        }, { idempotencyKey });
+        
+        return {
+            clientSecret: paymentIntent.client_secret,
+            paymentIntentId: paymentIntent.id
+        };
+    }
+    
+    async confirmPayment(paymentIntentId: string): Promise<PaymentResult> {
+        const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+        
+        return {
+            success: paymentIntent.status === 'succeeded',
+            transactionId: paymentIntent.id,
+            message: `Payment ${paymentIntent.status}`
         };
     }
 
     async refund(transactionId: string, amount: number): Promise<RefundResult> {
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
         const refund = await stripe.refunds.create({
-            charge: transactionId,
-            amount: amount * 100
+            payment_intent: transactionId,
+            amount: Math.round(amount * 100)
         });
         
         return { 
@@ -280,473 +289,413 @@ class StripeStrategy implements IPaymentStrategy {
         };
     }
 }
+```
 
-class PayPalStrategy implements IPaymentStrategy {
-    async process(amount: number, metadata: any, idempotencyKey: string): Promise<PaymentResult> {
-        // PayPal SDK integration
-        // Similar implementation with PayPal API
-        return { success: true, transactionId: "pp_123" };
-    }
+---
 
-    async refund(transactionId: string, amount: number): Promise<RefundResult> {
-        // PayPal refund API call
-        return { success: true, refundId: "pp_refund_123" };
-    }
-}
+## 6. Provider Customer Management
 
-class AmadeusStrategy implements IPaymentStrategy {
-    async process(amount: number, metadata: any, idempotencyKey: string): Promise<PaymentResult> {
-        // Amadeus SDK integration
-        return { success: true, transactionId: "ama_123" };
-    }
+### ProviderCustomerService
 
-    async refund(transactionId: string, amount: number): Promise<RefundResult> {
-        // Amadeus refund API call
-        return { success: true, refundId: "ama_refund_123" };
-    }
-}
-
-class CashOnDeliveryStrategy implements IPaymentStrategy {
-    async process(amount: number, metadata: any, idempotencyKey: string): Promise<PaymentResult> {
-        // No external gateway - payment collected on delivery
-        return { 
-            success: true, 
-            transactionId: `cod_${idempotencyKey}` 
-        };
-    }
-
-    async refund(transactionId: string, amount: number): Promise<RefundResult> {
-        // No actual refund needed - payment wasn't collected yet
-        return { 
-            success: true, 
-            refundId: `cod_refund_${Date.now()}` 
-        };
+```typescript
+class ProviderCustomerService {
+    async getOrCreateStripeCustomer(
+        customerId: string,
+        email: string
+    ): Promise<string> {
+        // Check if exists
+        const existing = await prisma.providerCustomer.findUnique({
+            where: {
+                customerId_provider: {
+                    customerId,
+                    provider: "STRIPE"
+                }
+            }
+        });
+        
+        if (existing) {
+            return existing.externalCustomerId;
+        }
+        
+        // Create new Stripe customer
+        const stripeCustomer = await stripe.customers.create({
+            email,
+            metadata: { internalCustomerId: customerId }
+        });
+        
+        // Save to database
+        await prisma.providerCustomer.create({
+            data: {
+                customerId,
+                provider: "STRIPE",
+                externalCustomerId: stripeCustomer.id
+            }
+        });
+        
+        return stripeCustomer.id;
     }
 }
 ```
 
-### Factory Pattern
+**Benefits:**
+- Zero nulls in Customer table
+- Supports unlimited providers (Stripe, PayPal, Amadeus, Paymob, etc.)
+- No schema changes when adding providers
+
+---
+
+## 7. Webhook Handler
+
+### Critical Component for Async Payments
 
 ```typescript
-class PaymentStrategyFactory {
-    static getStrategy(provider: string): IPaymentStrategy {
-        switch(provider.toUpperCase()) {
-            case 'STRIPE': 
-                return new StripeStrategy();
-            case 'PAYPAL': 
-                return new PayPalStrategy();
-            case 'AMADEUS': 
-                return new AmadeusStrategy();
-            case 'CASH_ON_DELIVERY': 
-                return new CashOnDeliveryStrategy();
-            default: 
-                throw BadRequestError(`Unsupported payment provider: ${provider}`);
+class WebhookController {
+    async handleStripeWebhook(req: Request, res: Response) {
+        const sig = req.headers['stripe-signature'];
+        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+        
+        try {
+            // Verify signature (prevents fake webhooks)
+            const event = stripe.webhooks.constructEvent(
+                req.body,
+                sig,
+                webhookSecret
+            );
+            
+            switch (event.type) {
+                case 'payment_intent.succeeded':
+                    await this.handlePaymentSuccess(event.data.object);
+                    break;
+                case 'payment_intent.payment_failed':
+                    await this.handlePaymentFailure(event.data.object);
+                    break;
+                case 'charge.refunded':
+                    await this.handleRefund(event.data.object);
+                    break;
+            }
+            
+            res.json({ received: true });
+        } catch (err) {
+            res.status(400).send(`Webhook Error: ${err.message}`);
         }
+    }
+    
+    private async handlePaymentSuccess(paymentIntent: any) {
+        const orderId = paymentIntent.metadata.orderId;
+        
+        // Update order status
+        await orderRepository.updateOrderStatus({
+            orderId,
+            newOrderStatus: OrderStatusKey.COMPLETED
+        });
+        
+        // Update payment attempt
+        await paymentAttemptRepository.finalizeAttempt(
+            `order_${orderId}`,
+            true,
+            paymentIntent.id,
+            { amount: paymentIntent.amount / 100 }
+        );
+        
+        // Async actions
+        await sendConfirmationEmail(orderId);
+        await notifyRestaurant(orderId);
+    }
+    
+    private async handlePaymentFailure(paymentIntent: any) {
+        const orderId = paymentIntent.metadata.orderId;
+        
+        // Cancel order
+        await orderRepository.updateOrderStatus({
+            orderId,
+            newOrderStatus: OrderStatusKey.CANCELED
+        });
+        
+        // Update payment attempt
+        await paymentAttemptRepository.finalizeAttempt(
+            `order_${orderId}`,
+            false,
+            paymentIntent.id,
+            { error: paymentIntent.last_payment_error }
+        );
+        
+        // Restore inventory
+        await menuItemService.restoreStock(orderId);
     }
 }
 ```
 
 ---
 
-## 6. Idempotency Architecture
+## 8. Order Status Model
 
-### Problem Statement
-If a user clicks "Place Order" twice, or the network retries, we must prevent:
-- Duplicate orders
-- Double charging the customer
-- Inventory being reduced twice
+### Payment Status (OrderStatusKey)
 
-### Solution: Two-Layer Idempotency
+```prisma
+enum OrderStatusKey {
+  PENDING    // Order created, payment in progress
+  COMPLETED  // Payment succeeded
+  CANCELED   // Payment failed or order cancelled
+}
+```
+
+**Usage:**
+- `PENDING`: Order created, waiting for webhook confirmation
+- `COMPLETED`: Webhook confirmed payment success
+- `CANCELED`: Payment failed or customer cancelled
+
+### Fulfillment Status (OrderTracking)
+
+```prisma
+model OrderTracking {
+  orderTrackingId  String   @id
+  orderId          String
+  trackingStatus   Json     // { status: "preparing" | "received" | "outForDelivery" | "delivered" }
+}
+```
+
+**Separation of Concerns:**
+- `OrderStatusKey`: Payment lifecycle
+- `OrderTracking.trackingStatus`: Fulfillment lifecycle
+
+---
+
+## 9. Idempotency Architecture
+
+### Two-Layer Protection
 
 ```mermaid
 flowchart LR
-    Request[Place Order Request] --> Layer1{Internal Layer<br/>PaymentAttempt Table}
+    Request[Place Order Request] --> Layer1{PaymentAttempt Table}
     
-    Layer1 -->|New Request| CreatePending[Create PENDING]
+    Layer1 -->|New| CreatePending[Create PENDING]
     Layer1 -->|Duplicate| CheckStatus{Check Status}
     
     CheckStatus -->|SUCCESS| ReturnExisting[Return Existing Order]
     CheckStatus -->|PENDING| RejectDupe[Reject: In Progress]
     CheckStatus -->|FAILED| AllowRetry[Allow Retry]
     
-    CreatePending --> Layer2[Gateway Layer<br/>Idempotency Key]
+    CreatePending --> Layer2[Stripe Idempotency Key]
     AllowRetry --> Layer2
     
-    Layer2 --> Gateway[External Gateway<br/>Stripe/PayPal/Amadeus]
-    
-    style Layer1 fill:#d1ecf1
-    style Layer2 fill:#d4edda
+    Layer2 --> Gateway[Stripe API]
 ```
 
-**Key Points:**
-1. **Internal Layer** (`PaymentAttempt` table):
-   - Created **outside** transaction
-   - Survives rollbacks
-   - Uses `cart_${customerId}_${restaurantId}` as key
-   
-2. **Gateway Layer** (Stripe/PayPal):
-   - Idempotency key passed to gateway
-   - Prevents double-charging if we timeout
-   - Uses `order_${orderId}` as key
-
-3. **Stale PENDING Timeout**:
-   - PENDING attempts older than 5 minutes auto-fail
-   - Prevents orphaned records from blocking retries
+**Idempotency Keys:**
+- Internal: `cart_${customerId}_${restaurantId}`
+- Stripe: `order_${orderId}`
 
 ---
 
-## 7. Transaction Architecture
+## 10. Refund Architecture
 
-### Critical Design Decision
-
-```
-❌ WRONG: PaymentAttempt inside transaction
-┌─────────────────────────────────────┐
-│ Transaction                         │
-│  1. Create Order                    │
-│  2. Create PaymentAttempt (PENDING) │
-│  3. Process Payment → FAILS         │
-│  4. ROLLBACK                        │
-└─────────────────────────────────────┘
-Result: PaymentAttempt deleted → No idempotency!
-
-✅ CORRECT: PaymentAttempt outside transaction
-1. Create PaymentAttempt (PENDING) ← Outside
-┌─────────────────────────────────────┐
-│ Transaction                         │
-│  2. Create Order                    │
-│  3. Process Payment → FAILS         │
-│  4. ROLLBACK                        │
-└─────────────────────────────────────┘
-5. Update PaymentAttempt (FAILED) ← Outside
-Result: PaymentAttempt preserved → Idempotency works!
-```
-
----
-
-## 8. Timestamp Consistency
-
-All database writes in the order placement chain use the same `requestTimestamp`:
-
-```typescript
-// In OrderService.placeOrder()
-const requestTimestamp = new Date(); // Set once
-
-// Passed to all operations
-context.requestTimestamp = requestTimestamp;
-
-// Used in all repositories
-await orderRepository.create({ 
-    ...data, 
-    createdAt: requestTimestamp 
-});
-
-await paymentAttemptRepository.create({ 
-    ...data, 
-    createdAt: requestTimestamp 
-});
-```
-
-**Benefits:**
-- Perfect correlation for audit trails
-- Easier debugging (all related records have identical timestamps)
-- Compliance requirements
-
----
-
-## 9. Error Handling
-
-All services use standardized error factories:
-
-```typescript
-import { 
-    NotFoundError, 
-    ConflictError, 
-    InternalServerError,
-    UnprocessableEntityError,
-    BadRequestError
-} from '../utils/errors/error-factories';
-
-// Example usage
-if (!selectedMethod) {
-    throw NotFoundError("Default payment method");
-}
-
-if (existingAttempt.status === 'PENDING') {
-    throw ConflictError("Order placement in progress");
-}
-```
-
----
-
-## 10. Clean Architecture Layers
-
-```
-┌─────────────────────────────────────────┐
-│          Handlers (Order Chain)         │
-│  ProcessPaymentHandler, CreateOrder...  │
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│            Services Layer               │
-│  OrderService, PaymentService,          │
-│  PaymentAttemptService, etc.            │
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│         Repositories Layer              │
-│  OrderRepository, PaymentAttemptRepo... │
-└──────────────────┬──────────────────────┘
-                   │
-┌──────────────────▼──────────────────────┐
-│          Database (Prisma)              │
-└─────────────────────────────────────────┘
-```
-
-**Rules:**
-- Handlers call Services (never Repositories directly)
-- Services call other Services or Repositories
-- Repositories only interact with the database
-- Each model has its own Repository and Service
-
----
-
-## 11. Database Schema Changes
-
-### New Enum
-```prisma
-enum PaymentAttemptStatus {
-  PENDING
-  SUCCESS
-  FAILED
-}
-```
-
-### New Model
-```prisma
-model PaymentAttempt {
-  idempotencyKey String   @id @map("idempotency_key")
-  orderId        String?  @map("order_id")  // Nullable - set after order creation
-  status         PaymentAttemptStatus @map("status")
-  provider       String   @map("provider")
-  transactionId  String?  @map("transaction_id")
-  responseData   Json?    @map("response_data")
-  
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-
-  order Order? @relation(fields: [orderId], references: [orderId])
-
-  @@index([orderId])
-  @@index([status])
-  @@index([createdAt])
-  @@map("payment_attempts")
-}
-```
-
-### Refund Model
-```prisma
-enum RefundStatus {
-  PENDING
-  COMPLETED
-  FAILED
-}
-
-model Refund {
-  refundId            String   @id @default(uuid()) @map("refund_id")
-  orderId             String   @map("order_id")
-  paymentAttemptId    String   @map("payment_attempt_id")
-  refundTransactionId String   @map("refund_transaction_id")
-  amount              Decimal  @map("amount") @db.Decimal(10, 2)
-  status              RefundStatus @map("status")
-  provider            String   @map("provider")
-  
-  createdAt           DateTime @default(now()) @map("created_at")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-
-  order Order @relation(fields: [orderId], references: [orderId])
-
-  @@index([orderId])
-  @@index([status])
-  @@map("refunds")
-}
-```
-
-### Updated Model
-```prisma
-model Order {
-  // ... existing fields
-  paymentAttempts PaymentAttempt[]
-  refunds         Refund[]
-}
-```
-
----
-
-## 12. Refund Architecture (Order Cancellation)
-
-### Use Case
-When a customer cancels an order before it's prepared/delivered, the system must refund the payment.
-
-### Refund Flow
+### Flow
 
 ```mermaid
 flowchart TD
     Start([Customer: Cancel Order]) --> Validate{Order Cancellable?}
     
-    Validate -->|No - Already Delivered| Reject[Throw Error: Cannot Cancel]
+    Validate -->|No| Reject[Throw Error]
     Validate -->|Yes| FindPayment[Find Successful PaymentAttempt]
     
-    FindPayment --> PaymentExists{Payment Found?}
-    PaymentExists -->|No| NoRefund[Skip Refund - No Payment]
-    PaymentExists -->|Yes| GetStrategy[Get Payment Strategy]
-    
+    FindPayment --> GetStrategy[Get Payment Strategy]
     GetStrategy --> CallRefund[Call strategy.refund]
     CallRefund --> Gateway[Gateway Processes Refund]
     
-    Gateway --> RefundSuccess{Refund Success?}
+    Gateway --> RefundSuccess{Success?}
     RefundSuccess -->|Yes| RecordRefund[Record Refund in DB]
     RefundSuccess -->|No| ThrowError[Throw Error]
     
-    RecordRefund --> UpdateOrder[Update Order Status: CANCELLED]
-    NoRefund --> UpdateOrder
-    
+    RecordRefund --> UpdateOrder[Update Order: CANCELED]
     UpdateOrder --> RestoreInventory[Restore Inventory]
-    RestoreInventory --> End([Return Success])
-    
-    Reject --> End
-    ThrowError --> End
-    
-    style CallRefund fill:#fff3cd
-    style RecordRefund fill:#d4edda
-    style UpdateOrder fill:#d4edda
+    RestoreInventory --> End([Success])
 ```
 
-### RefundService Implementation
+### Implementation
 
 ```typescript
 class RefundService {
-    constructor(
-        private paymentAttemptService: PaymentAttemptService
-    ) {}
-
     async refundOrder(orderId: string): Promise<void> {
-        // 1. Find successful payment
-        const attempts = await prisma.paymentAttempt.findMany({
+        // Find successful payment
+        const attempt = await prisma.paymentAttempt.findFirst({
             where: { 
                 orderId,
                 status: PaymentAttemptStatus.SUCCESS
             }
         });
 
-        if (attempts.length === 0) {
+        if (!attempt) {
             throw BadRequestError("No successful payment found");
         }
 
-        const attempt = attempts[0];
-
-        // 2. Get strategy and process refund
+        // Get strategy and process refund
         const strategy = PaymentStrategyFactory.getStrategy(attempt.provider);
-        const refundResult = await strategy.refund(
+        const result = await strategy.refund(
             attempt.transactionId,
-            attempt.responseData.amount
+            order.totalAmount
         );
 
-        // 3. Record refund
+        // Record refund
         await prisma.refund.create({
             data: {
                 orderId,
                 paymentAttemptId: attempt.idempotencyKey,
-                refundTransactionId: refundResult.refundId,
-                amount: attempt.responseData.amount,
-                status: refundResult.success ? 'COMPLETED' : 'FAILED',
+                refundTransactionId: result.refundId,
+                amount: order.totalAmount,
+                status: result.success ? 'COMPLETED' : 'FAILED',
                 provider: attempt.provider
             }
         });
 
-        if (!refundResult.success) {
+        if (!result.success) {
             throw InternalServerError("Refund failed at gateway");
         }
     }
 }
 ```
 
-### Integration with OrderService
+---
 
-```typescript
-class OrderService {
-    async cancelOrder(orderId: string, customerId: string) {
-        const order = await orderRepository.findOrderById(orderId);
-        
-        // Validation
-        if (!order) throw NotFoundError("Order not found");
-        if (order.customerId !== customerId) throw ForbiddenError("Not your order");
-        if (order.status === 'DELIVERED') throw BadRequestError("Cannot cancel delivered order");
-        
-        // 1. Process refund
-        await refundService.refundOrder(orderId);
-        
-        // 2. Update order status
-        await orderRepository.updateOrderStatus({
-            orderId,
-            status: OrderStatusKey.CANCELLED
-        });
-        
-        // 3. Restore inventory
-        await inventoryService.restoreInventory(orderId);
-        
-        return { message: "Order cancelled and refund processed" };
-    }
+## 11. Database Schema
+
+### New Models
+
+```prisma
+model ProviderCustomer {
+  providerCustomerId String   @id @default(uuid())
+  customerId         String
+  provider           String   // "STRIPE", "PAYPAL", "AMADEUS", "PAYMOB"
+  externalCustomerId String   // "cus_ABC123", "PAYPAL_XYZ"
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  customer Customer @relation(fields: [customerId], references: [customerId])
+  
+  @@unique([customerId, provider])
+  @@index([provider])
+  @@map("provider_customers")
+}
+
+model PaymentAttempt {
+  idempotencyKey String   @id
+  orderId        String?
+  status         PaymentAttemptStatus
+  provider       String
+  transactionId  String?
+  responseData   Json?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order? @relation(fields: [orderId], references: [orderId])
+  
+  @@index([orderId])
+  @@index([status])
+  @@map("payment_attempts")
+}
+
+model Refund {
+  refundId            String   @id @default(uuid())
+  orderId             String
+  paymentAttemptId    String
+  refundTransactionId String
+  amount              Decimal  @db.Decimal(10, 2)
+  status              RefundStatus
+  provider            String
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order Order @relation(fields: [orderId], references: [orderId])
+  
+  @@index([orderId])
+  @@index([status])
+  @@map("refunds")
 }
 ```
 
-### Key Points
+---
 
-- **Synchronous Processing**: Refunds are processed immediately (no webhooks needed)
-- **Strategy Pattern**: Each payment provider implements its own refund logic
-- **Cash on Delivery**: No actual refund needed (payment not collected)
-- **Audit Trail**: All refunds recorded in `Refund` table
-- **Idempotent**: Multiple cancel attempts won't create duplicate refunds
+## 12. Testing Strategy
+
+### Local Testing with Stripe CLI
+
+```bash
+# 1. Install Stripe CLI
+stripe listen --forward-to localhost:3000/webhooks/stripe
+
+# 2. Get webhook secret
+# Copy whsec_... to .env as STRIPE_WEBHOOK_SECRET
+
+# 3. Test payment flow
+stripe trigger payment_intent.succeeded
+
+# 4. Test failure
+stripe trigger payment_intent.payment_failed
+```
+
+### Test Cards
+
+| Card Number | Scenario | Time |
+|-------------|----------|------|
+| 4242 4242 4242 4242 | Success (instant) | 2-5 sec |
+| 4000 0025 0000 3155 | 3D Secure required | 1-5 min |
+| 4000 0000 0000 0002 | Decline | Instant |
 
 ---
 
-## 13. Testing Strategy
+## 13. Environment Variables
 
-### Unit Tests
-- `PaymentStrategyFactory` - verify correct strategy instantiation
-- Each strategy - mock gateway calls
-- `PaymentAttemptService` - idempotency logic
+```bash
+# Stripe
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 
-### Integration Tests
-- Full order placement flow with test payment methods
-- Idempotency verification (double-click simulation)
-- Rollback scenarios
+# PayPal (future)
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
 
-### Manual Testing
-1. Setup test payment methods in database
-2. Place order via API
-3. Verify payment attempt records
-4. Test retry scenarios
-5. Verify parallel handlers execute
+# Amadeus (future)
+AMADEUS_API_KEY=...
+
+# Paymob (future)
+PAYMOB_API_KEY=...
+```
 
 ---
 
-## 14. Future Enhancements
+## 14. Migration from Sync to Async
 
-- [ ] Webhook handlers for async payment confirmations (bank transfers, ACH)
-- [ ] Partial refunds (refund only some items)
-- [ ] Payment method management UI
-- [ ] Analytics dashboard for payment success rates
-- [ ] Automated reconciliation with gateway reports
-- [ ] Support for payment installments
+### Key Changes
+
+| Component | Before (Sync) | After (Async) |
+|-----------|--------------|---------------|
+| **OrderService** | Payment in transaction | Payment outside transaction |
+| **Order Status** | Created only if paid | Created as PENDING |
+| **Payment Confirmation** | Immediate | Via webhook |
+| **Frontend** | Wait for response | Poll status or websocket |
+| **Transaction Time** | 10+ seconds (timeout risk) | <500ms (no payment wait) |
+
+---
+
+## 15. Future Enhancements
+
+- [ ] Saved payment methods (one-click checkout)
+- [ ] Partial refunds
+- [ ] Subscription support
 - [ ] Dispute/chargeback handling
+- [ ] Payment analytics dashboard
+- [ ] Multi-currency support
+- [ ] Payment installments
 
 ---
 
 ## Questions for Discussion
 
-1. **Retry Strategy**: Should we add exponential backoff for network errors?
-2. **Timeout Values**: Is 5 minutes appropriate for stale PENDING cleanup?
-3. **Provider Priority**: Should we support fallback providers if primary fails?
-4. **Monitoring**: What metrics should we track for payment health?
-5. **Security**: Do we need additional encryption for `paymentMethodData`?
+1. **Frontend Polling**: Should we use polling or WebSockets for order status updates?
+2. **Timeout Handling**: How long should frontend wait before showing "Payment Processing" message?
+3. **Failed Payment UX**: Should we auto-retry failed payments or require user action?
+4. **Provider Fallback**: Should we support fallback providers if primary fails?
+5. **Monitoring**: What metrics should we track for payment health?

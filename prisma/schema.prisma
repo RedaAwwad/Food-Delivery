@@ -85,6 +85,8 @@ model Customer {
 
   preferredPaymentSettings PreferredPaymentSettings?
 
+  providerCustomers ProviderCustomer[]
+
   // Relations
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
@@ -282,6 +284,23 @@ model Refund {
   @@index([orderId])
   @@index([status])
   @@map("refunds")
+}
+
+// Add to schema.prisma
+model ProviderCustomer {
+  providerCustomerId String   @id @default(uuid()) @map("provider_customer_id")
+  customerId         String   @map("customer_id")
+  provider           String   @map("provider")
+  externalCustomerId String   @map("external_customer_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  customer Customer @relation(fields: [customerId], references: [customerId])
+  
+  @@unique([customerId, provider])
+  @@index([provider])
+  @@map("provider_customers")
 }
 
 // Payment status (pending, paid, failed, etc.)

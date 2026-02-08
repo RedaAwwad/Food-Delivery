@@ -1,6 +1,6 @@
 import { OrderHandler } from "./base/OrderHandler";
 import { OrderContext } from "../../types/OrderContext";
-import { paymentService } from "../../services/payment.service";
+import { paymentService } from "../../services/PaymentService";
 import { InternalServerError } from "../../utils/errors";
 
 /**
@@ -14,9 +14,14 @@ export class ProcessPaymentHandler extends OrderHandler {
             throw InternalServerError("Order not found in context (ProcessPayment)");
         }
 
+        // Generate idempotencyKey for payment deduplication
+        const idempotencyKey = `cart_${context.customerId}_${context.restaurantId}`;
+
         const paymentResult = await paymentService.processPayment(
             context.customerId,
-            context.order.totalAmount
+            context.order.totalAmount,
+            idempotencyKey,
+            context.requestTimestamp
         );
 
         context.paymentResult = paymentResult;
