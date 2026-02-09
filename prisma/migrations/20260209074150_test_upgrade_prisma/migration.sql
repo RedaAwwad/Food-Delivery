@@ -1,22 +1,14 @@
 -- CreateEnum
-<<<<<<<< HEAD:prisma/migrations/20260103202535_add_order_tracking/migration.sql
-CREATE TYPE "TrackingStatusKey" AS ENUM ('PENDING', 'ACCEPTED', 'PREPARING', 'PICKED_UP', 'DELIVERED');
-========
 CREATE TYPE "OrderStatusKey" AS ENUM ('PENDING', 'COMPLETED', 'CANCELED');
 
 -- CreateEnum
 CREATE TYPE "CartEventType" AS ENUM ('ADD_TO_CART', 'UPDATE_QUANTITY', 'REMOVE_FROM_CART', 'CLEAR_CART', 'LOCK_CART', 'UNLOCK_CART');
->>>>>>>> d26cd4a9af1c299884696cc8ff984be54c279475:prisma/migrations/20260114131400_init_migration/migration.sql
 
 -- CreateEnum
 CREATE TYPE "RatingScore" AS ENUM ('ONE', 'TWO', 'THREE', 'FOUR', 'FIVE');
 
 -- CreateEnum
-<<<<<<<< HEAD:prisma/migrations/20260103202535_add_order_tracking/migration.sql
-CREATE TYPE "TokenType" AS ENUM ('VERIFICATION', 'REFRESH', 'FORGOT_PASSWORD');
-========
 CREATE TYPE "TokenType" AS ENUM ('REFRESH', 'VERIFICATION', 'FORGOT_PASSWORD');
->>>>>>>> d26cd4a9af1c299884696cc8ff984be54c279475:prisma/migrations/20260114131400_init_migration/migration.sql
 
 -- CreateEnum
 CREATE TYPE "RoleKey" AS ENUM ('ADMIN', 'CUSTOMER', 'RESTAURANT_MANAGER');
@@ -27,11 +19,12 @@ CREATE TABLE "users" (
     "user_name" TEXT NOT NULL,
     "user_password" TEXT NOT NULL,
     "user_email" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT false,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
     "isConfirmed" BOOLEAN NOT NULL DEFAULT false,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "is_admin" BOOLEAN NOT NULL DEFAULT false,
+    "roles" JSONB NOT NULL DEFAULT '[]',
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("user_id")
 );
@@ -49,21 +42,12 @@ CREATE TABLE "roles" (
 );
 
 -- CreateTable
-CREATE TABLE "users_roles" (
-    "user_id" TEXT NOT NULL,
-    "role_id" TEXT NOT NULL
-);
-
--- CreateTable
 CREATE TABLE "user_tokens" (
     "user_token_id" TEXT NOT NULL,
     "user_id" TEXT NOT NULL,
     "token" TEXT NOT NULL,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "token_type" "TokenType" NOT NULL,
-    "is_revoked" BOOLEAN NOT NULL DEFAULT false,
-    "revoked_at" TIMESTAMP(3),
-    "revoked_reason" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -75,10 +59,11 @@ CREATE TABLE "customers" (
     "customer_id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "customer_phone" TEXT NOT NULL,
-    "customer_avatar" TEXT NOT NULL,
+    "customer_avatar" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "deactivatedAt" TIMESTAMP(3),
+    "addresses" JSONB DEFAULT '[]',
     "createdById" TEXT NOT NULL,
     "updatedById" TEXT NOT NULL,
 
@@ -92,11 +77,12 @@ CREATE TABLE "restaurants" (
     "restaurantName" TEXT NOT NULL,
     "restaurant_bio" TEXT NOT NULL,
     "restaurant_logo" TEXT,
-    "is_available" BOOLEAN NOT NULL,
+    "is_available" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
     "average_rating" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "rating_count" INTEGER NOT NULL DEFAULT 0,
+    "addresses" JSONB DEFAULT '[]',
 
     CONSTRAINT "restaurants_pkey" PRIMARY KEY ("restaurant_id")
 );
@@ -171,11 +157,7 @@ CREATE TABLE "orders" (
     "customer_id" TEXT NOT NULL,
     "restaurant_id" TEXT NOT NULL,
     "total_amount" INTEGER NOT NULL,
-<<<<<<<< HEAD:prisma/migrations/20260103202535_add_order_tracking/migration.sql
-    "order_status" TEXT NOT NULL,
-========
     "order_status" "OrderStatusKey" NOT NULL,
->>>>>>>> d26cd4a9af1c299884696cc8ff984be54c279475:prisma/migrations/20260114131400_init_migration/migration.sql
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -206,18 +188,6 @@ CREATE TABLE "order_tracking" (
 );
 
 -- CreateTable
-CREATE TABLE "order_tracking" (
-    "order_tracking_id" TEXT NOT NULL,
-    "order_id" TEXT NOT NULL,
-    "customer_id" TEXT NOT NULL,
-    "tracking_status" JSONB NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "order_tracking_pkey" PRIMARY KEY ("order_tracking_id")
-);
-
--- CreateTable
 CREATE TABLE "order_items" (
     "order_item_id" TEXT NOT NULL,
     "order_id" TEXT NOT NULL,
@@ -231,24 +201,26 @@ CREATE TABLE "order_items" (
 );
 
 -- CreateTable
-CREATE TABLE "addresses" (
-    "address_id" TEXT NOT NULL,
-    "customer_id" TEXT,
-    "restaurant_id" TEXT,
-    "street" TEXT NOT NULL,
-    "city" TEXT NOT NULL,
-    "area" TEXT NOT NULL,
-    "zip_code" INTEGER NOT NULL,
-    "block" TEXT NOT NULL,
-    "apartmentNumber" TEXT NOT NULL,
-    "floor" TEXT NOT NULL,
-    "latitude" DOUBLE PRECISION NOT NULL,
-    "longitude" DOUBLE PRECISION NOT NULL,
-    "is_primary" BOOLEAN NOT NULL DEFAULT false,
+CREATE TABLE "preferred_payment_settings" (
+    "preferred_payment_settings_id" TEXT NOT NULL,
+    "customer_id" TEXT NOT NULL,
+    "payment_method_id" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "addresses_pkey" PRIMARY KEY ("address_id")
+    CONSTRAINT "preferred_payment_settings_pkey" PRIMARY KEY ("preferred_payment_settings_id")
+);
+
+-- CreateTable
+CREATE TABLE "payment_methods" (
+    "payment_method_id" TEXT NOT NULL,
+    "payment_method_name" TEXT NOT NULL,
+    "payment_method_data" JSONB NOT NULL,
+    "preferred_payment_settings_id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "payment_methods_pkey" PRIMARY KEY ("payment_method_id")
 );
 
 -- CreateTable
@@ -282,10 +254,10 @@ CREATE TABLE "cart_events" (
 CREATE UNIQUE INDEX "users_user_email_key" ON "users"("user_email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "roles_role_key_key" ON "roles"("role_key");
+CREATE INDEX "users_roles_idx" ON "users" USING GIN ("roles");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "users_roles_user_id_role_id_key" ON "users_roles"("user_id", "role_id");
+CREATE UNIQUE INDEX "roles_role_key_key" ON "roles"("role_key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "user_tokens_token_key" ON "user_tokens"("token");
@@ -294,10 +266,25 @@ CREATE UNIQUE INDEX "user_tokens_token_key" ON "user_tokens"("token");
 CREATE UNIQUE INDEX "customers_userId_key" ON "customers"("userId");
 
 -- CreateIndex
+CREATE INDEX "customers_addresses_idx" ON "customers" USING GIN ("addresses");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "restaurants_manager_id_key" ON "restaurants"("manager_id");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "restaurants_restaurantName_key" ON "restaurants"("restaurantName");
+
+-- CreateIndex
+CREATE INDEX "restaurants_restaurantName_idx" ON "restaurants"("restaurantName");
+
+-- CreateIndex
+CREATE INDEX "restaurants_addresses_idx" ON "restaurants" USING GIN ("addresses");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "carts_customer_id_key" ON "carts"("customer_id");
+
+-- CreateIndex
+CREATE INDEX "cart_items_menu_item_id_idx" ON "cart_items"("menu_item_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "cart_items_cart_id_menu_item_id_key" ON "cart_items"("cart_id", "menu_item_id");
@@ -306,25 +293,34 @@ CREATE UNIQUE INDEX "cart_items_cart_id_menu_item_id_key" ON "cart_items"("cart_
 CREATE UNIQUE INDEX "menus_restaurant_id_key" ON "menus"("restaurant_id");
 
 -- CreateIndex
+CREATE INDEX "menu_items_menuItemName_idx" ON "menu_items"("menuItemName");
+
+-- CreateIndex
+CREATE INDEX "orders_customer_id_idx" ON "orders"("customer_id");
+
+-- CreateIndex
+CREATE INDEX "orders_restaurant_id_idx" ON "orders"("restaurant_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "order_statuses_order_status_key_key" ON "order_statuses"("order_status_key");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "order_tracking_customer_id_key" ON "order_tracking"("customer_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "order_tracking_order_id_customer_id_key" ON "order_tracking"("order_id", "customer_id");
 
-<<<<<<<< HEAD:prisma/migrations/20260103202535_add_order_tracking/migration.sql
-========
+-- CreateIndex
+CREATE INDEX "order_items_order_id_idx" ON "order_items"("order_id");
+
+-- CreateIndex
+CREATE INDEX "order_items_menu_item_id_idx" ON "order_items"("menu_item_id");
+
 -- CreateIndex
 CREATE UNIQUE INDEX "preferred_payment_settings_customer_id_key" ON "preferred_payment_settings"("customer_id");
 
 -- CreateIndex
 CREATE INDEX "cart_events_customer_id_idx" ON "cart_events"("customer_id");
-
->>>>>>>> d26cd4a9af1c299884696cc8ff984be54c279475:prisma/migrations/20260114131400_init_migration/migration.sql
--- AddForeignKey
-ALTER TABLE "users_roles" ADD CONSTRAINT "users_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "users_roles" ADD CONSTRAINT "users_roles_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "roles"("role_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "user_tokens" ADD CONSTRAINT "user_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("user_id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -366,11 +362,7 @@ ALTER TABLE "orders" ADD CONSTRAINT "orders_customer_id_fkey" FOREIGN KEY ("cust
 ALTER TABLE "orders" ADD CONSTRAINT "orders_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "restaurants"("restaurant_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-<<<<<<<< HEAD:prisma/migrations/20260103202535_add_order_tracking/migration.sql
-ALTER TABLE "orders" ADD CONSTRAINT "orders_order_status_fkey" FOREIGN KEY ("order_status") REFERENCES "order_statuses"("order_status_id") ON DELETE RESTRICT ON UPDATE CASCADE;
-========
 ALTER TABLE "orders" ADD CONSTRAINT "orders_order_status_fkey" FOREIGN KEY ("order_status") REFERENCES "order_statuses"("order_status_key") ON DELETE RESTRICT ON UPDATE CASCADE;
->>>>>>>> d26cd4a9af1c299884696cc8ff984be54c279475:prisma/migrations/20260114131400_init_migration/migration.sql
 
 -- AddForeignKey
 ALTER TABLE "order_tracking" ADD CONSTRAINT "order_tracking_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -385,10 +377,10 @@ ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_fkey" FOREIGN KEY
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_menu_item_id_fkey" FOREIGN KEY ("menu_item_id") REFERENCES "menu_items"("menu_item_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "addresses" ADD CONSTRAINT "addresses_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "preferred_payment_settings" ADD CONSTRAINT "preferred_payment_settings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "addresses" ADD CONSTRAINT "addresses_restaurant_id_fkey" FOREIGN KEY ("restaurant_id") REFERENCES "restaurants"("restaurant_id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "payment_methods" ADD CONSTRAINT "payment_methods_payment_method_id_fkey" FOREIGN KEY ("payment_method_id") REFERENCES "preferred_payment_settings"("preferred_payment_settings_id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ratings" ADD CONSTRAINT "ratings_customer_id_fkey" FOREIGN KEY ("customer_id") REFERENCES "customers"("customer_id") ON DELETE RESTRICT ON UPDATE CASCADE;

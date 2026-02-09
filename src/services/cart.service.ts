@@ -5,14 +5,13 @@ import { cartRepository } from "../repositories/cart.repository";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { cartEventService } from "./cartEvent.service";
 import { ExtendedTransactionClient, prisma } from "../config/prisma.config";
-import { CartEventType } from "../generated/prisma/client";
 import { PrismaTx } from "../types/prisma.types";
 import { withTransaction } from "../utils/transaction.util";
+import { CartEventType } from "../generated/prisma/enums";
 
 class CartService {
   async handleCartEvent(event: CartEventDTO, customerId: string) {
     if (!event.eventType) throw BadRequestError("Event Type is required");
-
     switch (event.eventType) {
       case CartEventType.ADD_TO_CART:
         return await this.addToCart({ menuItemId: event.menuItemId!, quantity: event.quantity! }, customerId);
