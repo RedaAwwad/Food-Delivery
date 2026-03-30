@@ -1,435 +1,527 @@
 # Stripe Payment Intents Integration Plan
 
 ## Goal
-Implement a complete Stripe integration using Payment Intents API with EJS test page and webhook support for multiple payment providers (Stripe, PayPal, Amadeus, Paymob).
+Migrate `StripeStrategy` from the legacy Charges API to **Payment Intents API**, wire it into the existing handler chain architecture, and implement full idempotency + webhook confirmation.
 
 ---
 
-## Phase 1: Payment Intents Backend (2-3 hours)
+## Architecture: Order First, Pay Last
 
-### 1.1 Update IPaymentStrategy Interface
+The handler chain already creates the order **before** payment:
+
+```
+CreateOrderHandler (PENDING)  →  ProcessPaymentHandler  →  Webhook confirms → CONFIRMED
+```
+
+The key requirement for reliability is:
+
+1. **`orderId` must be in Stripe metadata** — so the webhook can locate the order
+2. **Idempotency key = `order_${orderId}`** — not cart-based
+3. **`PaymentAttempt` checked before Stripe call** — DB-level dedup
+
+---
+
+## Phase 1: Update IPaymentStrategy Interface
 
 **File**: `src/services/payment/strategies/IPaymentStrategy.ts`
 
-**Changes**:
 ```typescript
-interface PaymentIntentResult {
+export interface PaymentIntentResult {
     clientSecret: string;
     paymentIntentId: string;
 }
 
-interface IPaymentStrategy {
-    // NEW: Create payment intent (returns client_secret for frontend)
+export interface PaymentResult {
+    success: boolean;
+    transactionId?: string;
+    message?: string;
+}
+
+export interface RefundResult {
+    success: boolean;
+    refundId: string;
+    message?: string;
+}
+
+export interface IPaymentStrategy {
+    // For async webhook flow (Stripe, PayPal)
     createPaymentIntent(
         amount: number,
-        metadata: any,
+        metadata: { orderId: string; customerId: string; restaurantId: string; email: string },
         idempotencyKey: string
     ): Promise<PaymentIntentResult>;
-    
-    // KEEP: For backwards compatibility and non-Stripe providers
+
+    // For synchronous flow (Cash on Delivery, direct charge)
     process(
         amount: number,
         metadata: any,
         idempotencyKey: string
     ): Promise<PaymentResult>;
-    
-    refund(
-        transactionId: string,
-        amount: number
-    ): Promise<RefundResult>;
+
+    refund(transactionId: string, amount: number): Promise<RefundResult>;
 }
 ```
 
 ---
 
-### 1.2 Create ProviderCustomerRepository
-
-**File**: `src/repositories/ProviderCustomerRepository.ts` [NEW]
-
-**Purpose**: Manage provider-customer mappings
-
-```typescript
-class ProviderCustomerRepository {
-    async findByCustomerAndProvider(customerId: string, provider: string);
-    async create(data: { customerId, provider, externalCustomerId });
-    async updateExternalId(customerId: string, provider: string, externalCustomerId: string);
-}
-```
-
----
-
-### 1.3 Create ProviderCustomerService
-
-**File**: `src/services/ProviderCustomerService.ts` [NEW]
-
-**Purpose**: Business logic for provider customers
-
-```typescript
-class ProviderCustomerService {
-    async getOrCreateStripeCustomer(customerId: string, email: string): Promise<string>;
-    async getProviderCustomerId(customerId: string, provider: string): Promise<string | null>;
-}
-```
-
----
-
-### 1.4 Update StripeStrategy
+## Phase 2: Update StripeStrategy
 
 **File**: `src/services/payment/strategies/StripeStrategy.ts`
 
-**Changes**:
-1. Add `createPaymentIntent()` method
-2. Update `process()` to use Payment Intents (for webhook confirmation)
-3. Keep existing `refund()` method
-
-**Key Logic**:
-```typescript
-async createPaymentIntent(amount, metadata, idempotencyKey) {
-    // 1. Get or create Stripe customer
-    const stripeCustomerId = await providerCustomerService.getOrCreateStripeCustomer(
-        metadata.customerId,
-        metadata.email
-    );
-    
-    // 2. Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100),
-        currency: 'usd',
-        customer: stripeCustomerId,
-        metadata: { orderId: metadata.orderId },
-        automatic_payment_methods: { enabled: true }
-    }, { idempotencyKey });
-    
-    return {
-        clientSecret: paymentIntent.client_secret,
-        paymentIntentId: paymentIntent.id
-    };
-}
-```
-
----
-
-### 1.5 Update PaymentService
-
-**File**: `src/services/payment.service.ts`
-
-**Changes**:
-Add new method for creating payment intents:
+Rewrite `process()` to use Payment Intents, add `createPaymentIntent()`:
 
 ```typescript
-async createPaymentIntent(
-    customerId: string,
-    amount: number,
-    orderId: string
-): Promise<PaymentIntentResult> {
-    const settings = await preferredPaymentSettingsService.getCustomerSettings(customerId);
-    const selectedMethod = settings.paymentMethods.find(
-        pm => pm.paymentMethodId === settings.paymentMethodId
-    );
-    
-    const provider = selectedMethod.paymentMethodData?.['provider'];
-    const strategy = PaymentStrategyFactory.getStrategy(provider);
-    
-    const idempotencyKey = `order_${orderId}`;
-    return await strategy.createPaymentIntent(amount, { customerId, orderId }, idempotencyKey);
-}
-```
+import { IPaymentStrategy, PaymentIntentResult, PaymentResult, RefundResult } from './IPaymentStrategy';
+import stripe from '../../../utils/payment/stripe';
+import { providerCustomerService } from '../../ProviderCustomerService';
+import { BadRequestError } from '../../../utils/errors';
 
----
+export class StripeStrategy implements IPaymentStrategy {
 
-## Phase 2: EJS Test Page (1-2 hours)
+    async createPaymentIntent(
+        amount: number,
+        metadata: { orderId: string; customerId: string; restaurantId: string; email: string },
+        idempotencyKey: string
+    ): Promise<PaymentIntentResult> {
+        // Get or create Stripe customer for saved cards / receipts
+        const stripeCustomerId = await providerCustomerService.getOrCreateStripeCustomer(
+            metadata.customerId,
+            metadata.email
+        );
 
-### 2.1 Install Dependencies
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100), // cents
+            currency: 'usd',
+            customer: stripeCustomerId,
+            metadata: {
+                orderId: metadata.orderId,          // CRITICAL: webhook reads this
+                customerId: metadata.customerId,
+                restaurantId: metadata.restaurantId
+            },
+            automatic_payment_methods: { enabled: true }
+        }, { idempotencyKey });                     // CRITICAL: Stripe-level dedup
 
-```bash
-npm install ejs
-```
+        return {
+            clientSecret: paymentIntent.client_secret!,
+            paymentIntentId: paymentIntent.id
+        };
+    }
 
----
+    async process(
+        amount: number,
+        metadata: any,
+        idempotencyKey: string
+    ): Promise<PaymentResult> {
+        // Legacy synchronous path — kept for backward compatibility
+        // New flow uses createPaymentIntent() + webhooks
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(amount * 100),
+            currency: 'usd',
+            metadata,
+            confirm: true,                  // confirm immediately (no 3DS)
+            payment_method: metadata.paymentMethodId,
+            automatic_payment_methods: { enabled: true, allow_redirects: 'never' }
+        }, { idempotencyKey });
 
-### 2.2 Configure Express for EJS
+        return {
+            success: paymentIntent.status === 'succeeded',
+            transactionId: paymentIntent.id,
+            message: `Payment status: ${paymentIntent.status}`
+        };
+    }
 
-**File**: `src/server.ts`
-
-```typescript
-app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, '../views'));
-app.use(express.static(path.join(__dirname, '../public')));
-```
-
----
-
-### 2.3 Create EJS Checkout Page
-
-**File**: `views/checkout.ejs` [NEW]
-
-**Purpose**: Test page with Stripe Elements
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Stripe Checkout Test</title>
-    <script src="https://js.stripe.com/v3/"></script>
-</head>
-<body>
-    <h1>Test Stripe Payment</h1>
-    <form id="payment-form">
-        <div id="payment-element"></div>
-        <button id="submit">Pay $<%= amount %></button>
-        <div id="error-message"></div>
-    </form>
-    
-    <script>
-        const stripe = Stripe('<%= stripePublishableKey %>');
-        const clientSecret = '<%= clientSecret %>';
-        
-        const elements = stripe.elements({ clientSecret });
-        const paymentElement = elements.create('payment');
-        paymentElement.mount('#payment-element');
-        
-        document.getElementById('payment-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const { error } = await stripe.confirmPayment({
-                elements,
-                confirmParams: {
-                    return_url: 'http://localhost:3000/payment/success'
-                }
-            });
-            
-            if (error) {
-                document.getElementById('error-message').textContent = error.message;
-            }
-        });
-    </script>
-</body>
-</html>
-```
-
----
-
-### 2.4 Create Test Routes
-
-**File**: `src/routes/payment.routes.ts` [NEW]
-
-```typescript
-router.get('/test-checkout', async (req, res) => {
-    // Create test payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-        amount: 5000, // $50.00
-        currency: 'usd',
-        automatic_payment_methods: { enabled: true }
-    });
-    
-    res.render('checkout', {
-        clientSecret: paymentIntent.client_secret,
-        amount: 50,
-        stripePublishableKey: process.env.STRIPE_PUBLISHABLE_KEY
-    });
-});
-
-router.get('/success', (req, res) => {
-    res.send('<h1>Payment Successful!</h1>');
-});
-```
-
----
-
-## Phase 3: Webhooks (1-2 hours)
-
-### 3.1 Create Webhook Handler
-
-**File**: `src/controllers/webhook.controller.ts` [NEW]
-
-```typescript
-class WebhookController {
-    async handleStripeWebhook(req, res) {
-        const sig = req.headers['stripe-signature'];
-        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-        
+    async refund(transactionId: string, amount: number): Promise<RefundResult> {
         try {
-            const event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-            
+            const refund = await stripe.refunds.create({
+                payment_intent: transactionId,  // use payment_intent, not charge
+                amount: Math.round(amount * 100)
+            });
+
+            return {
+                success: refund.status === 'succeeded',
+                refundId: refund.id,
+                message: 'Refund processed successfully'
+            };
+        } catch (error: any) {
+            console.error('[Stripe] Refund failed:', error);
+            return { success: false, refundId: '', message: error.message };
+        }
+    }
+}
+```
+
+---
+
+## Phase 3: Update PaymentService
+
+**File**: `src/services/PaymentService.ts`
+
+Add `createPaymentIntent()` with the DB-level idempotency guard:
+
+```typescript
+import { PaymentStrategyFactory } from './payment/PaymentStrategyFactory';
+import { preferredPaymentSettingsService } from './PreferredPaymentSettingsService';
+import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
+import { PaymentAttemptStatus } from '../generated/prisma/client';
+import { InternalServerError, UnprocessableEntityError } from '../utils/errors/error-factories';
+import { PaymentIntentResult } from './payment/strategies/IPaymentStrategy';
+
+export class PaymentService {
+
+    /**
+     * Creates a Stripe PaymentIntent for an already-created order.
+     * Idempotency is enforced at both the DB level (PaymentAttempt)
+     * and the Stripe level (idempotencyKey).
+     */
+    async createPaymentIntent(
+        customerId: string,
+        orderId: string,
+        amount: number,
+        email: string,
+        restaurantId: string,
+        requestTimestamp: Date
+    ): Promise<PaymentIntentResult> {
+        const idempotencyKey = `order_${orderId}`;
+
+        // --- Layer 1: DB idempotency guard ---
+        const existing = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+        if (existing) {
+            if (existing.status === PaymentAttemptStatus.SUCCESS) {
+                // Already paid — should not reach here in normal flow
+                throw UnprocessableEntityError("Order has already been paid");
+            }
+            if (existing.status === PaymentAttemptStatus.PENDING && existing.responseData?.clientSecret) {
+                // In-flight — return the existing clientSecret
+                return {
+                    clientSecret: existing.responseData.clientSecret,
+                    paymentIntentId: existing.transactionId!
+                };
+            }
+        }
+
+        // --- Get payment provider ---
+        const settings = await preferredPaymentSettingsService.getCustomerSettings(customerId);
+        const preferredMethod = settings.paymentMethods.find(
+            pm => pm.paymentMethodId === settings.paymentMethodId
+        );
+
+        if (!preferredMethod) throw InternalServerError("Preferred payment method not set");
+
+        const provider = (preferredMethod.paymentMethodData as any)?.provider;
+        if (!provider) throw UnprocessableEntityError("Payment method configuration missing provider");
+
+        const strategy = PaymentStrategyFactory.getStrategy(provider);
+
+        // --- Record PENDING attempt before calling Stripe ---
+        // (so if Stripe call crashes, cron can clean up)
+        await paymentAttemptRepository.create({
+            idempotencyKey,
+            orderId,
+            status: PaymentAttemptStatus.PENDING,
+            provider
+        }, requestTimestamp);
+
+        // --- Layer 2: Stripe-level idempotency (same key) ---
+        const result = await strategy.createPaymentIntent(
+            amount,
+            { orderId, customerId, restaurantId, email },
+            idempotencyKey
+        );
+
+        // Store clientSecret in responseData so we can return it on retry
+        await paymentAttemptRepository.updateStatus(
+            idempotencyKey,
+            PaymentAttemptStatus.PENDING,
+            result.paymentIntentId,
+            { clientSecret: result.clientSecret }
+        );
+
+        return result;
+    }
+
+    // Legacy synchronous process() — kept for CashOnDelivery etc.
+    async processPayment(
+        customerId: string,
+        amount: number,
+        idempotencyKey: string,
+        requestTimestamp: Date
+    ) {
+        const settings = await preferredPaymentSettingsService.getCustomerSettings(customerId);
+        const preferredMethod = settings.paymentMethods.find(
+            pm => pm.paymentMethodId === settings.paymentMethodId
+        );
+        if (!preferredMethod) throw InternalServerError("Preferred payment method not set");
+
+        const provider = (preferredMethod.paymentMethodData as any)?.provider;
+        const strategy = PaymentStrategyFactory.getStrategy(provider);
+
+        return strategy.process(amount, { ...preferredMethod.paymentMethodData as any, requestTimestamp }, idempotencyKey);
+    }
+}
+
+export const paymentService = new PaymentService();
+```
+
+---
+
+## Phase 4: Update ProcessPaymentHandler
+
+**File**: `src/handlers/order/ProcessPaymentHandler.ts`
+
+Extend context to carry the `clientSecret` back to the caller:
+
+```typescript
+import { OrderHandler } from "./base/OrderHandler";
+import { OrderContext } from "../../types/OrderContext";
+import { paymentService } from "../../services/PaymentService";
+import { InternalServerError } from "../../utils/errors";
+
+export class ProcessPaymentHandler extends OrderHandler {
+    protected async handle(context: OrderContext): Promise<void> {
+        if (!context.order) throw InternalServerError("Order not found in context (ProcessPayment)");
+
+        const idempotencyKey = `order_${context.order.orderId}`; // tied to order, not cart
+
+        const result = await paymentService.createPaymentIntent(
+            context.customerId,
+            context.order.orderId,
+            context.order.totalAmount,
+            context.customerEmail,    // add to OrderContext
+            context.restaurantId,
+            context.requestTimestamp
+        );
+
+        context.paymentResult = {
+            success: true,
+            transactionId: result.paymentIntentId
+        };
+        context.clientSecret = result.clientSecret; // return to API caller
+    }
+}
+```
+
+Add to `OrderContext`:
+```typescript
+export interface OrderContext {
+    customerId: string;
+    restaurantId: string;
+    customerEmail: string;   // ← ADD
+    requestTimestamp: Date;
+    tx?: PrismaTx;
+    cartItems?: CartItemSummary[];
+    order?: any;
+    clientSecret?: string;   // ← ADD: returned to frontend
+    paymentResult?: { success: boolean; transactionId?: string; };
+    finalOrder?: any;
+    errors?: string[];
+    isCartLocked?: boolean;
+    shouldReduceInventory?: boolean;
+    shouldClearCart?: boolean;
+}
+```
+
+---
+
+## Phase 5: Webhook Handler
+
+**File**: `src/controllers/stripeWebhook.controller.ts` [NEW]
+
+```typescript
+import { Request, Response } from 'express';
+import stripe from '../utils/payment/stripe';
+import { prisma } from '../config/prisma.config';
+import { orderRepository } from '../repositories/order.repository';
+import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
+import { cartService } from '../services/cart.service';
+import { menuItemService } from '../services/menuItem.service';
+import { PaymentAttemptStatus, OrderStatusKey } from '../generated/prisma/client';
+
+class StripeWebhookController {
+    async handleStripeWebhook(req: Request, res: Response) {
+        const sig = req.headers['stripe-signature'] as string;
+        try {
+            const event = stripe.webhooks.constructEvent(
+                req.body,
+                sig,
+                process.env.STRIPE_WEBHOOK_SECRET!
+            );
+
             switch (event.type) {
                 case 'payment_intent.succeeded':
-                    await this.handlePaymentSuccess(event.data.object);
+                    await this.handleSuccess(event.data.object as any);
                     break;
                 case 'payment_intent.payment_failed':
-                    await this.handlePaymentFailure(event.data.object);
-                    break;
-                case 'charge.refunded':
-                    await this.handleRefund(event.data.object);
+                    await this.handleFailure(event.data.object as any);
                     break;
             }
-            
+
             res.json({ received: true });
-        } catch (err) {
+        } catch (err: any) {
+            console.error('[Webhook] Error:', err.message);
             res.status(400).send(`Webhook Error: ${err.message}`);
         }
     }
-    
-    private async handlePaymentSuccess(paymentIntent) {
-        const orderId = paymentIntent.metadata.orderId;
-        
-        // Update PaymentAttempt
-        await paymentAttemptService.finalizeAttempt(
-            `order_${orderId}`,
-            true,
+
+    private async handleSuccess(paymentIntent: any) {
+        const { orderId, customerId } = paymentIntent.metadata;
+        const idempotencyKey = `order_${orderId}`;
+
+        // Webhook idempotency guard — Stripe may retry
+        const attempt = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+        if (attempt?.status === PaymentAttemptStatus.SUCCESS) return; // already done
+
+        await prisma.$transaction(async (tx) => {
+            await orderRepository.updateOrderStatus(
+                { orderId, newOrderStatus: OrderStatusKey.CONFIRMED }, tx
+            );
+
+            await paymentAttemptRepository.updateStatus(
+                idempotencyKey,
+                PaymentAttemptStatus.SUCCESS,
+                paymentIntent.id,
+                { amount: paymentIntent.amount / 100 }
+            );
+
+            await cartService.clearCart(customerId, tx);
+        });
+
+        // Reduce inventory outside transaction (uses its own batched updateMany)
+        await menuItemService.restoreStockBatch(orderId); // Actually "confirmStock" — no restore needed
+    }
+
+    private async handleFailure(paymentIntent: any) {
+        const { orderId } = paymentIntent.metadata;
+        const idempotencyKey = `order_${orderId}`;
+
+        await paymentAttemptRepository.updateStatus(
+            idempotencyKey,
+            PaymentAttemptStatus.FAILED,
             paymentIntent.id,
-            { amount: paymentIntent.amount / 100 }
+            { error: paymentIntent.last_payment_error }
         );
-        
-        // Update Order status
+
         await orderRepository.updateOrderStatus({
             orderId,
-            newOrderStatus: OrderStatusKey.CONFIRMED
+            newOrderStatus: OrderStatusKey.CANCELLED
         });
+
+        // Restore inventory
+        await menuItemService.restoreStockBatch(orderId);
     }
 }
+
+export const stripeWebhookController = new StripeWebhookController();
 ```
 
 ---
 
-### 3.2 Create Webhook Route
+## Phase 6: Webhook Route
 
 **File**: `src/routes/webhook.routes.ts` [NEW]
 
 ```typescript
 import express from 'express';
+import { stripeWebhookController } from '../controllers/stripeWebhook.controller';
 
 const router = express.Router();
 
-// IMPORTANT: Use raw body for signature verification
-router.post('/stripe', 
+// Raw body REQUIRED for Stripe signature verification
+router.post('/stripe',
     express.raw({ type: 'application/json' }),
-    webhookController.handleStripeWebhook
+    (req, res) => stripeWebhookController.handleStripeWebhook(req, res)
 );
 
 export default router;
 ```
 
----
-
-### 3.3 Update server.ts
-
-**File**: `src/server.ts`
+**File**: `src/server.ts` — mount BEFORE `express.json()`:
 
 ```typescript
-// BEFORE other middleware
-app.use('/webhooks', webhookRoutes); // Raw body for webhooks
+import webhookRoutes from './routes/webhook.routes';
 
-// THEN add JSON middleware
+app.use('/webhooks', webhookRoutes); // ← BEFORE json middleware
 app.use(express.json());
 ```
 
 ---
 
-## Phase 4: Environment Variables
+## Phase 7: Stale Order Cleanup Cron
 
-**File**: `.env`
+**File**: `src/jobs/staleOrder.job.ts` [NEW]
 
-```bash
-# Stripe
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+```typescript
+import cron from 'node-cron';
+import stripe from '../utils/payment/stripe';
+import { orderRepository } from '../repositories/order.repository';
+import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
+import { menuItemService } from '../services/menuItem.service';
+import { OrderStatusKey, PaymentAttemptStatus } from '../generated/prisma/client';
 
-# PayPal (future)
-PAYPAL_CLIENT_ID=...
-PAYPAL_CLIENT_SECRET=...
+export function startStaleOrderJob() {
+    cron.schedule('*/5 * * * *', async () => {
+        try {
+            const cutoff = new Date(Date.now() - 30 * 60 * 1000);
 
-# Amadeus (future)
-AMADEUS_API_KEY=...
+            const staleOrders = await orderRepository.findStaleOrders({
+                status: OrderStatusKey.PENDING,
+                createdBefore: cutoff
+            });
 
-# Paymob (future)
-PAYMOB_API_KEY=...
-```
+            for (const order of staleOrders) {
+                const attempt = await paymentAttemptRepository.findByOrderId(order.orderId);
 
----
+                if (attempt?.transactionId) {
+                    // Cancel in Stripe (ignore if already cancelled)
+                    await stripe.paymentIntents.cancel(attempt.transactionId).catch(() => {});
+                }
 
-## Testing Plan
+                await orderRepository.updateOrderStatus({
+                    orderId: order.orderId,
+                    newOrderStatus: OrderStatusKey.CANCELLED
+                });
 
-### Manual Testing Steps
-
-1. **Start Server**:
-   ```bash
-   npm run dev
-   ```
-
-2. **Visit Test Page**:
-   ```
-   http://localhost:3000/payment/test-checkout
-   ```
-
-3. **Use Stripe Test Cards**:
-   - Success: `4242 4242 4242 4242`
-   - 3D Secure: `4000 0025 0000 3155`
-   - Decline: `4000 0000 0000 0002`
-
-4. **Test Webhooks Locally** (using Stripe CLI):
-   ```bash
-   stripe listen --forward-to localhost:3000/webhooks/stripe
-   stripe trigger payment_intent.succeeded
-   ```
-
----
-
-## File Structure
-
-```
-src/
-├── controllers/
-│   └── webhook.controller.ts [NEW]
-├── repositories/
-│   └── ProviderCustomerRepository.ts [NEW]
-├── routes/
-│   ├── payment.routes.ts [NEW]
-│   └── webhook.routes.ts [NEW]
-├── services/
-│   ├── ProviderCustomerService.ts [NEW]
-│   └── payment/
-│       └── strategies/
-│           └── StripeStrategy.ts [MODIFY]
-└── utils/
-    └── payment/
-        └── stripe.ts [EXISTS]
-
-views/
-└── checkout.ejs [NEW]
-
-public/
-└── (static assets if needed)
+                await menuItemService.restoreStockBatch(order.orderId);
+            }
+        } catch (error: any) {
+            console.error('[Cron] Stale order cleanup failed:', error.message);
+        }
+    });
+}
 ```
 
 ---
 
 ## Migration Checklist
 
-- [x] Add `ProviderCustomer` model to schema
-- [ ] Run Prisma migration
-- [ ] Create `ProviderCustomerRepository`
-- [ ] Create `ProviderCustomerService`
-- [ ] Update `IPaymentStrategy` interface
-- [ ] Update `StripeStrategy` with Payment Intents
-- [ ] Install `ejs` package
-- [ ] Configure Express for EJS
-- [ ] Create `checkout.ejs` view
-- [ ] Create payment test routes
-- [ ] Create webhook controller
-- [ ] Create webhook routes
-- [ ] Update `server.ts` for webhooks
-- [ ] Add environment variables
-- [ ] Test with Stripe test cards
-- [ ] Test webhooks with Stripe CLI
+- [ ] Update `IPaymentStrategy` — add `createPaymentIntent()`, keep `process()`
+- [ ] Rewrite `StripeStrategy` — Payment Intents API + `orderId` in metadata
+- [ ] Update `PaymentService` — add `createPaymentIntent()` with idempotency guard
+- [ ] Update `ProcessPaymentHandler` — use `createPaymentIntent()`, return `clientSecret`
+- [ ] Add `customerEmail` and `clientSecret` to `OrderContext`
+- [ ] Create `StripeWebhookController`
+- [ ] Create `webhook.routes.ts` — raw body middleware
+- [ ] Mount webhook routes BEFORE `express.json()` in `server.ts`
+- [ ] Create `staleOrder.job.ts` cron
+- [ ] Add `findStaleOrders()` to `OrderRepository`
+- [ ] Set `STRIPE_WEBHOOK_SECRET` in `.env`
+- [ ] Test with Stripe CLI (`stripe listen --forward-to localhost:3000/webhooks/stripe`)
 
 ---
 
-## Future Enhancements
+## Testing Plan
 
-1. **Saved Payment Methods**: Allow users to save cards for future use
-2. **PayPal Integration**: Implement `PayPalStrategy.createPaymentIntent()`
-3. **Amadeus Integration**: Implement `AmadeusStrategy.createPaymentIntent()`
-4. **Paymob Integration**: Create `PaymobStrategy` class
-5. **React/Vue Frontend**: Migrate EJS logic to modern frontend framework
-6. **Subscription Support**: Add recurring payment handling
-7. **Dispute Handling**: Add webhook handlers for `charge.dispute.created`
+```bash
+# 1. Start server
+npm run dev
+
+# 2. Forward webhooks (copy the whsec_... into .env)
+stripe listen --forward-to localhost:3000/webhooks/stripe
+
+# 3. Test cards
+# Success:   4242 4242 4242 4242
+# 3D Secure: 4000 0025 0000 3155
+# Decline:   4000 0000 0000 0002
+
+# 4. Test webhook idempotency
+stripe trigger payment_intent.succeeded  # trigger twice — second should be no-op
+```

@@ -1,704 +1,380 @@
 # Payment Gateway Integration - Technical Design Document
 
-**Date:** 2026-02-18  
-**Purpose:** Multi-Gateway Payment Integration with Async Webhooks and Inventory Reservation  
+**Date:** 2026-03-30  
+**Purpose:** Multi-Gateway Payment Integration with Idempotency and Reliability Guarantees  
 **Scope:** Stripe, PayPal, Amadeus, Paymob, Cash on Delivery
 
 ---
 
 ## 1. Overview
 
-This document outlines the technical design for integrating multiple payment gateways using **Payment Intents API with webhook confirmation and inventory reservation**.
+This document describes the actual payment architecture implemented in this system. The core design follows the **"Order First, Pay Last"** pattern with idempotency protection and webhook-based final confirmation.
 
 ### Key Features
-- ✅ Multiple payment providers (Stripe, PayPal, Amadeus, Paymob, COD)
-- ✅ **Payment Intents API** (3D Secure, SCA compliance, global banking)
-- ✅ **Webhook-based confirmation** (secure, authoritative)
-- ✅ **Inventory reservation** (prevents race conditions)
-- ✅ **EJS test templates** (reusable for React/Vue)
-- ✅ Idempotency protection
-- ✅ Provider-agnostic customer management
-- ✅ Clean Architecture (Repository/Service pattern)
-
-### Architectural Decision: Webhooks + Inventory Reservation
-
-**Why Webhooks?**
-- ✅ **Security**: Only way to securely confirm payment (server-to-server)
-- ✅ **3D Secure support**: Handles async authentication (OTP, bank redirects)
-- ✅ **Reliability**: Stripe retries failed webhooks
-- ✅ **Compliance**: Required for EU PSD2, global banking systems
-
-**Why Inventory Reservation?**
-- ✅ **Prevents overselling**: Items held during payment
-- ✅ **Fair allocation**: First to pay gets the item
-- ✅ **Auto-release**: Expired reservations freed automatically
-- ✅ **Transaction safety**: Inventory reduced before order creation
+- ✅ **Order First** — Order saved as `PENDING` before any money moves
+- ✅ **`orderId` embedded in Stripe metadata** — webhook always knows which order to confirm
+- ✅ **Idempotency keys** — prevents double-charges on retries and network failures
+- ✅ **DB-level idempotency guard** — `PaymentAttempt` deduplicated by `idempotencyKey`
+- ✅ **Webhook-based final confirmation** — authoritative server-to-server confirmation
+- ✅ **3D Secure / SCA compliant** — via Payment Intents API
+- ✅ **Strategy pattern** — provider-agnostic (Stripe, PayPal, COD, etc.)
 
 ---
 
-## 2. Complete Payment Flow with Inventory Reservation
+## 2. Why "Order First, Pay Last"?
+
+The alternative ("Pay First, Order on Webhook") creates an unsolvable problem:
+
+> **Problem:** If payment succeeds but the connection drops before your server records the `orderId`, you have taken money but don't know which order it's for.
+
+By creating the order **before** calling Stripe and embedding its `orderId` in the Payment Intent metadata:
+
+- Stripe permanently stores the `orderId` — survives any connection drop
+- Webhook receives the event with `orderId` in `paymentIntent.metadata.orderId`
+- Even without your DB, manual reconciliation via the Stripe dashboard shows the order
+
+---
+
+## 3. Complete Payment Flow
 
 ```mermaid
 flowchart TD
-    Start([User: Place Order]) --> ValidateCart[Validate Cart]
-    ValidateCart --> CreateIntent[Create Payment Intent]
-    CreateIntent --> ReserveInv[Reserve Inventory<br/>using paymentIntentId, 15 min expiry]
-    ReserveInv --> CreatePending[Create PaymentAttempt: PENDING]
-    CreatePending --> ReturnSecret[Return clientSecret to Frontend]
-    
-    ReturnSecret --> EJSPage[Render EJS Payment Page]
-    EJSPage --> UserPays{User Confirms Payment}
-    
-    UserPays -->|Simple Card| Instant[Payment Succeeds<br/>2-5 seconds]
-    UserPays -->|3D Secure/OTP| Redirect[Redirect to Bank]
-    UserPays -->|Abandons| Timeout[15 min timeout]
-    
-    Redirect --> BankAuth[User Enters OTP<br/>1-10 minutes]
-    BankAuth --> BankConfirm[Bank Confirms]
-    
-    Instant --> WebhookSuccess[Webhook: payment_intent.succeeded]
-    BankConfirm --> WebhookSuccess
-    
-    WebhookSuccess --> VerifySig[Verify Webhook Signature]
-    VerifySig --> CreateOrder[Create Order in Transaction]
-    CreateOrder --> ConfirmReserve[Confirm Inventory Reservation]
-    ConfirmReserve --> UpdateAttempt[Update PaymentAttempt: SUCCESS]
-    UpdateAttempt --> ClearCart[Clear Cart]
-    ClearCart --> SendEmail[Send Confirmation Email]
-    SendEmail --> End([Order Confirmed])
-    
-    Timeout --> WebhookFailed[Webhook: payment_intent.payment_failed]
-    WebhookFailed --> ReleaseInv[Release Inventory Reservation]
-    ReleaseInv --> UpdateFailed[Update PaymentAttempt: FAILED]
-    UpdateFailed --> End
-    
-    style ReserveInv fill:#fff3cd
+    Start([User: POST /orders]) --> LockCart[Lock Cart]
+    LockCart --> ValidateCart[Validate Cart]
+    ValidateCart --> CheckInventory[Check Inventory]
+    CheckInventory --> CreateOrder["Create Order\n(status: PENDING)"]
+    CreateOrder --> CheckIdempotency{PaymentAttempt\nalready exists?}
+
+    CheckIdempotency -->|Yes — same key| ReturnExisting[Return existing\nPaymentAttempt result]
+    CheckIdempotency -->|No| CreateAttempt[Create PaymentAttempt\nstatus: PENDING]
+
+    CreateAttempt --> CallStripe["Call Stripe\nPaymentIntents.create()\nwith orderId in metadata"]
+    CallStripe --> ReturnSecret[Return clientSecret\nto Frontend]
+
+    ReturnSecret --> UserPays{User pays\non frontend}
+    UserPays -->|Simple card| Instant[Payment succeeds]
+    UserPays -->|3D Secure / OTP| Redirect[Bank redirect]
+    UserPays -->|Abandons| Stale[Stale PENDING order]
+
+    Redirect --> BankConfirm[User enters OTP]
+    BankConfirm --> Instant
+
+    Instant --> WebhookSuccess["Webhook:\npayment_intent.succeeded"]
+    WebhookSuccess --> VerifySig[Verify signature]
+    VerifySig --> ReadOrderId["Read orderId\nfrom paymentIntent.metadata"]
+
+    ReadOrderId --> UpdateOrder["Update Order → CONFIRMED\nUpdate PaymentAttempt → SUCCESS\nClear Cart\nReduce Inventory"]
+    UpdateOrder --> SendEmail[Send email]
+    SendEmail --> Done([Order Confirmed])
+
+    Stale --> CronJob["Cron: detect stale\nPENDING > 30 min"]
+    CronJob --> CancelIntent[Cancel PaymentIntent\nin Stripe]
+    CancelIntent --> MarkCancelled["Order → CANCELLED\nPaymentAttempt → FAILED\nRestore inventory"]
+
+    style CreateOrder fill:#fff3cd
     style WebhookSuccess fill:#d4edda
-    style CreateOrder fill:#d4edda
-    style ReleaseInv fill:#f8d7da
+    style UpdateOrder fill:#d4edda
+    style Stale fill:#f8d7da
+    style MarkCancelled fill:#f8d7da
 ```
 
 ---
 
-## 3. Detailed Sequence Diagram
+## 4. Idempotency — Preventing Double Charges
+
+### The Problem
+
+A customer clicks "Place Order" twice quickly, or the network retries the request. Without idempotency, Stripe could be called twice and the customer charged twice.
+
+### Two-Layer Idempotency Defense
+
+#### Layer 1: DB-level guard via `PaymentAttempt`
+
+Before calling Stripe, check if a `PaymentAttempt` already exists for this `idempotencyKey`:
+
+```typescript
+const idempotencyKey = `order_${orderId}`;  // Tied to THIS order
+
+// Check first
+const existing = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+
+if (existing) {
+    if (existing.status === PaymentAttemptStatus.SUCCESS) {
+        // Already paid — return success, do NOT call Stripe again
+        return { success: true, transactionId: existing.transactionId };
+    }
+    if (existing.status === PaymentAttemptStatus.PENDING) {
+        // In flight — return the existing clientSecret, do NOT create a new intent
+        return { clientSecret: existing.clientSecret };
+    }
+    // FAILED — allowed to retry with a new attempt
+}
+
+// Safe to create a new attempt + call Stripe
+```
+
+> [!IMPORTANT]
+> The idempotency key is `order_${orderId}`, NOT `cart_${customerId}_${restaurantId}`. Tying it to the order ensures each order gets exactly one payment attempt. If the customer abandons and re-orders, a new `orderId` → new key → fresh attempt.
+
+#### Layer 2: Stripe-level idempotency key
+
+Stripe deduplicates on its end for 24 hours using the same key:
+
+```typescript
+await stripe.paymentIntents.create(
+    { amount, currency, metadata: { orderId } },
+    { idempotencyKey: `order_${orderId}` }  // ← Stripe deduplicates here too
+);
+```
+
+If your server calls Stripe twice with the same key within 24 hours (e.g., due to a crash-restart), Stripe returns the **same** PaymentIntent — no double charge.
+
+### Idempotency Key Design
+
+| Scenario | Key | Result |
+|----------|-----|--------|
+| Same request, twice | `order_<orderId>` | Layer 1 returns existing attempt |
+| Server crash, retry | `order_<orderId>` | Layer 2 (Stripe) returns same intent |
+| Customer re-orders after cancel | New `orderId` → new key | Fresh payment allowed |
+| Cart retry (no orderId yet) | ❌ Never tie key to cart | Cart ID is not stable enough |
+
+---
+
+## 5. Actual Handler Chain
+
+```
+LockCartHandler
+  → ValidateCartHandler
+    → CheckInventoryHandler
+      → CreateOrderHandler       ← Order created: PENDING
+        → ProcessPaymentHandler  ← Stripe called with orderId in metadata
+          → ParallelOrderHandler (fire & forget):
+              - UpdateOrderStatusHandler   ← PENDING (webhook will set CONFIRMED)
+              - ReduceInventoryHandler
+              - ClearCartHandler
+              - UnlockCartHandler
+              - NotifyRestaurantHandler
+              - NotifyCustomerHandler
+              - AuditLogHandler
+```
+
+> [!IMPORTANT]
+> `ProcessPaymentHandler` runs **outside** any database transaction. External API calls (Stripe) must never be inside a DB transaction — they can't be rolled back and will cause timeouts if the DB transaction takes too long.
+
+### What happens if `ProcessPaymentHandler` throws?
+
+The order is already `PENDING` in the DB. Two recovery paths:
+
+1. **If Stripe was never called** (error before the API call): Mark order `CANCELLED`, restore inventory. Safe to retry.
+2. **If Stripe was called but we didn't get the response** (network drop): The `idempotencyKey` on Stripe means calling again returns the same PaymentIntent. The webhook will eventually confirm the order if payment succeeded.
+
+---
+
+## 6. Webhook Handler — The Authoritative Confirmation
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Frontend/EJS
-    participant OrderService
-    participant MenuItemService
-    participant StripeAPI
+    participant Stripe
     participant Webhook
-    participant Database
+    participant DB
 
-    User->>Frontend/EJS: Click "Place Order"
-    Frontend/EJS->>OrderService: POST /orders/initiate-payment
-    
-    Note over OrderService: Outside Transaction
-    OrderService->>Database: Validate Cart
-    
-    OrderService->>StripeAPI: Create Payment Intent
-    StripeAPI-->>OrderService: { clientSecret, paymentIntentId }
-    
-    OrderService->>MenuItemService: Reserve Inventory (paymentIntentId, 15 min)
-    MenuItemService->>Database: Reduce stock_quantity
-    MenuItemService->>Database: Create InventoryReservation record
-    
-    OrderService->>Database: Create PaymentAttempt (PENDING)
-    OrderService-->>Frontend/EJS: Render checkout.ejs
-    
-    Note over Frontend/EJS: User sees payment form
-    User->>Frontend/EJS: Enter card details
-    Frontend/EJS->>StripeAPI: Confirm Payment (Stripe.js)
-    
-    alt 3D Secure Required
-        StripeAPI-->>User: Redirect to Bank
-        User->>Bank: Enter OTP (1-10 min)
-        Bank->>StripeAPI: Confirm
-    end
-    
-    StripeAPI->>Webhook: POST /webhooks/stripe<br/>payment_intent.succeeded
-    
-    Note over Webhook: Verify Signature
-    Webhook->>Database: Start Transaction
-    Webhook->>Database: Create Order (COMPLETED)
-    Webhook->>MenuItemService: Confirm Reservation
-    MenuItemService->>Database: Delete InventoryReservation
-    Webhook->>Database: Update PaymentAttempt (SUCCESS)
-    Webhook->>Database: Clear Cart
-    Webhook->>Database: Commit Transaction
-    
-    Webhook->>User: Send Email Confirmation
-    Webhook-->>StripeAPI: 200 OK
-    
-    StripeAPI-->>Frontend/EJS: Redirect to success URL
-    Frontend/EJS->>OrderService: Poll order status
-    OrderService-->>Frontend/EJS: Order confirmed
-    Frontend/EJS->>User: Show success page
+    Stripe->>Webhook: POST /webhooks/stripe (payment_intent.succeeded)
+    Webhook->>Webhook: Verify signature with STRIPE_WEBHOOK_SECRET
+    Webhook->>DB: Check if PaymentAttempt already SUCCESS (idempotency)
+    DB-->>Webhook: Not yet
+
+    Webhook->>DB: BEGIN TRANSACTION
+    Webhook->>DB: Read orderId from paymentIntent.metadata.orderId
+    Webhook->>DB: Update Order status → CONFIRMED
+    Webhook->>DB: Update PaymentAttempt → SUCCESS, transactionId
+    Webhook->>DB: Clear Cart
+    Webhook->>DB: Reduce Inventory
+    Webhook->>DB: COMMIT
+
+    Webhook-->>Stripe: 200 OK (within 30s or Stripe retries)
+    Webhook->>Stripe: (async) Send confirmation email
 ```
 
----
+### Webhook Idempotency — Handling Retries
 
-## 4. Inventory Reservation System
-
-### Database Schema
-
-```prisma
-model InventoryReservation {
-  reservationId   String   @id @default(uuid()) @map("reservation_id")
-  menuItemId      String   @map("menu_item_id")
-  quantity        Int      @map("quantity")
-  customerId      String   @map("customer_id")
-  restaurantId    String   @map("restaurant_id")
-  paymentIntentId String   @unique @map("payment_intent_id")
-  expiresAt       DateTime @map("expires_at")
-  
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
-  
-  @@index([expiresAt])
-  @@index([paymentIntentId])
-  @@map("inventory_reservations")
-}
-```
-
-### Reservation Flow
+Stripe retries webhooks for up to **72 hours** if your server returns non-2xx. Your handler **must** be idempotent:
 
 ```typescript
-import { menuItemRepository } from '../repositories/menuItem.repository';
-import { prisma } from '../config/prisma.config';
-import { ConflictError } from '../utils/errors';
+private async handlePaymentSuccess(paymentIntent: any) {
+    const orderId = paymentIntent.metadata.orderId; // ← from Stripe metadata
+    const idempotencyKey = `order_${orderId}`;
 
-// Added to MenuItemService (src/services/menuItem.service.ts)
-class MenuItemService {
-    // ... existing methods (validateStock, reduceStock, restoreStock, etc.)
-    
-    async reserveInventory(
-        cartItems: CartItemSummary[],
-        paymentIntentId: string,
-        customerId: string,
-        restaurantId: string
-    ): Promise<void> {
-        const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-        
-        await prisma.$transaction(async (tx) => {
-            for (const item of cartItems) {
-                // Check stock
-                const menuItem = await tx.menuItem.findUnique({
-                    where: { menuItemId: item.menuItemId }
-                });
-                
-                if (!menuItem) {
-                    throw ConflictError(`Menu item not found`);
-                }
-                
-                if (menuItem.stockQuantity < item.quantity) {
-                    throw ConflictError(`${menuItem.menuItemName} is out of stock`);
-                }
-                
-                // Reduce stock immediately
-                await tx.menuItem.update({
-                    where: { menuItemId: item.menuItemId },
-                    data: { stockQuantity: { decrement: item.quantity } }
-                });
-                
-                // Create reservation record
-                await menuItemRepository.createReservation({
-                    menuItemId: item.menuItemId,
-                    quantity: item.quantity,
-                    customerId,
-                    restaurantId,
-                    paymentIntentId,
-                    expiresAt
-                }, tx);
-            }
-        });
+    // Guard: already processed?
+    const attempt = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+    if (attempt?.status === PaymentAttemptStatus.SUCCESS) {
+        return; // Already done — return 200 so Stripe stops retrying
     }
-    
-    async confirmReservation(paymentIntentId: string): Promise<void> {
-        // Delete reservation records (stock already reduced)
-        await menuItemRepository.deleteReservationsByPaymentIntent(paymentIntentId);
-    }
-    
-    async releaseReservation(paymentIntentId: string): Promise<void> {
-        const reservations = await menuItemRepository.findReservationsByPaymentIntent(
-            paymentIntentId
-        );
-        
-        if (reservations.length === 0) return;
-        
-        await prisma.$transaction(async (tx) => {
-            // Restore stock
-            for (const reservation of reservations) {
-                await tx.menuItem.update({
-                    where: { menuItemId: reservation.menuItemId },
-                    data: { stockQuantity: { increment: reservation.quantity } }
-                });
-            }
-            
-            // Delete reservation records
-            await menuItemRepository.deleteReservationsByPaymentIntent(paymentIntentId, tx);
-        });
-    }
-    
-    // Cron job: Release expired reservations
-    async releaseExpiredReservations(): Promise<void> {
-        const expired = await menuItemRepository.findExpiredReservations();
-        
-        for (const reservation of expired) {
-            await this.releaseReservation(reservation.paymentIntentId);
-        }
-    }
-}
 
-export const menuItemService = new MenuItemService();
-```
+    await prisma.$transaction(async (tx) => {
+        // Update order
+        await orderRepository.updateOrderStatus({ orderId, newOrderStatus: OrderStatusKey.CONFIRMED }, tx);
 
----
-
-## 5. Order Service Implementation
-
-### Initiate Payment
-
-```typescript
-import { cartService } from './cart.service';
-import { PaymentStrategyFactory } from './payment/PaymentStrategyFactory';
-import { menuItemService } from './menuItem.service';
-import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
-import { PaymentAttemptStatus } from '../generated/prisma/client';
-import { NotFoundError, BadRequestError } from '../utils/errors';
-import stripe from '../utils/payment/stripe';
-
-// Added to OrderService (src/services/order.service.ts)
-async initiatePayment(customerId: string, restaurantId: string) {
-    // 1. Validate cart
-    const cart = await cartService.getCartWithCartItemsByCustomerId(customerId);
-    if (!cart) throw NotFoundError("Cart");
-    
-    // 2. Get payment settings
-    const settings = await preferredPaymentSettingsService.getCustomerSettings(customerId);
-    const selectedMethod = settings.paymentMethods.find(
-        pm => pm.paymentMethodId === settings.paymentMethodId
-    );
-    
-    if (!selectedMethod) throw BadRequestError("No payment method selected");
-    
-    const provider = selectedMethod.paymentMethodData.provider;
-    
-    // 3. Create payment intent FIRST (to get paymentIntentId)
-    const strategy = PaymentStrategyFactory.getStrategy(provider);
-    const idempotencyKey = `cart_${customerId}_${restaurantId}`;
-    
-    const result = await strategy.createPaymentIntent(
-        cart.totalAmount,
-        { customerId, restaurantId, email: cart.customer.email },
-        idempotencyKey
-    );
-    
-    // 4. Reserve inventory using paymentIntentId
-    try {
-        await menuItemService.reserveInventory(
-            cart.cartItems,
-            result.paymentIntentId,
-            customerId,
-            restaurantId
-        );
-    } catch (error) {
-        // Inventory reservation failed — cancel the payment intent
-        await stripe.paymentIntents.cancel(result.paymentIntentId);
-        throw error;
-    }
-    
-    // 5. Create payment attempt
-    await paymentAttemptRepository.create({
-        idempotencyKey: `payment_intent_${result.paymentIntentId}`,
-        orderId: null, // Set later by webhook
-        status: PaymentAttemptStatus.PENDING,
-        provider,
-        transactionId: result.paymentIntentId
-    });
-    
-    return {
-        clientSecret: result.clientSecret,
-        paymentIntentId: result.paymentIntentId,
-        amount: cart.totalAmount
-    };
-}
-```
-
----
-
-## 6. Webhook Handler
-
-### Stripe Webhook Controller
-
-```typescript
-import { Request, Response } from 'express';
-import stripe from '../utils/payment/stripe';
-import { prisma } from '../config/prisma.config';
-import { cartService } from '../services/cart.service';
-import { orderRepository } from '../repositories/order.repository';
-import { orderItemRepository } from '../repositories/orderItem.repository';
-import { menuItemService } from '../services/menuItem.service';
-import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
-import { emailService } from '../services/email.service';
-import { OrderStatusKey, PaymentAttemptStatus } from '../generated/prisma/client';
-import { NotFoundError } from '../utils/errors';
-
-class StripeWebhookController {
-    async handleStripeWebhook(req: Request, res: Response) {
-        const sig = req.headers['stripe-signature'] as string;
-        const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-        
-        try {
-            // Verify signature (prevents fake webhooks)
-            const event = stripe.webhooks.constructEvent(
-                req.body,
-                sig,
-                webhookSecret
-            );
-            
-            switch (event.type) {
-                case 'payment_intent.succeeded':
-                    await this.handlePaymentSuccess(event.data.object);
-                    break;
-                case 'payment_intent.payment_failed':
-                    await this.handlePaymentFailure(event.data.object);
-                    break;
-            }
-            
-            res.json({ received: true });
-        } catch (err: any) {
-            console.error('Webhook error:', err.message);
-            res.status(400).send(`Webhook Error: ${err.message}`);
-        }
-    }
-    
-    private async handlePaymentSuccess(paymentIntent: any) {
-        const { customerId, restaurantId } = paymentIntent.metadata;
-        const paymentIntentId = paymentIntent.id;
-        
-        // Create order in transaction
-        const order = await prisma.$transaction(async (tx) => {
-            // Get cart
-            const cart = await cartService.getCartWithCartItemsByCustomerId(customerId, tx);
-            
-            if (!cart) throw NotFoundError("Cart");
-            
-            // Create order
-            const order = await orderRepository.create({
-                customerId,
-                restaurantId,
-                totalAmount: paymentIntent.amount / 100,
-                orderStatus: OrderStatusKey.COMPLETED
-            }, tx);
-            
-            // Create order items
-            for (const item of cart.cartItems) {
-                await orderItemRepository.create({
-                    orderId: order.orderId,
-                    menuItemId: item.menuItemId,
-                    quantity: item.quantity,
-                    price: item.menuItem.price
-                }, tx);
-            }
-            
-            // Confirm inventory reservation (deletes reservation records)
-            await menuItemService.confirmReservation(paymentIntentId);
-            
-            // Update payment attempt
-            await paymentAttemptRepository.updateStatus(
-                `payment_intent_${paymentIntentId}`,
-                PaymentAttemptStatus.SUCCESS
-            );
-            await paymentAttemptRepository.updateOrderId(
-                `payment_intent_${paymentIntentId}`,
-                order.orderId
-            );
-            
-            // Clear cart
-            await cartService.clearCart(customerId, tx);
-            
-            return order;
-        });
-        
-        // Send confirmation email (outside transaction)
-        await emailService.sendOrderConfirmation(order.orderId);
-    }
-    
-    private async handlePaymentFailure(paymentIntent: any) {
-        const paymentIntentId = paymentIntent.id;
-        
-        // Release inventory reservation
-        await menuItemService.releaseReservation(paymentIntentId);
-        
-        // Update payment attempt
+        // Finalize payment attempt
         await paymentAttemptRepository.updateStatus(
-            `payment_intent_${paymentIntentId}`,
-            PaymentAttemptStatus.FAILED,
-            undefined,
-            { error: paymentIntent.last_payment_error }
+            idempotencyKey,
+            PaymentAttemptStatus.SUCCESS,
+            paymentIntent.id,        // transactionId
+            { amount: paymentIntent.amount / 100 }
         );
-    }
-}
 
-export const stripeWebhookController = new StripeWebhookController();
+        // Clear cart, reduce inventory
+        await cartService.clearCart(customerId, tx);
+    });
+}
 ```
 
 ---
 
-## 7. Frontend Success Page (Polling)
+## 7. Stale PENDING Order Recovery (Cron Job)
 
-### EJS Success Page
-
-```html
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Payment Processing</title>
-</head>
-<body>
-    <div id="status">
-        <h1>Processing your payment...</h1>
-        <p>Please wait while we confirm your order.</p>
-    </div>
-    
-    <script>
-        const paymentIntentId = '<%= paymentIntentId %>';
-        
-        async function checkOrderStatus() {
-            try {
-                const response = await fetch(`/orders/status/${paymentIntentId}`);
-                const data = await response.json();
-                
-                if (data.status === 'COMPLETED') {
-                    // Order created by webhook
-                    document.getElementById('status').innerHTML = `
-                        <h1>Payment Successful!</h1>
-                        <p>Order ID: ${data.orderId}</p>
-                        <p>Total: $${data.totalAmount}</p>
-                    `;
-                } else if (data.status === 'FAILED') {
-                    document.getElementById('status').innerHTML = `
-                        <h1>Payment Failed</h1>
-                        <p>${data.error}</p>
-                    `;
-                } else {
-                    // Still processing, poll again
-                    setTimeout(checkOrderStatus, 2000);
-                }
-            } catch (error) {
-                setTimeout(checkOrderStatus, 2000);
-            }
-        }
-        
-        checkOrderStatus();
-    </script>
-</body>
-</html>
-```
-
-### Order Status Endpoint
+If the customer abandons after the order is created but before paying:
 
 ```typescript
-import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
-import { orderRepository } from '../repositories/order.repository';
-import { PaymentAttemptStatus } from '../generated/prisma/client';
+// Runs every 5 minutes
+cron.schedule('*/5 * * * *', async () => {
+    const cutoff = new Date(Date.now() - 30 * 60 * 1000); // 30 minutes ago
 
-router.get('/orders/status/:paymentIntentId', async (req, res) => {
-    const { paymentIntentId } = req.params;
-    
-    const attempt = await paymentAttemptRepository.findByTransactionId(paymentIntentId);
-    
-    if (!attempt) {
-        return res.json({ status: 'PENDING' });
-    }
-    
-    if (attempt.status === PaymentAttemptStatus.SUCCESS) {
-        const order = await orderRepository.findOrderById(attempt.orderId!);
-        return res.json({
-            status: 'COMPLETED',
-            orderId: order!.orderId,
-            totalAmount: order!.totalAmount
+    const staleOrders = await orderRepository.findStaleOrders({
+        status: OrderStatusKey.PENDING,
+        createdBefore: cutoff
+    });
+
+    for (const order of staleOrders) {
+        // Cancel in Stripe if a PaymentIntent exists
+        const attempt = await paymentAttemptRepository.findByOrderId(order.orderId);
+        if (attempt?.transactionId) {
+            await stripe.paymentIntents.cancel(attempt.transactionId).catch(() => {});
+        }
+
+        // Mark cancelled in DB
+        await orderRepository.updateOrderStatus({
+            orderId: order.orderId,
+            newOrderStatus: OrderStatusKey.CANCELLED
         });
+
+        // Restore inventory
+        await menuItemService.restoreStockBatch(order.orderId);
     }
-    
-    if (attempt.status === PaymentAttemptStatus.FAILED) {
-        return res.json({
-            status: 'FAILED',
-            error: attempt.responseData?.error || 'Payment failed'
-        });
-    }
-    
-    return res.json({ status: 'PENDING' });
 });
 ```
 
 ---
 
-## 8. Cron Job for Expired Reservations
+## 8. Stripe PaymentIntent — What Must Be in Metadata
+
+When creating the PaymentIntent, always include:
 
 ```typescript
-import cron from 'node-cron';
-import { menuItemService } from '../services/menuItem.service';
-
-export function startInventoryJobs() {
-    // Run every 5 minutes
-    cron.schedule('*/5 * * * *', async () => {
-        console.log('[Cron] Releasing expired inventory reservations...');
-        try {
-            await menuItemService.releaseExpiredReservations();
-            console.log('[Cron] Expired reservations released');
-        } catch (error: any) {
-            console.error('[Cron] Error releasing reservations:', error.message);
-        }
-    });
-}
+await stripe.paymentIntents.create({
+    amount: Math.round(order.totalAmount * 100),
+    currency: 'usd',
+    customer: stripeCustomerId,
+    metadata: {
+        orderId: order.orderId,           // ← CRITICAL: webhook uses this
+        customerId: context.customerId,   // for debugging/reconciliation
+        restaurantId: context.restaurantId
+    },
+    automatic_payment_methods: { enabled: true }
+}, {
+    idempotencyKey: `order_${order.orderId}`  // ← CRITICAL: prevents double charge
+});
 ```
+
+> [!CAUTION]
+> If you forget `metadata.orderId`, the webhook cannot identify which order was paid. You'll have taken money with no way to fulfill the order automatically.
 
 ---
 
-## 9. Order Status Model
-
-### Payment Status (OrderStatusKey)
+## 9. Database Schema
 
 ```prisma
-enum OrderStatusKey {
-  PENDING    // Not used (order only created after payment)
-  COMPLETED  // Payment succeeded, order created
-  CANCELED   // Order cancelled, refund processed
-}
-```
-
-### Fulfillment Status (OrderTracking)
-
-```prisma
-model OrderTracking {
-  orderTrackingId  String   @id
-  orderId          String
-  trackingStatus   Json     // { status: "preparing" | "outForDelivery" | "delivered" }
-}
-```
-
----
-
-## 10. Database Schema
-
-### New Models
-
-```prisma
-model ProviderCustomer {
-  providerCustomerId String   @id @default(uuid()) @map("provider_customer_id")
-  customerId         String   @map("customer_id")
-  provider           String
-  externalCustomerId String   @map("external_customer_id")
-  
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  
-  customer Customer @relation(fields: [customerId], references: [customerId])
-  
-  @@unique([customerId, provider])
-  @@map("provider_customers")
-}
-
-model InventoryReservation {
-  reservationId   String   @id @default(uuid()) @map("reservation_id")
-  menuItemId      String   @map("menu_item_id")
-  quantity        Int      @map("quantity")
-  customerId      String   @map("customer_id")
-  restaurantId    String   @map("restaurant_id")
-  paymentIntentId String   @unique @map("payment_intent_id")
-  expiresAt       DateTime @map("expires_at")
-  
-  createdAt DateTime @default(now()) @map("created_at")
-  
-  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
-  
-  @@index([expiresAt])
-  @@index([paymentIntentId])
-  @@map("inventory_reservations")
-}
-
 model PaymentAttempt {
-  idempotencyKey String   @id @map("idempotency_key")
-  orderId        String?  @map("order_id")
+  idempotencyKey String              @id @map("idempotency_key")
+  orderId        String?             @map("order_id")
   status         PaymentAttemptStatus
   provider       String
-  transactionId  String?  @map("transaction_id")
-  responseData   Json?    @map("response_data")
-  
+  transactionId  String?             @map("transaction_id")  // Stripe PaymentIntent ID
+  responseData   Json?               @map("response_data")
+
   createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
 
   order Order? @relation(fields: [orderId], references: [orderId])
-  
+
   @@index([orderId])
   @@index([transactionId])
   @@map("payment_attempts")
 }
+
+enum PaymentAttemptStatus {
+  PENDING   // Created, Stripe called, waiting for webhook
+  SUCCESS   // Webhook confirmed payment_intent.succeeded
+  FAILED    // Webhook confirmed payment_intent.payment_failed, or cron cancelled
+}
 ```
 
 ---
 
-## 11. Testing Strategy
+## 10. Failure Scenarios & Recovery
 
-### Manual Testing
-
-1. **Start Server**:
-   ```bash
-   npm run dev
-   ```
-
-2. **Start Stripe CLI** (for webhooks):
-   ```bash
-   stripe listen --forward-to localhost:3000/webhooks/stripe
-   ```
-
-3. **Visit Payment Page**:
-   ```
-   http://localhost:3000/payment/test-checkout
-   ```
-
-4. **Test Scenarios**:
-   - **Success**: Use `4242 4242 4242 4242`
-   - **3D Secure**: Use `4000 0025 0000 3155`
-   - **Decline**: Use `4000 0000 0000 0002`
-   - **Timeout**: Start payment, wait 15 minutes, verify inventory released
+| Scenario | What Happens | Recovery |
+|----------|-------------|----------|
+| **Client disconnects after order created, before Stripe called** | Order is `PENDING`, no PaymentAttempt | Cron cancels after 30 min |
+| **Stripe call succeeds, server crashes before response stored** | Order is `PENDING`, Stripe has PaymentIntent with `orderId` | Webhook fires → finds `orderId` in metadata → confirms order |
+| **Webhook fails (server down)** | Stripe retries for 72 hours | Server comes back up → webhook processed |
+| **Webhook fires twice** (Stripe retry) | Second call: attempt already `SUCCESS` → early return 200 | No duplicate order update |
+| **Customer pays again after PENDING** | Same `idempotencyKey` → Layer 1 returns existing attempt | No double charge |
+| **DB transaction rolls back in webhook** | Returns 5xx → Stripe retries | Retried webhook succeeds on next attempt |
 
 ---
 
-## 12. Environment Variables
+## 11. Environment Variables
 
 ```bash
 STRIPE_SECRET_KEY=sk_test_...
 STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # NEVER skip this — prevents fake webhooks
 FRONTEND_URL=http://localhost:3000
 ```
 
 ---
 
-## 13. Advantages of This Architecture
+## 12. Testing Checklist
 
-| Feature | Benefit |
-|---------|---------|
-| **Webhook confirmation** | Secure, authoritative payment status |
-| **Inventory reservation** | Prevents overselling during payment |
-| **15-minute expiry** | Auto-releases abandoned carts |
-| **3D Secure support** | Global compliance (EU PSD2) |
-| **Transaction safety** | Order created only after payment |
-| **Signature verification** | Prevents fake webhooks |
+### Start Testing
+
+```bash
+# Terminal 1
+npm run dev
+
+# Terminal 2 — forward webhooks
+stripe listen --forward-to localhost:3000/webhooks/stripe
+# Copy the whsec_... shown into .env as STRIPE_WEBHOOK_SECRET
+```
+
+### Test Scenarios
+
+| Scenario | Card | Expected |
+|----------|------|----------|
+| Normal payment | `4242 4242 4242 4242` | Order → CONFIRMED |
+| 3D Secure | `4000 0025 0000 3155` | OTP prompt → Order → CONFIRMED |
+| Declined | `4000 0000 0000 0002` | PaymentAttempt → FAILED |
+| Double request | Same request twice fast | Second request returns existing attempt |
+| Abandon order | Do nothing | Cron cancels after 30 min |
+| Webhook retry | `stripe trigger payment_intent.succeeded` twice | Second is no-op (idempotent) |
 
 ---
 
-## Future Enhancements
+## 13. Future Enhancements
 
-- [ ] Saved payment methods
+- [ ] Saved payment methods (store Stripe customer ID in `ProviderCustomer`)
 - [ ] Partial refunds
-- [ ] PayPal/Amadeus/Paymob integration
-- [ ] React/Vue frontend
-- [ ] Payment analytics
+- [ ] PayPal / Amadeus / Paymob strategies
+- [ ] React/Vue frontend (replace EJS)
+- [ ] Payment analytics dashboard
 - [ ] Multi-currency support
