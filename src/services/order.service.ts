@@ -2,30 +2,29 @@ import { prisma } from "../config/prisma.config";
 import { orderRepository } from "../repositories/order.repository";
 import { OrderHandlerChainBuilder } from "../handlers/order/OrderHandlerChainBuilder";
 import { OrderContext } from "../types/OrderContext";
-import { InternalServerError, NotFoundError, CustomError } from "../utils/errors";
 import { UpdateOrderStatusDto } from "../dto/order.dto";
 import { PrismaTx } from "../types/prisma.types";
 import { PrismaClient } from "@prisma/client/extension";
 import { paymentAttemptService } from "./PaymentAttemptService";
 import { PaymentAttemptStatus } from '../generated/prisma/client';
-import { ConflictError } from "../utils/errors/error-factories";
 import { refundService } from "./RefundService";
 import { menuItemService } from "./menuItem.service";
 import { OrderStatusKey } from "../generated/prisma/client";
-import { BadRequestError, ForbiddenError } from "../utils/errors";
+import { InternalServerError, NotFoundError, BadRequestError, ForbiddenError, ConflictError, CustomError } from "../utils/errors";
 
 class OrderService {
-  private async createPendingAttempt(
-    idempotencyKey: string,
-    requestTimestamp: Date
-  ): Promise<void> {
-    await paymentAttemptService.createPendingAttempt(
-      idempotencyKey,
-      null,  // orderId is null initially, set after order creation
-      'UNKNOWN',
-      requestTimestamp
-    );
+  private async createPendingAttempt(idempotencyKey: string, timestamp: Date): Promise<void> {
+    try {
+      await paymentAttemptService.createPendingAttempt(idempotencyKey, null, 'UNKNOWN', timestamp);
+    } catch (err: any) {
+      // Prisma unique constraint violation = race condition, another request won
+      if (err?.code === 'P2002') {
+        throw ConflictError("Order placement in progress");
+      }
+      throw err;
+    }
   }
+
 
   private async handleIdempotencyCheck(
     idempotencyKey: string,
@@ -37,10 +36,13 @@ class OrderService {
       return { shouldProceed: true };
     }
 
-    // Already successful - return existing order
     if (existingAttempt.status === PaymentAttemptStatus.SUCCESS) {
-      const order = await orderRepository.findOrderById(existingAttempt.orderId!);
-      return { shouldProceed: false, existingOrder: order! };
+      const ageSeconds = (Date.now() - existingAttempt.updatedAt.getTime()) / 1000;
+      if (ageSeconds < 60) {
+        // Recent success = same request retried (network drop etc.) → return existing order
+        const order = await orderRepository.findOrderById(existingAttempt.orderId!);
+        return { shouldProceed: false, existingOrder: order! };
+      }
     }
 
     // Check for stale PENDING
@@ -48,7 +50,9 @@ class OrderService {
       const ageMinutes = (Date.now() - existingAttempt.createdAt.getTime()) / 60000;
       if (ageMinutes > 5) {
         await paymentAttemptService.finalizeAttempt(
-          idempotencyKey, false, '',
+          idempotencyKey,
+          false,
+          '',
           { error: 'Timeout' },
           requestTimestamp
         );
@@ -118,8 +122,14 @@ class OrderService {
     return { message: "Order cancelled and refund processed" };
   }
 
-  async placeOrder(customerId: string, restaurantId: string) {
-    const requestTimestamp = new Date(); // Consistent timestamp for all operations
+  async placeOrder(
+    customerId: string, 
+    restaurantId: string, 
+    customerEmail: string,
+    paymentProvider?: string,
+    paymentMethodId?: string
+  ) {
+    const requestTimestamp = new Date();
     const idempotencyKey = `cart_${customerId}_${restaurantId}`;
 
     // 1. Idempotency Check (Pre-Transaction)
@@ -135,45 +145,36 @@ class OrderService {
     // 2. Create PENDING Attempt (Pre-Transaction)
     await this.createPendingAttempt(idempotencyKey, requestTimestamp);
 
-    try {
-      const handlerChain = OrderHandlerChainBuilder.build();
+    let resultContext: OrderContext;
 
-      // 3. Execute Transaction
-      const result = await prisma.$transaction(async (tx) => {
+    try {
+      const creationChain = OrderHandlerChainBuilder.buildCreationChain();
+
+      // 3. Execute Transaction (Phase A)
+      resultContext = await prisma.$transaction(async (tx) => {
         const context: OrderContext = {
           customerId,
           restaurantId,
-          requestTimestamp, // Add generic timestamp to context
+          customerEmail,
+          paymentProvider,
+          paymentMethodId,
+          requestTimestamp,
           tx,
         };
 
-        const chainResult = await handlerChain.execute(context);
-        return chainResult;
+        const chainResult = await creationChain.execute(context);
+        return chainResult as OrderContext;
       }, {
         maxWait: 5000,
         timeout: 20000,
       });
 
-      if (!result.finalOrder) {
+      if (!resultContext.order) {
         throw InternalServerError("Failed to place order");
       }
 
-      await paymentAttemptService.updateOrderId(
-        idempotencyKey,
-        result.finalOrder.orderId
-      );
-
-      // 4. Finalize Success (Post-Transaction)
-      await this.finalizeSuccessfulAttempt(
-        idempotencyKey,
-        result,
-        requestTimestamp
-      );
-
-      return result.finalOrder;
-
     } catch (err: any) {
-      // 5. Handle Failure (Post-Transaction)
+      // 4. Handle Failure in Order Creation
       await paymentAttemptService.finalizeAttempt(
         idempotencyKey,
         false,
@@ -187,8 +188,59 @@ class OrderService {
       }
       throw InternalServerError("Failed to place order", err);
     }
-  }
 
+    try {
+      await paymentAttemptService.updateOrderId(
+        idempotencyKey,
+        resultContext.order.orderId
+      );
+
+      // Phase B: External API Call (Outside Transaction)
+      // This is safe even if Stripe fails, because the PENDING order is already committed above.
+      const postCreationChain = OrderHandlerChainBuilder.buildPostCreationChain();
+      
+      // Remove tx from context to ensure it can't be used outside block
+      const safeContext = { ...resultContext };
+      delete safeContext.tx;
+
+      await postCreationChain.execute(safeContext);
+
+      // 5. Finalize Success (Post-Payment API)
+      // Only mark SUCCESS immediately if it was a synchronous payment like COD.
+      // For async payments (Stripe), leave it PENDING so the webhook can finalize it.
+      if (safeContext.paymentResult?.success === true) {
+          await this.finalizeSuccessfulAttempt(
+            idempotencyKey,
+            { finalOrder: safeContext.order, paymentResult: safeContext.paymentResult },
+            requestTimestamp
+          );
+      }
+
+      return {
+        order: safeContext.order,
+        clientSecret: safeContext.clientSecret ?? null,
+      };
+
+    } catch (err: any) {
+      // 6. Handle Failure in Payment Initiation (Network drop, Stripe down)
+      console.error(`[OrderService] Stripe API failed for order ${resultContext.order.orderId}:`, err);
+      
+      // Order is saved as PENDING, but payment initialization failed.
+      // E-commerce standard: Return the order so user doesn't lose it, return no clientSecret.
+      await paymentAttemptService.finalizeAttempt(
+        idempotencyKey,
+        false,
+        '',
+        { error: err.message, status: 'api_failed' },
+        requestTimestamp
+      );
+
+      return {
+        order: resultContext.order,
+        clientSecret: null,
+      };
+    }
+  }
 }
 
 export const orderService = new OrderService();

@@ -15,40 +15,51 @@ import { ParallelOrderHandler } from "./ParallelOrderHandler";
 
 export class OrderHandlerChainBuilder {
 
-    public static build(): OrderHandler {
-
+    /**
+     * Phase A: DB Transaction Chain
+     * Runs inside the Prisma transaction.
+     */
+    public static buildCreationChain(): OrderHandler {
         const lockCart = new LockCartHandler();
         const validateCart = new ValidateCartHandler();
         const checkInventory = new CheckInventoryHandler();
         const createOrder = new CreateOrderHandler();
-        const processPayment = new ProcessPaymentHandler();
-        const updateOrderStatus = new UpdateOrderStatusHandler();
         const reduceInventory = new ReduceInventoryHandler();
-        const clearCart = new ClearCartHandler();
+        const unlockCart = new UnlockCartHandler();
         const notifyRestaurant = new NotifyRestaurantHandler();
         const notifyCustomer = new NotifyCustomerHandler();
         const auditLog = new AuditLogHandler();
-        const unlockCart = new UnlockCartHandler();
 
-        const parallelHandler = new ParallelOrderHandler(
-            [
-                updateOrderStatus,
-                reduceInventory,
-                clearCart,
-                unlockCart,
-                notifyRestaurant,
-                notifyCustomer,
-                auditLog
-            ]   // Background (Fire & Forget)
-        );
+        const parallelHandler = new ParallelOrderHandler([
+            notifyRestaurant,
+            notifyCustomer,
+            auditLog
+        ]);
 
         lockCart
             .setNext(validateCart)
             .setNext(checkInventory)
             .setNext(createOrder)
-            .setNext(processPayment)
+            .setNext(reduceInventory)
+            .setNext(unlockCart)
             .setNext(parallelHandler);
 
         return lockCart;
+    }
+
+    /**
+     * Phase B: External API Call
+     * Runs AFTER the Prisma transaction successfully commits.
+     */
+    public static buildPostCreationChain(): OrderHandler {
+        const processPayment = new ProcessPaymentHandler();
+        const updateOrderStatus = new UpdateOrderStatusHandler();
+        const clearCart = new ClearCartHandler();
+
+        processPayment
+            .setNext(updateOrderStatus)
+            .setNext(clearCart);
+
+        return processPayment;
     }
 }

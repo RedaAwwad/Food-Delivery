@@ -20,15 +20,24 @@ class OrderController {
   }
 
   async cancelOrder(req: Request, res: Response) {
-    const order = await orderService.cancelOrder(req.body);
+    const order = await orderService.cancelOrder(req.body, req.user?.customerId!);
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
 
   async placeOrder(req: Request, res: Response) {
-    const order = await orderService.placeOrder(req.user?.customerId!, req.body.restaurantId!);
+    const result = await orderService.placeOrder(
+      req.user?.customerId!,
+      req.body.restaurantId!,
+      req.user?.userEmail!,       // passed to Stripe metadata
+      req.body.paymentProvider,
+      req.body.paymentMethodId
+    );
     res
       .status(StatusCodes.CREATED)
-      .json(new SuccessResponse({ message: "Order placed", data: order }));
+      .json(new SuccessResponse({
+        message: "Order placed successfully. Complete payment using the clientSecret.",
+        data: result,  // { order, clientSecret }
+      }));
   }
 }
 

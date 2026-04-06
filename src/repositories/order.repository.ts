@@ -102,5 +102,17 @@ class OrderRepository {
 
     return newOrder;
   }
+
+  async findStaleOrders({ status, createdBefore }: { status: OrderStatusKey; createdBefore: Date }) {
+    return await prisma.order.findMany({
+      where: {
+        orderStatus: status,
+        createdAt: { lt: createdBefore },
+      },
+      include: {
+        orderItems: true,
+      },
+    });
+  }
 }
 export const orderRepository = new OrderRepository();

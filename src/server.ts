@@ -6,12 +6,18 @@ import { setupSwagger } from "./lib/swagger/swagger";
 import { errorHandler, NotFoundError } from "./utils/errors";
 import { initAPIRoutes } from "./routes";
 import { initServer } from "./config/server.init";
-import { prisma } from "./config/prisma.config";
+import { webhookRouter } from "./routes/webhook.routes";
+import { startStaleOrderJob } from "./jobs/staleOrder.job";
 
 dotenv.config();
 const app = express();
 
 const initiateApp = async (app: Express) => {
+  // ⚠️  Webhook route MUST be registered before express.json().
+  // Stripe signature verification requires the raw Buffer body.
+  // Once express.json() runs, the body is parsed and verification fails.
+  app.use('/webhooks', webhookRouter);
+
   app.use(express.json());
   app.use(cookieParser());
   app.use(cors());
@@ -34,6 +40,9 @@ const initiateApp = async (app: Express) => {
   app.use(errorHandler);
 
   await initServer(app);
+
+  // Start background jobs
+  startStaleOrderJob();
 };
 
 initiateApp(app);

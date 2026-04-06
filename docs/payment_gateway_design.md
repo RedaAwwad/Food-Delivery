@@ -63,13 +63,13 @@ flowchart TD
     WebhookSuccess --> VerifySig[Verify signature]
     VerifySig --> ReadOrderId["Read orderId\nfrom paymentIntent.metadata"]
 
-    ReadOrderId --> UpdateOrder["Update Order → CONFIRMED\nUpdate PaymentAttempt → SUCCESS\nClear Cart\nReduce Inventory"]
+    ReadOrderId --> UpdateOrder["Update Order → COMPLETED\nUpdate PaymentAttempt → SUCCESS\nClear Cart"]
     UpdateOrder --> SendEmail[Send email]
     SendEmail --> Done([Order Confirmed])
 
     Stale --> CronJob["Cron: detect stale\nPENDING > 30 min"]
     CronJob --> CancelIntent[Cancel PaymentIntent\nin Stripe]
-    CancelIntent --> MarkCancelled["Order → CANCELLED\nPaymentAttempt → FAILED\nRestore inventory"]
+    CancelIntent --> MarkCancelled["Order → CANCELED\nPaymentAttempt → FAILED\nRestore inventory"]
 
     style CreateOrder fill:#fff3cd
     style WebhookSuccess fill:#d4edda
@@ -88,85 +88,96 @@ A customer clicks "Place Order" twice quickly, or the network retries the reques
 
 ### Two-Layer Idempotency Defense
 
-#### Layer 1: DB-level guard via `PaymentAttempt`
+#### Layer 1: DB-level guard in `OrderService.placeOrder()` (currently implemented)
 
-Before calling Stripe, check if a `PaymentAttempt` already exists for this `idempotencyKey`:
+`placeOrder()` runs this **before** the handler chain starts:
 
 ```typescript
-const idempotencyKey = `order_${orderId}`;  // Tied to THIS order
+// order.service.ts
+const idempotencyKey = `cart_${customerId}_${restaurantId}`;
 
-// Check first
-const existing = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+const { shouldProceed, existingOrder } = await this.handleIdempotencyCheck(idempotencyKey, requestTimestamp);
+if (!shouldProceed) return existingOrder; // Return existing — no Stripe call
 
-if (existing) {
-    if (existing.status === PaymentAttemptStatus.SUCCESS) {
-        // Already paid — return success, do NOT call Stripe again
-        return { success: true, transactionId: existing.transactionId };
-    }
-    if (existing.status === PaymentAttemptStatus.PENDING) {
-        // In flight — return the existing clientSecret, do NOT create a new intent
-        return { clientSecret: existing.clientSecret };
-    }
-    // FAILED — allowed to retry with a new attempt
-}
-
-// Safe to create a new attempt + call Stripe
+await this.createPendingAttempt(idempotencyKey, requestTimestamp); // P2002 catches race condition
 ```
 
-> [!IMPORTANT]
-> The idempotency key is `order_${orderId}`, NOT `cart_${customerId}_${restaurantId}`. Tying it to the order ensures each order gets exactly one payment attempt. If the customer abandons and re-orders, a new `orderId` → new key → fresh attempt.
+`handleIdempotencyCheck` logic:
 
-#### Layer 2: Stripe-level idempotency key
+| Attempt status | Age | Action |
+|---|---|---|
+| None | — | `shouldProceed: true` — fresh request |
+| `SUCCESS` | < 60 seconds | Return existing order — same request retried |
+| `SUCCESS` | ≥ 60 seconds | `shouldProceed: true` — customer re-ordering |
+| `PENDING` | < 5 minutes | Throw `409 Conflict` — currently in-flight |
+| `PENDING` | ≥ 5 minutes | Mark `FAILED`, `shouldProceed: true` — stale, allow retry |
+| `FAILED` | any | `shouldProceed: true` — retry after failure |
 
-Stripe deduplicates on its end for 24 hours using the same key:
+**Note on the idempotency key:** Currently `cart_${customerId}_${restaurantId}`. The Stripe-level key (Phase 2 migration target) should be `order_${orderId}` once `ProcessPaymentHandler` is migrated to `createPaymentIntent()`, since the `orderId` exists in context by then.
+
+#### Layer 2: Stripe-level idempotency key (target after migration)
+
+When `ProcessPaymentHandler` calls `createPaymentIntent()`, pass the key:
 
 ```typescript
 await stripe.paymentIntents.create(
     { amount, currency, metadata: { orderId } },
-    { idempotencyKey: `order_${orderId}` }  // ← Stripe deduplicates here too
+    { idempotencyKey: `order_${orderId}` }  // ← Stripe deduplicates for 24 hours
 );
 ```
 
-If your server calls Stripe twice with the same key within 24 hours (e.g., due to a crash-restart), Stripe returns the **same** PaymentIntent — no double charge.
+If your server crashes and retries the Stripe call with the same key, Stripe returns the **same** PaymentIntent — no double charge.
 
-### Idempotency Key Design
+#### Race Condition Guard (currently implemented)
 
-| Scenario | Key | Result |
-|----------|-----|--------|
-| Same request, twice | `order_<orderId>` | Layer 1 returns existing attempt |
-| Server crash, retry | `order_<orderId>` | Layer 2 (Stripe) returns same intent |
-| Customer re-orders after cancel | New `orderId` → new key | Fresh payment allowed |
-| Cart retry (no orderId yet) | ❌ Never tie key to cart | Cart ID is not stable enough |
+If two requests pass `handleIdempotencyCheck` simultaneously before either inserts, the DB `UNIQUE` constraint on `idempotencyKey` causes the second `INSERT` to throw `P2002`, which is caught and converted to a `409 Conflict`:
+
+```typescript
+private async createPendingAttempt(key: string, timestamp: Date): Promise<void> {
+    try {
+        await paymentAttemptService.createPendingAttempt(key, null, 'UNKNOWN', timestamp);
+    } catch (err: any) {
+        if (err?.code === 'P2002') throw ConflictError("Order placement in progress");
+        throw err;
+    }
+}
+```
 
 ---
 
 ## 5. Actual Handler Chain
 
 ```
-LockCartHandler
-  → ValidateCartHandler
-    → CheckInventoryHandler
-      → CreateOrderHandler       ← Order created: PENDING
-        → ProcessPaymentHandler  ← Stripe called with orderId in metadata
-          → ParallelOrderHandler (fire & forget):
-              - UpdateOrderStatusHandler   ← PENDING (webhook will set CONFIRMED)
-              - ReduceInventoryHandler
-              - ClearCartHandler
-              - UnlockCartHandler
-              - NotifyRestaurantHandler
-              - NotifyCustomerHandler
-              - AuditLogHandler
+[OrderService.placeOrder()]
+  ↓ handleIdempotencyCheck()     ← DB guard, runs BEFORE chain
+  ↓ createPendingAttempt()       ← PaymentAttempt: PENDING
+  ↓ prisma.$transaction()
+      LockCartHandler
+        → ValidateCartHandler
+          → CheckInventoryHandler
+            → CreateOrderHandler       ← Order created: PENDING
+              → ProcessPaymentHandler  ← Calls PaymentService (Stripe)
+                → ParallelOrderHandler (fire & forget):
+                    - UpdateOrderStatusHandler
+                    - ReduceInventoryHandler
+                    - ClearCartHandler
+                    - UnlockCartHandler
+                    - NotifyRestaurantHandler
+                    - NotifyCustomerHandler
+                    - AuditLogHandler
+  ↓ updateOrderId()              ← Links PaymentAttempt → orderId
+  ↓ finalizeSuccessfulAttempt()  ← PaymentAttempt: SUCCESS
 ```
 
 > [!IMPORTANT]
-> `ProcessPaymentHandler` runs **outside** any database transaction. External API calls (Stripe) must never be inside a DB transaction — they can't be rolled back and will cause timeouts if the DB transaction takes too long.
+> The entire handler chain currently runs **inside** `prisma.$transaction()` with a 20-second timeout. This includes `ProcessPaymentHandler`. Once migrated to Payment Intents (async webhook flow), `ProcessPaymentHandler` should be moved **outside** the transaction — Stripe API calls inside a DB transaction risk timeout and cannot be rolled back.
 
 ### What happens if `ProcessPaymentHandler` throws?
 
-The order is already `PENDING` in the DB. Two recovery paths:
+The order is already `PENDING` in the DB. The `catch` block in `placeOrder()` marks the `PaymentAttempt` as `FAILED`. Two recovery paths:
 
-1. **If Stripe was never called** (error before the API call): Mark order `CANCELLED`, restore inventory. Safe to retry.
-2. **If Stripe was called but we didn't get the response** (network drop): The `idempotencyKey` on Stripe means calling again returns the same PaymentIntent. The webhook will eventually confirm the order if payment succeeded.
+1. **Stripe was never called** — `PaymentAttempt` → `FAILED`, order stays `PENDING`. Stale order cron cleans it up.
+2. **Stripe was called but response never received** — Same `idempotencyKey` on Stripe means retrying returns the same PaymentIntent. Webhook will eventually confirm the order.
 
 ---
 
@@ -185,7 +196,7 @@ sequenceDiagram
 
     Webhook->>DB: BEGIN TRANSACTION
     Webhook->>DB: Read orderId from paymentIntent.metadata.orderId
-    Webhook->>DB: Update Order status → CONFIRMED
+    Webhook->>DB: Update Order status → COMPLETED
     Webhook->>DB: Update PaymentAttempt → SUCCESS, transactionId
     Webhook->>DB: Clear Cart
     Webhook->>DB: Reduce Inventory
@@ -212,7 +223,8 @@ private async handlePaymentSuccess(paymentIntent: any) {
 
     await prisma.$transaction(async (tx) => {
         // Update order
-        await orderRepository.updateOrderStatus({ orderId, newOrderStatus: OrderStatusKey.CONFIRMED }, tx);
+        // COMPLETED is the correct enum value (not CONFIRMED)
+        await orderRepository.updateOrderStatus({ orderId, newOrderStatus: OrderStatusKey.COMPLETED }, tx);
 
         // Finalize payment attempt
         await paymentAttemptRepository.updateStatus(
@@ -252,13 +264,14 @@ cron.schedule('*/5 * * * *', async () => {
         }
 
         // Mark cancelled in DB
+        // CANCELED is the correct enum value (not CANCELLED)
         await orderRepository.updateOrderStatus({
             orderId: order.orderId,
-            newOrderStatus: OrderStatusKey.CANCELLED
+            newOrderStatus: OrderStatusKey.CANCELED
         });
 
-        // Restore inventory
-        await menuItemService.restoreStockBatch(order.orderId);
+        // restoreStock() is the correct method on menuItemService
+        await menuItemService.restoreStock(order.orderId);
     }
 });
 ```

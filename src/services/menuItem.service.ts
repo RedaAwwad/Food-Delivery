@@ -72,7 +72,7 @@ class MenuItemService {
     await Promise.all(stockUpdates);
   }
 
-  async restoreStock(orderId: string) {
+  async restoreStock(orderId: string, tx?: any) {
     const order = await orderService.findOrderById(orderId);
     if (!order) throw NotFoundError("Order not found");
 
@@ -81,7 +81,7 @@ class MenuItemService {
       quantity: item.quantity
     }));
 
-    await menuItemRepository.restoreStockBatch(itemsToRestore);
+    await menuItemRepository.restoreStockBatch(itemsToRestore, tx);
   }
 }
 

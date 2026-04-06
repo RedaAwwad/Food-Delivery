@@ -24,6 +24,25 @@ export class PaymentAttemptService {
         }, timestamp);
     }
 
+    /**
+     * Idempotent version of createPendingAttempt.
+     * Use this in PaymentService where a retry after a Stripe failure must
+     * reset the attempt without crashing on a duplicate key.
+     */
+    async upsertPendingAttempt(
+        key: string,
+        orderId: string | null,
+        provider: string,
+        timestamp?: Date
+    ) {
+        return paymentAttemptRepository.upsertPendingAttempt({
+            idempotencyKey: key,
+            orderId,
+            status: PaymentAttemptStatus.PENDING,
+            provider
+        }, timestamp);
+    }
+
     async finalizeAttempt(
         key: string,
         success: boolean,

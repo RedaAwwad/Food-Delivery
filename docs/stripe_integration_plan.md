@@ -10,7 +10,7 @@ Migrate `StripeStrategy` from the legacy Charges API to **Payment Intents API**,
 The handler chain already creates the order **before** payment:
 
 ```
-CreateOrderHandler (PENDING)  →  ProcessPaymentHandler  →  Webhook confirms → CONFIRMED
+CreateOrderHandler (PENDING)  →  ProcessPaymentHandler  →  Webhook confirms → COMPLETED
 ```
 
 The key requirement for reliability is:
@@ -161,7 +161,7 @@ Add `createPaymentIntent()` with the DB-level idempotency guard:
 ```typescript
 import { PaymentStrategyFactory } from './payment/PaymentStrategyFactory';
 import { preferredPaymentSettingsService } from './PreferredPaymentSettingsService';
-import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
+import { paymentAttemptService } from './PaymentAttemptService';  // use service, not repo directly
 import { PaymentAttemptStatus } from '../generated/prisma/client';
 import { InternalServerError, UnprocessableEntityError } from '../utils/errors/error-factories';
 import { PaymentIntentResult } from './payment/strategies/IPaymentStrategy';
@@ -184,16 +184,16 @@ export class PaymentService {
         const idempotencyKey = `order_${orderId}`;
 
         // --- Layer 1: DB idempotency guard ---
-        const existing = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+        const existing = await paymentAttemptService.findAttempt(idempotencyKey);
         if (existing) {
             if (existing.status === PaymentAttemptStatus.SUCCESS) {
                 // Already paid — should not reach here in normal flow
                 throw UnprocessableEntityError("Order has already been paid");
             }
-            if (existing.status === PaymentAttemptStatus.PENDING && existing.responseData?.clientSecret) {
+            if (existing.status === PaymentAttemptStatus.PENDING && (existing.responseData as any)?.clientSecret) {
                 // In-flight — return the existing clientSecret
                 return {
-                    clientSecret: existing.responseData.clientSecret,
+                    clientSecret: (existing.responseData as any).clientSecret,
                     paymentIntentId: existing.transactionId!
                 };
             }
@@ -212,14 +212,9 @@ export class PaymentService {
 
         const strategy = PaymentStrategyFactory.getStrategy(provider);
 
-        // --- Record PENDING attempt before calling Stripe ---
-        // (so if Stripe call crashes, cron can clean up)
-        await paymentAttemptRepository.create({
-            idempotencyKey,
-            orderId,
-            status: PaymentAttemptStatus.PENDING,
-            provider
-        }, requestTimestamp);
+        // --- Record PENDING attempt BEFORE calling Stripe ---
+        // (so if Stripe call crashes, the cron job can clean up)
+        await paymentAttemptService.createPendingAttempt(idempotencyKey, orderId, provider, requestTimestamp);
 
         // --- Layer 2: Stripe-level idempotency (same key) ---
         const result = await strategy.createPaymentIntent(
@@ -229,12 +224,14 @@ export class PaymentService {
         );
 
         // Store clientSecret in responseData so we can return it on retry
-        await paymentAttemptRepository.updateStatus(
+        await paymentAttemptService.finalizeAttempt(
             idempotencyKey,
-            PaymentAttemptStatus.PENDING,
+            false,           // not finalized yet — still PENDING
             result.paymentIntentId,
-            { clientSecret: result.clientSecret }
+            { clientSecret: result.clientSecret },
+            requestTimestamp
         );
+        // Note: status stays PENDING until webhook fires
 
         return result;
     }
@@ -371,8 +368,9 @@ class StripeWebhookController {
         if (attempt?.status === PaymentAttemptStatus.SUCCESS) return; // already done
 
         await prisma.$transaction(async (tx) => {
+            // COMPLETED is the correct enum value (not CONFIRMED)
             await orderRepository.updateOrderStatus(
-                { orderId, newOrderStatus: OrderStatusKey.CONFIRMED }, tx
+                { orderId, newOrderStatus: OrderStatusKey.COMPLETED }, tx
             );
 
             await paymentAttemptRepository.updateStatus(
@@ -384,9 +382,8 @@ class StripeWebhookController {
 
             await cartService.clearCart(customerId, tx);
         });
-
-        // Reduce inventory outside transaction (uses its own batched updateMany)
-        await menuItemService.restoreStockBatch(orderId); // Actually "confirmStock" — no restore needed
+        // Note: inventory was already reduced by ReduceInventoryHandler in the chain.
+        // No inventory action needed here on success.
     }
 
     private async handleFailure(paymentIntent: any) {
@@ -400,13 +397,14 @@ class StripeWebhookController {
             { error: paymentIntent.last_payment_error }
         );
 
+        // CANCELED is the correct enum value (not CANCELLED)
         await orderRepository.updateOrderStatus({
             orderId,
-            newOrderStatus: OrderStatusKey.CANCELLED
+            newOrderStatus: OrderStatusKey.CANCELED
         });
 
-        // Restore inventory
-        await menuItemService.restoreStockBatch(orderId);
+        // Restore inventory — menuItemService.restoreStock (not restoreStockBatch)
+        await menuItemService.restoreStock(orderId);
     }
 }
 
@@ -462,6 +460,7 @@ export function startStaleOrderJob() {
         try {
             const cutoff = new Date(Date.now() - 30 * 60 * 1000);
 
+            // findStaleOrders() must be added to OrderRepository — see checklist
             const staleOrders = await orderRepository.findStaleOrders({
                 status: OrderStatusKey.PENDING,
                 createdBefore: cutoff
@@ -475,12 +474,14 @@ export function startStaleOrderJob() {
                     await stripe.paymentIntents.cancel(attempt.transactionId).catch(() => {});
                 }
 
+                // CANCELED is the correct enum value (not CANCELLED)
                 await orderRepository.updateOrderStatus({
                     orderId: order.orderId,
-                    newOrderStatus: OrderStatusKey.CANCELLED
+                    newOrderStatus: OrderStatusKey.CANCELED
                 });
 
-                await menuItemService.restoreStockBatch(order.orderId);
+                // restoreStock() is the correct method on menuItemService
+                await menuItemService.restoreStock(order.orderId);
             }
         } catch (error: any) {
             console.error('[Cron] Stale order cleanup failed:', error.message);

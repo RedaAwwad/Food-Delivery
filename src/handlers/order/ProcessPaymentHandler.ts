@@ -4,36 +4,49 @@ import { paymentService } from "../../services/PaymentService";
 import { InternalServerError } from "../../utils/errors";
 
 /**
- * Processes payment through the payment service.
+ * Calls PaymentService.createPaymentIntent() using the already-created order.
+ *
+ * Key behaviours:
+ * - The order MUST already exist in context (CreateOrderHandler runs before this).
+ * - Uses idempotencyKey = `order_${orderId}` — tied to THIS order, not the cart.
+ * - Stores the clientSecret in context so it can be returned to the frontend.
+ * - Payment is NOT confirmed here — the frontend completes it, Stripe fires a webhook.
  */
 export class ProcessPaymentHandler extends OrderHandler {
     protected async handle(context: OrderContext): Promise<void> {
-        console.log(`[ProcessPaymentHandler] Processing payment`);
+        console.log(`[ProcessPaymentHandler] Creating PaymentIntent`);
 
-        if (!context.order) {
-            throw InternalServerError("Order not found in context (ProcessPayment)");
-        }
+        if (!context.order) throw InternalServerError("Order not found in context (ProcessPayment)");
 
-        // Generate idempotencyKey for payment deduplication
-        const idempotencyKey = `cart_${context.customerId}_${context.restaurantId}`;
-
-        const paymentResult = await paymentService.processPayment(
+        const result = await paymentService.createPaymentIntent(
             context.customerId,
+            context.order.orderId,
             context.order.totalAmount,
-            idempotencyKey,
-            context.requestTimestamp
+            context.customerEmail,
+            context.restaurantId,
+            context.requestTimestamp,
+            context.paymentProvider,
+            context.paymentMethodId
         );
 
-        context.paymentResult = paymentResult;
+        // Store transactionId for PaymentAttempt linking in OrderService
+        context.paymentResult = {
+            success: result.syncSuccess || false,
+            transactionId: result.paymentIntentId,
+        };
 
-        if (paymentResult.success) {
-            console.log(`[ProcessPaymentHandler] Payment successful. Transaction ID: ${paymentResult.transactionId}`);
-            context.shouldReduceInventory = true;
+        // clientSecret returned to the API caller so frontend can complete payment
+        context.clientSecret = result.clientSecret;
+
+        if (result.syncSuccess) {
+            console.log(`[ProcessPaymentHandler] Synchronous payment success (COD). Enqueueing status update and cart clear.`);
+            context.shouldUpdateOrderStatus = true;
             context.shouldClearCart = true;
         } else {
-            console.log(`[ProcessPaymentHandler] Payment failed`);
-            context.shouldReduceInventory = false;
+            // Cart is managed by the webhook later.
+            context.shouldUpdateOrderStatus = false;
             context.shouldClearCart = false;
+            console.log(`[ProcessPaymentHandler] PaymentIntent created: ${result.paymentIntentId}`);
         }
     }
 }

@@ -8,6 +8,11 @@ import { OrderStatusKey } from "../../generated/prisma/client";
  */
 export class UpdateOrderStatusHandler extends OrderHandler {
     protected async handle(context: OrderContext): Promise<void> {
+        if (!context.shouldUpdateOrderStatus) {
+            console.log(`[UpdateOrderStatusHandler] Skipping status update (handled asynchronously later)`);
+            return;
+        }
+
         console.log(`[UpdateOrderStatusHandler] Updating order status`);
 
         if (!context.order || !context.paymentResult) {
@@ -21,7 +26,7 @@ export class UpdateOrderStatusHandler extends OrderHandler {
         const updatedOrder = await orderService.updateOrderStatus({
             orderId: context.order.orderId,
             newOrderStatus: newStatus
-        }, context.tx);
+        });
 
         context.finalOrder = updatedOrder;
         console.log(`[UpdateOrderStatusHandler] Order status updated to: ${newStatus}`);

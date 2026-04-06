@@ -1,6 +1,17 @@
-import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentIntentResult, PaymentResult, RefundResult } from './IPaymentStrategy';
 
 export class AmadeusStrategy implements IPaymentStrategy {
+    async createPaymentIntent(
+        amount: number,
+        metadata: { orderId: string; customerId: string; restaurantId: string; email: string },
+        idempotencyKey: string
+    ): Promise<PaymentIntentResult> {
+        return {
+            clientSecret: '',
+            paymentIntentId: ''
+        };
+    }
+
     async process(
         amount: number,
         metadata: any,

@@ -137,7 +137,7 @@ class MenuItemRepository {
     });
   }
 
-  async restoreStockBatch(items: { menuItemId: string; quantity: number }[]) {
+  async restoreStockBatch(items: { menuItemId: string; quantity: number }[], tx: PrismaTx | PrismaClient = prisma) {
     if (items.length === 0) return;
 
     // Parameters for safety: [id1, qty1, id2, qty2...]
@@ -166,7 +166,7 @@ class MenuItemRepository {
       WHERE m."menu_item_id" = v.id
     `;
 
-    return await prisma.$executeRawUnsafe(query, ...params);
+    return await tx.$executeRawUnsafe(query, ...params);
   }
 }
 
