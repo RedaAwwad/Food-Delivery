@@ -56,10 +56,21 @@ export function startStaleOrderJob() {
 }
 
 async function processStaleOrder(orderId: string) {
+    console.log(`[StaleOrderJob] Evaluating stale order: ${orderId}`);
+
+    const attempt = await paymentAttemptRepository.findByIdempotencyKey(`order_${orderId}`);
+
+    // Guard: if the order-level attempt is already SUCCESS, the webhook already confirmed
+    // payment but hasn't had a chance to update the order status yet (e.g., server restart,
+    // delayed webhook delivery). Do NOT cancel — let the webhook finalize it.
+    if (attempt?.status === PaymentAttemptStatus.SUCCESS) {
+        console.log(`[StaleOrderJob] Order ${orderId} has a SUCCESS payment attempt — skipping cancellation.`);
+        return;
+    }
+
     console.log(`[StaleOrderJob] Cancelling stale order: ${orderId}`);
 
-    // 1. Cancel PaymentIntent in Stripe (if one was created)
-    const attempt = await paymentAttemptRepository.findByIdempotencyKey(`order_${orderId}`);
+    // 1. Cancel PaymentIntent in Stripe (if one was created and is still PENDING)
     if (attempt?.transactionId && attempt.status === PaymentAttemptStatus.PENDING) {
         try {
             await stripe.paymentIntents.cancel(attempt.transactionId);

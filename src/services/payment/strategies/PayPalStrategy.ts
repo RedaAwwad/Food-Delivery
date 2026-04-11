@@ -1,27 +1,18 @@
-import { IPaymentStrategy, PaymentIntentResult, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
 
 export class PayPalStrategy implements IPaymentStrategy {
-    async createPaymentIntent(
+    async processPayment(
         amount: number,
-        metadata: { orderId: string; customerId: string; restaurantId: string; email: string },
-        idempotencyKey: string
-    ): Promise<PaymentIntentResult> {
-        return {
-            clientSecret: '',
-            paymentIntentId: ''
-        };
-    }
-
-    async process(
-        amount: number,
-        metadata: any,
+        metadata: { orderId: string; customerId: string; restaurantId: string; email: string; savedMethodData?: any },
         idempotencyKey: string
     ): Promise<PaymentResult> {
         console.log(`[PayPal] Processing payment of ${amount} with key ${idempotencyKey}`);
         return {
             success: true,
             transactionId: `paypal_${Date.now()}`,
-            message: 'Payment processed successfully via PayPal'
+            message: 'Payment processed successfully via PayPal',
+            requiresAction: true,
+            clientSecret: '' // Placeholder for actual PayPal approval URL or similar
         };
     }
 

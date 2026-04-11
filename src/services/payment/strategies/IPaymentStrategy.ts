@@ -1,13 +1,9 @@
-export interface PaymentIntentResult {
-    clientSecret: string;
-    paymentIntentId: string;
-    syncSuccess?: boolean;
-}
-
 export interface PaymentResult {
     success: boolean;
     transactionId?: string;
     message?: string;
+    clientSecret?: string;
+    requiresAction?: boolean;
 }
 
 export interface RefundResult {
@@ -17,22 +13,9 @@ export interface RefundResult {
 }
 
 export interface IPaymentStrategy {
-    /**
-     * Async webhook flow — Stripe, PayPal.
-     * Creates a PaymentIntent and returns a clientSecret for the frontend to complete.
-     */
-    createPaymentIntent(
+    processPayment(
         amount: number,
         metadata: { orderId: string; customerId: string; restaurantId: string; email: string; savedMethodData?: any },
-        idempotencyKey: string
-    ): Promise<PaymentIntentResult>;
-
-    /**
-     * Synchronous flow — Cash on Delivery, direct charge fallback.
-     */
-    process(
-        amount: number,
-        metadata: any,
         idempotencyKey: string
     ): Promise<PaymentResult>;
 

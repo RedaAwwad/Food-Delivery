@@ -49,6 +49,7 @@ class StripeWebhookController {
             res.json({ received: true });
         } catch (err: any) {
             console.error(`[Webhook] Handler error for ${event.type}:`, err.message);
+            require('fs').writeFileSync('d:/Mentorship/Restaurant/Project/Food Delivery/Food-Delivery/webhook-error.log', err.stack || err.message || JSON.stringify(err));
             // Return 500 so Stripe retries (our DB might be temporarily down)
             res.status(500).send(`Handler Error: ${err.message}`);
         }
@@ -102,6 +103,27 @@ class StripeWebhookController {
         });
 
         console.log(`[Webhook] Order ${orderId} confirmed. PaymentIntent: ${paymentIntent.id}`);
+
+        // --- Finalize the cart-level attempt so the user can place new orders ---
+        // The cart-level key (cart_{customerId}_{restaurantId}) stays PENDING unless we explicitly
+        // close it here. Without this, the next placeOrder call sees PENDING and throws "in progress".
+        try {
+            const order = await orderRepository.findOrderById(orderId);
+            const cartKey = `cart_${customerId}_${order.restaurantId}`;
+            const cartAttempt = await paymentAttemptRepository.findByIdempotencyKey(cartKey);
+            if (cartAttempt && cartAttempt.status === PaymentAttemptStatus.PENDING) {
+                await paymentAttemptRepository.updateStatus(
+                    cartKey,
+                    PaymentAttemptStatus.SUCCESS,
+                    paymentIntent.id,
+                    { finalizedBy: 'webhook', orderId }
+                );
+                console.log(`[Webhook] Cart-level attempt finalized for customer ${customerId}`);
+            }
+        } catch (err: any) {
+            // Non-fatal: the stale job will catch it if this fails
+            console.warn(`[Webhook] Could not finalize cart-level attempt:`, err.message);
+        }
 
         // --- Save the new payment method if requested ---
         if (paymentIntent.setup_future_usage === 'off_session' && paymentIntent.payment_method && customerId) {

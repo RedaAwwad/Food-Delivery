@@ -18,8 +18,9 @@ export class OrderHandlerChainBuilder {
     /**
      * Phase A: DB Transaction Chain
      * Runs inside the Prisma transaction.
+     * Handles cart validation, inventory checking, and order creation.
      */
-    public static buildCreationChain(): OrderHandler {
+    public static buildOrderTransactionChain(): OrderHandler {
         const lockCart = new LockCartHandler();
         const validateCart = new ValidateCartHandler();
         const checkInventory = new CheckInventoryHandler();
@@ -48,10 +49,11 @@ export class OrderHandlerChainBuilder {
     }
 
     /**
-     * Phase B: External API Call
+     * Phase B: External API Call & Status Update
      * Runs AFTER the Prisma transaction successfully commits.
+     * Processes payment, updates order status, and clears cart.
      */
-    public static buildPostCreationChain(): OrderHandler {
+    public static buildPaymentProcessingChain(): OrderHandler {
         const processPayment = new ProcessPaymentHandler();
         const updateOrderStatus = new UpdateOrderStatusHandler();
         const clearCart = new ClearCartHandler();

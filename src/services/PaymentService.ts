@@ -4,20 +4,20 @@ import { paymentAttemptService } from './PaymentAttemptService';
 import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
 import { PaymentAttemptStatus } from '../generated/prisma/client';
 import { UnprocessableEntityError, InternalServerError } from '../utils/errors/error-factories';
-import { PaymentIntentResult, PaymentResult } from './payment/strategies/IPaymentStrategy';
+import { PaymentResult } from './payment/strategies/IPaymentStrategy';
 import { CustomError } from '../utils/errors';
 import { prisma } from '../config/prisma.config';
 
 export class PaymentService {
 
     /**
-     * Creates a Stripe PaymentIntent for an already-created (PENDING) order.
-     *
+     * Uses the unified processPayment across all strategies.
+      
      * Idempotency layers:
-     *  1. DB — check PaymentAttempt before calling Stripe
-     *  2. Stripe — idempotencyKey on paymentIntents.create()
+     *  1. DB — check PaymentAttempt before calling strategy
+     *  2. Strategy — idempotencyKey passed to gateway (e.g. Stripe)
      */
-    async createPaymentIntent(
+    async processPayment(
         customerId: string,
         orderId: string,
         amount: number,
@@ -26,7 +26,7 @@ export class PaymentService {
         requestTimestamp: Date,
         paymentProvider?: string,
         paymentMethodId?: string
-    ): Promise<PaymentIntentResult> {
+    ): Promise<PaymentResult> {
         const idempotencyKey = `order_${orderId}`;
 
         // --- Layer 1: DB-level idempotency guard ---
@@ -41,8 +41,10 @@ export class PaymentService {
                     // In-flight — return the saved clientSecret, do NOT create a new intent
                     console.log(`[PaymentService] Returning existing PENDING PaymentIntent for order ${orderId}`);
                     return {
+                        success: true,
                         clientSecret: responseData.clientSecret,
-                        paymentIntentId: existing.transactionId,
+                        transactionId: existing.transactionId,
+                        requiresAction: true,
                     };
                 }
             }
@@ -88,60 +90,35 @@ export class PaymentService {
         const strategy = PaymentStrategyFactory.getStrategy(finalProvider);
 
         // --- Record/reset PENDING attempt BEFORE calling API ---
-        // Using upsert so a retry after a failed Stripe call resets the attempt
-        // instead of crashing on a duplicate idempotencyKey.
         await paymentAttemptService.upsertPendingAttempt(idempotencyKey, orderId, finalProvider, requestTimestamp);
 
         // --- Layer 2: API idempotency ---
-        const result = await strategy.createPaymentIntent(
-            amount,
-            { orderId, customerId, restaurantId, email, savedMethodData: providerData },
-            idempotencyKey
-        );
-
-        // Store clientSecret (still PENDING) so retries can return it without re-calling Stripe
-        await paymentAttemptRepository.updateStatus(
-            idempotencyKey,
-            PaymentAttemptStatus.PENDING,    // keep PENDING — webhook will set SUCCESS
-            result.paymentIntentId,
-            { clientSecret: result.clientSecret }
-        );
-
-        return result;
-    }
-
-    /**
-     * Legacy synchronous flow — Cash on Delivery, direct charge strategies.
-     */
-    async processPayment(
-        customerId: string,
-        amount: number,
-        idempotencyKey: string,
-        requestTimestamp: Date
-    ): Promise<PaymentResult> {
-        const settings = await preferredPaymentSettingsService.getCustomerSettings(customerId);
-
-        if (!settings || !settings.paymentMethods || settings.paymentMethods.length === 0) {
-            throw InternalServerError("No payment method found for customer");
-        }
-
-        const preferredMethod = settings.paymentMethods.find(
-            pm => pm.paymentMethodId === settings.paymentMethodId
-        );
-
-        if (!preferredMethod) throw InternalServerError("Preferred payment method not set or not found");
-
-        const provider = (preferredMethod.paymentMethodData as any)?.provider;
-        if (!provider) throw UnprocessableEntityError("Payment method configuration missing provider");
-
-        const strategy = PaymentStrategyFactory.getStrategy(provider);
-
         try {
-            return await strategy.process(
+            const result = await strategy.processPayment(
                 amount,
-                { ...preferredMethod.paymentMethodData as any, requestTimestamp },
+                { orderId, customerId, restaurantId, email, savedMethodData: providerData },
                 idempotencyKey
             );
+
+            if (result.requiresAction) {
+                // Keep PENDING, save clientSecret for retries. Webhook will set to SUCCESS.
+                await paymentAttemptRepository.updateStatus(
+                    idempotencyKey,
+                    PaymentAttemptStatus.PENDING,
+                    result.transactionId,
+                    { clientSecret: result.clientSecret }
+                );
+            } else {
+                // Fully synchronous success (e.g. COD).
+                await paymentAttemptRepository.updateStatus(
+                    idempotencyKey,
+                    PaymentAttemptStatus.SUCCESS,
+                    result.transactionId,
+                    { message: result.message }
+                );
+            }
+
+            return result;
         } catch (error: any) {
             console.error(`Payment failed for customer ${customerId}:`, error);
             if (error instanceof CustomError) throw error;

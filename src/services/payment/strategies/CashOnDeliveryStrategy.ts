@@ -1,21 +1,9 @@
-import { IPaymentStrategy, PaymentIntentResult, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
 
 export class CashOnDeliveryStrategy implements IPaymentStrategy {
-    async createPaymentIntent(
+    async processPayment(
         amount: number,
-        metadata: { orderId: string; customerId: string; restaurantId: string; email: string },
-        idempotencyKey: string
-    ): Promise<PaymentIntentResult> {
-        return {
-            clientSecret: '',
-            paymentIntentId: '',
-            syncSuccess: true
-        };
-    }
-
-    async process(
-        amount: number,
-        metadata: any,
+        metadata: { orderId: string; customerId: string; restaurantId: string; email: string; savedMethodData?: any },
         idempotencyKey: string
     ): Promise<PaymentResult> {
         console.log(`[COD] Processing payment of ${amount}`);
@@ -23,7 +11,8 @@ export class CashOnDeliveryStrategy implements IPaymentStrategy {
         return {
             success: true,
             transactionId: `cod_${Date.now()}`,
-            message: 'Cash on delivery confirmed'
+            message: 'Cash on delivery confirmed',
+            requiresAction: false
         };
     }
 

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Food Delivery — Checkout</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      background: #0f0f14;
+      color: #e2e8f0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      width: 100%;
+      max-width: 960px;
+    }
+
+    @media (max-width: 680px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: #1a1a24;
+      border: 1px solid #2d2d3d;
+      border-radius: 16px;
+      padding: 28px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #2d2d3d;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    input, select {
+      width: 100%;
+      background: #0f0f14;
+      border: 1px solid #2d2d3d;
+      border-radius: 10px;
+      padding: 11px 14px;
+      color: #e2e8f0;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      margin-bottom: 16px;
+    }
+
+    input:focus, select:focus { border-color: #7c6fff; }
+
+    select option { background: #1a1a24; }
+
+    button {
+      width: 100%;
+      background: #7c6fff;
+      border: none;
+      border-radius: 10px;
+      padding: 14px;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      margin-top: 8px;
+    }
+
+    button:hover { background: #6a5de8; }
+    button:active { transform: scale(0.98); }
+    button:disabled { background: #3d3d4d; cursor: not-allowed; }
+
+    .secondary-btn {
+      background: #1e293b;
+      margin-bottom: 8px;
+      font-size: 13px;
+      padding: 10px;
+    }
+
+    .secondary-btn:hover { background: #263244; }
+
+    /* Status bar */
+    .status-bar {
+      grid-column: 1 / -1;
+      background: #1a1a24;
+      border: 1px solid #2d2d3d;
+      border-radius: 16px;
+      padding: 20px 28px;
+    }
+
+    .status-bar-title {
+      font-size: 12px;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+
+    .log {
+      font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-entry { display: flex; gap: 10px; align-items: flex-start; }
+    .log-time { color: #475569; flex-shrink: 0; }
+    .log-text { word-break: break-all; }
+    .log-entry.ok .log-text  { color: #4ade80; }
+    .log-entry.err .log-text { color: #f87171; }
+    .log-entry.info .log-text { color: #94a3b8; }
+    .log-entry.warn .log-text { color: #fbbf24; }
+
+    /* Stripe Elements mount */
+    #stripe-card-element {
+      background: #0f0f14;
+      border: 1px solid #2d2d3d;
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      transition: border-color 0.2s;
+    }
+
+    #stripe-card-element.focused { border-color: #7c6fff; }
+
+    /* Cart item list */
+    .cart-items { margin-bottom: 16px; }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #1e2030;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .cart-item:last-child { border-bottom: none; }
+    .cart-item-name { color: #cbd5e1; }
+    .cart-item-price { color: #7c6fff; font-weight: 600; }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 700;
+      color: #e2e8f0;
+      padding-top: 12px;
+      border-top: 1px solid #2d2d3d;
+      font-size: 15px;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+
+    .pill-pending { background: rgba(251,191,36,0.15); color: #fbbf24; }
+    .pill-ok      { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .pill-err     { background: rgba(248,113,113,0.15); color: #f87171; }
+
+    .section-gap { margin-top: 20px; }
+
+    .divider {
+      border: none;
+      border-top: 1px solid #2d2d3d;
+      margin: 16px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- ── LEFT: Setup & Cart ────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <!-- Step 1: Cart setup -->
+    <div class="panel">
+      <div class="panel-title">Step 1 — Build Cart</div>
+
+      <label>Menu Item ID</label>
+      <input id="menu-item-id" type="text" placeholder="uuid of a menu item" />
+
+      <label>Quantity</label>
+      <input id="quantity" type="number" value="1" min="1" />
+
+      <button class="secondary-btn" id="add-btn" onclick="addToCart()">Add to Cart</button>
+      <button class="secondary-btn" onclick="viewCart()">Refresh Cart</button>
+      <button class="secondary-btn" style="color:#f87171;" onclick="clearCart()">Clear Cart</button>
+
+      <div class="cart-items" id="cart-display"></div>
+    </div>
+
+    <!-- Step 2: Place Order -->
+    <div class="panel">
+      <div class="panel-title">Step 2 — Place Order</div>
+
+      <label>Restaurant ID</label>
+      <input id="restaurant-id" type="text" placeholder="uuid of the restaurant" />
+
+      <label>Payment Provider</label>
+      <select id="payment-provider">
+        <option value="stripe">Stripe (Payment Intent)</option>
+        <option value="CASH_ON_DELIVERY">Cash on Delivery</option>
+      </select>
+
+      <button onclick="placeOrder()">Place Order &amp; Get Client Secret</button>
+    </div>
+
+  </div>
+
+  <!-- ── RIGHT: Payment ───────────────────────────────── -->
+  <div style="display:flex;flex-direction:column;gap:24px;">
+
+    <div class="panel">
+      <div class="panel-title">Step 3 — Confirm Payment</div>
+
+      <div id="stripe-section">
+        <label>Card Details</label>
+        <div id="stripe-card-element"></div>
+        <div id="card-errors" style="color:#f87171;font-size:12px;margin-bottom:12px;"></div>
+        <button id="pay-btn" onclick="confirmPayment()" disabled>Confirm Payment</button>
+      </div>
+
+      <div id="cod-section" style="display:none;">
+        <p style="color:#4ade80;font-size:14px;padding:16px;background:rgba(74,222,128,0.08);border-radius:10px;border:1px solid rgba(74,222,128,0.2);">
+          ✓ Cash on Delivery — order confirmed synchronously. No card required.
+        </p>
+      </div>
+
+      <hr class="divider" />
+
+      <div style="font-size:12px;color:#475569;">
+        <div style="margin-bottom:6px;">
+          <span style="color:#64748b;">Order ID:</span>
+          <span id="info-order-id" style="color:#94a3b8;font-family:monospace;">—</span>
+        </div>
+        <div style="margin-bottom:6px;">
+          <span style="color:#64748b;">Client Secret:</span>
+          <span id="info-client-secret" style="color:#94a3b8;font-family:monospace;word-break:break-all;">—</span>
+        </div>
+        <div>
+          <span style="color:#64748b;">Status:</span>
+          <span id="info-status">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Orphaned Order Reconcile -->
+    <div class="panel">
+      <div class="panel-title">Step 4 — Reconcile Orphaned Order</div>
+      <p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">If your webhook failed but Stripe succeeded, you can manually reconcile the order here.</p>
+      
+      <label>Order ID</label>
+      <input id="reconcile-order-id" type="text" placeholder="uuid of the stuck order" />
+      
+      <button class="secondary-btn" id="reconcile-btn" onclick="reconcileOrder()">Reconcile Order</button>
+    </div>
+
+    <!-- Stripe test cards hint -->
+    <div class="panel" style="font-size:12px;color:#64748b;">
+      <div class="panel-title">Stripe Test Cards</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div><code style="color:#7c6fff;">4242 4242 4242 4242</code> — Succeeds</div>
+        <div><code style="color:#fbbf24;">4000 0025 0000 3155</code> — Requires 3DS</div>
+        <div><code style="color:#f87171;">4000 0000 0000 9995</code> — Declined</div>
+        <div style="margin-top:8px;">Expiry: any future date &nbsp;|&nbsp; CVC: any 3 digits</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── FULL WIDTH: Log ──────────────────────────────── -->
+  <div class="status-bar">
+    <div class="status-bar-title">Activity Log</div>
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<script>
+  // ── Config injected from server ──────────────────────────
+  const STRIPE_PUBLISHABLE_KEY = '<%= stripePublishableKey %>';
+
+  // ── State ────────────────────────────────────────────────
+  let stripe = null;
+  let cardElement = null;
+  let currentClientSecret = null;
+  let accessToken = sessionStorage.getItem('accessToken');
+
+  // ── Bootstrap ────────────────────────────────────────────
+  window.onload = () => {
+    if (!accessToken) {
+      log('warn', 'No access token found — redirecting to login…');
+      setTimeout(() => window.location.href = '/test/login', 1200);
+      return;
+    }
+
+    if (STRIPE_PUBLISHABLE_KEY && STRIPE_PUBLISHABLE_KEY !== '') {
+      stripe = Stripe(STRIPE_PUBLISHABLE_KEY);
+      const elements = stripe.elements();
+      cardElement = elements.create('card', {
+        style: {
+          base: {
+            color: '#e2e8f0',
+            fontSize: '15px',
+            fontFamily: "'Segoe UI', system-ui, sans-serif",
+            '::placeholder': { color: '#475569' },
+          },
+          invalid: { color: '#f87171' },
+        }
+      });
+      cardElement.mount('#stripe-card-element');
+      cardElement.on('change', (e) => {
+        document.getElementById('card-errors').textContent = e.error ? e.error.message : '';
+      });
+      cardElement.on('focus', () => document.getElementById('stripe-card-element').classList.add('focused'));
+      cardElement.on('blur',  () => document.getElementById('stripe-card-element').classList.remove('focused'));
+      log('info', 'Stripe Elements mounted.');
+    } else {
+      log('err', 'STRIPE_PUBLISHABLE_KEY not set in environment — card element disabled.');
+    }
+
+    // Auto-load cart so the user sees current state immediately
+    viewCart();
+  };
+
+  // ── Helpers ──────────────────────────────────────────────
+  function log(type, text) {
+    const logEl = document.getElementById('log');
+    const now = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${type}`;
+    entry.innerHTML = `<span class="log-time">${now}</span><span class="log-text">${text}</span>`;
+    logEl.appendChild(entry);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  async function apiFetch(path, options = {}) {
+    const res = await fetch(path, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+        ...(options.headers || {}),
+      },
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error?.message || `HTTP ${res.status}`);
+    return json;
+  }
+
+  function setStatus(text, type) {
+    const el = document.getElementById('info-status');
+    el.innerHTML = `<span class="pill pill-${type}">${text}</span>`;
+  }
+
+  // ── Step 1: Cart ─────────────────────────────────────────
+  async function addToCart() {
+    const btn = document.getElementById('add-btn');
+    const menuItemId = document.getElementById('menu-item-id').value.trim();
+    const quantity   = parseInt(document.getElementById('quantity').value, 10);
+
+    if (!menuItemId) { log('err', 'Enter a menu item ID first.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Adding…';
+    try {
+      log('info', `Adding ${quantity}× ${menuItemId} to cart…`);
+      await apiFetch('/api/v1/cart/add-cart-event', {
+        method: 'POST',
+        body: JSON.stringify({ eventType: 'ADD_TO_CART', menuItemId, quantity }),
+      });
+      log('ok', 'Item added to cart.');
+      await viewCart();
+    } catch (err) {
+      log('err', `Add to cart failed: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add to Cart';
+    }
+  }
+
+  async function clearCart() {
+    try {
+      log('info', 'Clearing cart…');
+      await apiFetch('/api/v1/cart/add-cart-event', {
+        method: 'POST',
+        body: JSON.stringify({ eventType: 'CLEAR_CART' }),
+      });
+      log('ok', 'Cart cleared.');
+      await viewCart();
+    } catch (err) {
+      log('err', `Clear cart failed: ${err.message}`);
+    }
+  }
+
+  async function viewCart() {
+    try {
+      const json = await apiFetch('/api/v1/cart');
+      const cart = json.data;
+      const display = document.getElementById('cart-display');
+
+      if (!cart?.cartItems?.length) {
+        display.innerHTML = '<p style="color:#475569;font-size:13px;">Cart is empty.</p>';
+        return;
+      }
+
+      let total = 0;
+      let html = '';
+      for (const item of cart.cartItems) {
+        // Cart items are price snapshots: { menuItemId, quantity, price }
+        // There is no nested menuItem object — name is not stored on the cart item.
+        const lineTotal = item.quantity * (item.price ?? 0);
+        total += lineTotal;
+        html += `
+          <div class="cart-item">
+            <span class="cart-item-name" title="${item.menuItemId}">${item.menuItemId.slice(0, 8)}… × ${item.quantity}</span>
+            <span class="cart-item-price">$${lineTotal.toFixed(2)}</span>
+          </div>`;
+      }
+      html += `<div class="total-row"><span>Total</span><span>$${total.toFixed(2)}</span></div>`;
+      display.innerHTML = html;
+      log('info', `Cart loaded — ${cart.cartItems.length} item(s), total $${total.toFixed(2)}`);
+    } catch (err) {
+      log('err', `View cart failed: ${err.message}`);
+    }
+  }
+
+  // ── Step 2: Place Order ──────────────────────────────────
+  async function placeOrder() {
+    const restaurantId = document.getElementById('restaurant-id').value.trim();
+    const provider     = document.getElementById('payment-provider').value;
+
+    if (!restaurantId) { log('err', 'Enter a restaurant ID.'); return; }
+
+    log('info', `Placing order — provider: ${provider}…`);
+    setStatus('placing…', 'pending');
+
+    try {
+      const json = await apiFetch('/api/v1/orders/check-out', {
+        method: 'POST',
+        body: JSON.stringify({ restaurantId, paymentProvider: provider }),
+      });
+
+      const { order, clientSecret } = json.data;
+      document.getElementById('info-order-id').textContent = order?.orderId ?? '—';
+
+      if (provider === 'CASH_ON_DELIVERY' || !clientSecret) {
+        // Synchronous flow — already done
+        document.getElementById('info-client-secret').textContent = '(not required for COD)';
+        document.getElementById('stripe-section').style.display = 'none';
+        document.getElementById('cod-section').style.display = 'block';
+        setStatus('CONFIRMED', 'ok');
+        log('ok', `COD order ${order.orderId} placed and confirmed.`);
+        await viewCart(); // Refresh cart to show it's empty
+        return;
+      }
+
+      // Async Stripe flow
+      currentClientSecret = clientSecret;
+      document.getElementById('info-client-secret').textContent = clientSecret.substring(0, 28) + '…';
+      document.getElementById('pay-btn').disabled = false;
+      document.getElementById('stripe-section').style.display = 'block';
+      document.getElementById('cod-section').style.display = 'none';
+      setStatus('PENDING — awaiting card', 'pending');
+      log('ok', `Order ${order.orderId} created. ClientSecret received. Enter card details and confirm.`);
+
+    } catch (err) {
+      setStatus('FAILED', 'err');
+      log('err', `Place order failed: ${err.message}`);
+    }
+  }
+
+  // ── Step 3: Confirm card payment ─────────────────────────
+  async function confirmPayment() {
+    if (!currentClientSecret) { log('err', 'No clientSecret — place order first.'); return; }
+    if (!stripe || !cardElement) { log('err', 'Stripe not initialised.'); return; }
+
+    const btn = document.getElementById('pay-btn');
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+    log('info', 'Confirming payment with Stripe…');
+
+    const { error, paymentIntent } = await stripe.confirmCardPayment(currentClientSecret, {
+      payment_method: { card: cardElement },
+    });
+
+    if (error) {
+      setStatus('FAILED', 'err');
+      log('err', `Payment failed: ${error.message}`);
+      btn.disabled = false;
+      btn.textContent = 'Retry Payment';
+    } else if (paymentIntent.status === 'succeeded') {
+      setStatus('SUCCEEDED', 'ok');
+      log('ok', `Payment succeeded! Intent: ${paymentIntent.id}`);
+      log('info', 'Webhook will now fire → order status → COMPLETED → cart cleared.');
+      btn.textContent = '✓ Payment Succeeded';
+      
+      // Delay slightly to give the webhook time to hit the DB, then refresh the cart UI
+      setTimeout(() => viewCart(), 1500);
+    } else {
+      setStatus(paymentIntent.status, 'pending');
+      log('warn', `Payment status: ${paymentIntent.status}`);
+      btn.disabled = false;
+      btn.textContent = 'Retry Payment';
+    }
+  }
+
+  // ── Step 4: Reconcile Orphaned Order ─────────────────────
+  async function reconcileOrder() {
+    const btn = document.getElementById('reconcile-btn');
+    const orderId = document.getElementById('reconcile-order-id').value.trim();
+
+    if (!orderId) { log('err', 'Enter an Order ID to reconcile.'); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Reconciling…';
+    log('info', `Attempting to manually reconcile order ${orderId}…`);
+
+    try {
+      const res = await fetch('/test/reconcile-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+      const json = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          typeof json.error === 'object' 
+            ? JSON.stringify(json.error) 
+            : (json.error || `HTTP ${res.status}`)
+        );
+      }
+
+      log('ok', json.message || `Reconciled order ${orderId}`);
+      if (document.getElementById('info-order-id').textContent === orderId) {
+        setStatus('SUCCEEDED (Reconciled)', 'ok');
+      }
+      await viewCart(); // Refresh cart to clear it if it was for this user
+    } catch (err) {
+      log('err', `Reconciliation failed: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Reconcile Order';
+    }
+  }
+</script>
+</body>
+</html>

@@ -2,11 +2,13 @@ import express, { Express } from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import path from "path";
 import { setupSwagger } from "./lib/swagger/swagger";
 import { errorHandler, NotFoundError } from "./utils/errors";
 import { initAPIRoutes } from "./routes";
 import { initServer } from "./config/server.init";
 import { webhookRouter } from "./routes/webhook.routes";
+import { testRouter } from "./routes/test.routes";
 import { startStaleOrderJob } from "./jobs/staleOrder.job";
 
 dotenv.config();
@@ -22,6 +24,13 @@ const initiateApp = async (app: Express) => {
   app.use(cookieParser());
   app.use(cors());
   app.use(express.urlencoded({ extended: true }));
+
+  // EJS view engine — only used by the /test/* dev harness pages
+  app.set('view engine', 'ejs');
+  app.set('views', path.join(process.cwd(), 'src', 'views'));
+
+  // Dev-only test harness (login + checkout UI to exercise the payment flow)
+  app.use('/test', testRouter);
 
   setupSwagger(app);
 
