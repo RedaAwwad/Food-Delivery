@@ -14,19 +14,11 @@ class OrderTrackingRepository {
     return tracking
   }
 
-  async updateOrderTrackingStatus(orderId: string, customerId: string, trackingStatus: TrackingStatusStep[]) {
-    return await prisma.orderTracking.update({
-      where: {
-        orderId_customerId: {
-          orderId,
-          customerId
-        },
-      },
-      data: {
-        trackingStatus,
-      },
+  async appendOrderTrackingStatus(orderId: string, customerId: string, orderStatusKey: TrackingStatusStep["orderStatusKey"], updatedBy?: string) {
+    return await prisma.orderTracking.status().append(orderId, customerId, { 
+      orderStatusKey, 
+      ...(updatedBy !== undefined ? { updatedBy } : {}) 
     });
-
   }
 }
 
