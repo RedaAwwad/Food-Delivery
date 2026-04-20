@@ -2,7 +2,8 @@ import { prisma } from "../config/prisma.config";
 import { CreateOrderDto, UpdateOrderStatusDto } from "../dto/order.dto";
 import { BadRequestError, NotFoundError } from "../utils/errors";
 import { PrismaTx } from "../types/prisma.types";
-import { OrderStatusKey, PrismaClient } from "../generated/prisma/client";
+import { PrismaClient } from "../generated/prisma/client";
+import { OrderStatusKey } from "../generated/prisma/enums";
 
 class OrderRepository {
   async findAllCustomerOrdersByCustomerId(customerId: string) {
@@ -62,7 +63,7 @@ class OrderRepository {
     try {
       return await prisma.order.update({
         where: { orderId },
-        data: { orderStatus: OrderStatusKey.CANCELED },
+        data: { orderStatus: "CANCELED" },
       });
 
     } catch (error: any) {

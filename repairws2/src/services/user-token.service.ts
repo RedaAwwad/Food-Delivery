@@ -1,0 +1,39 @@
+import { TokenType } from "../generated/prisma/client";
+import { userTokenRepository } from "../repositories/user-token.repository";
+import { CreateTokenData } from "../types/token";
+
+class UserTokenService {
+  createToken(data: CreateTokenData) {
+    return userTokenRepository.createToken(data);
+  }
+
+  findValidToken(token: string, tokenType: TokenType) {
+    return userTokenRepository.findValidToken(token, tokenType);
+  }
+
+  async findTokenByToken(token: string) {
+    return userTokenRepository.findTokenByToken(token);
+  }
+
+  async revokeToken(userId: string, token: string) {
+    return userTokenRepository.revokeToken(userId, token);
+  }
+
+  async revokeAllUserTokensByType(userId: string, tokenType: TokenType) {
+    return userTokenRepository.revokeAllUserTokensByType(userId, tokenType);
+  }
+
+  async revokeAllUserTokens(userId: string) {
+    return userTokenRepository.revokeAllUserTokens(userId);
+  }
+
+  async isValid(token: string, tokenType?: TokenType): Promise<boolean> {
+    return userTokenRepository.isValid(token, tokenType);
+  }
+
+  async deleteRefreshTokensByUserId(userId: string) {
+    return userTokenRepository.deleteRefreshTokensByUserId(userId);
+  }
+}
+
+export const userTokenService = new UserTokenService();

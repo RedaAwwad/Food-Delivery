@@ -1,0 +1,379 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x", "windows"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====== User ======
+model User {
+  userId        String  @id @default(uuid()) @map("user_id")
+  userName      String @map("user_name")   
+  userPassword  String  @map("user_password") 
+  userEmail     String   @unique @map("user_email")
+  isActive      Boolean   @default(true)       
+  isConfirmed   Boolean   @default(false)       
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  isAdmin  Boolean  @default(false) @map("is_admin")
+
+  roles      Json     @default("[]") @map("roles")
+  customer    Customer?
+  restaurant  Restaurant?
+  userToken   UserToken[]
+
+  // Reverse relations
+  createdCustomers Customer[] @relation("CreatedCustomers")
+  updatedCustomers Customer[] @relation("UpdatedCustomers")
+
+  @@index([roles], type: Gin)
+  @@map("users")
+}
+ 
+// ====== Role ======
+model Role {
+  roleId      String   @id @default(uuid()) @map("role_id")
+  roleName    String   @map("role_name")
+  roleDesc    String?  @map("role_desc")
+  roleKey     RoleKey   @unique  @map("role_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("roles")
+}
+
+model UserToken {
+  userTokenId String   @id @default(uuid()) @map("user_token_id")
+  userId      String   @map("user_id")
+  token       String   @unique @map("token")
+  expiresAt   DateTime @map("expires_at")
+
+  tokenType   TokenType @map("token_type")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("user_tokens")
+}
+
+// ====== Customer ======
+model Customer {
+  customerId  String   @id @default(uuid()) @map("customer_id")
+  userId    String      @unique
+  customerPhone     String   @map("customer_phone")
+  customerAvatar    String?   @map("customer_avatar")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deactivatedAt  DateTime?             
+  user User @relation(fields: [userId], references: [userId])
+  cart Cart?
+ 
+  orders Order[]
+  addresses Json? @default("[]") @map("addresses")
+  rating Rating[]
+  orderTracking OrderTracking[]
+
+  createdById String
+  updatedById String
+
+  preferredPaymentSettings PreferredPaymentSettings?
+
+  // Relations
+  createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
+  updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
+
+  @@index([addresses], type: Gin)
+  @@map("customers")
+}
+
+// ====== Restaurant ======
+model Restaurant {
+  restaurantId String   @id @default(uuid()) @map("restaurant_id")
+  managerId    String      @unique @map("manager_id")
+  restaurantName        String  @unique 
+  restaurantBio String  @map("restaurant_bio") 
+  restaurantLogo        String? @map("restaurant_logo")   
+  isAvailable Boolean  @map("is_available") @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  averageRating Float @default(0) @map("average_rating")
+  ratingCount   Int   @default(0) @map("rating_count")
+
+  manager User @relation(fields: [managerId], references: [userId])
+  menu    Menu?
+  addresses Json? @default("[]") @map("addresses")
+  rating Rating[]
+
+  orders Order[]
+
+  @@index([restaurantName])
+  @@index([addresses], type: Gin)
+  @@map("restaurants")
+}
+
+// ====== Cart ======
+model Cart {
+  cartId     String   @id @default(uuid()) @map("cart_id")
+  customerId String       @unique @map("customer_id")
+  isLocked   Boolean    @default(false) @map("is_locked")
+
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  customer  Customer   @relation(fields: [customerId], references: [customerId])
+  cartItems CartItem[]
+
+  @@map("carts")
+}
+
+// ====== CartItem ======
+model CartItem {
+  cartItemId String   @id @default(uuid()) @map("cart_item_id")
+  cartId     String      @map("cart_id")
+  menuItemId String      @map("menu_item_id")
+  quantity   Int      @map("quantity")
+  price      Int      @map("price")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  cart     Cart     @relation(fields: [cartId], references: [cartId])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
+  @@unique([cartId , menuItemId])
+  @@index([menuItemId])
+  @@map("cart_items")
+}
+
+// ====== Menu ======
+model Menu {
+  menuId          String   @id @default(uuid()) @map("menu_id")
+  restaurantId    String          @unique @map("restaurant_id")
+  menuDesc String       @map("menu_desc")
+  isActive        Boolean      @default(true) @map("is_active")
+
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  restaurant      Restaurant   @relation(fields: [restaurantId], references: [restaurantId])
+  menuCategories  MenuCategory[]
+
+  @@map("menus")
+}
+
+// ====== MenuCategory ======
+model MenuCategory {
+  menuCategoryId       String   @id @default(uuid()) @map("menu_category_id")
+  menuId               String   @map("menu_id")
+  menuCategoryName     String   @map("menu_category_name")
+  menuCategoryImageUrl String    @map("menu_category_image_url")
+
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  menu      Menu      @relation(fields: [menuId], references: [menuId])
+  menuItems MenuItem[]
+
+  @@map("menu_categories")
+}
+
+// ====== MenuItem ======
+model MenuItem {
+  menuItemId     String   @id @default(uuid()) @map("menu_item_id")
+  menuCategoryId String      @map("menu_category_id")
+  menuItemName          String    
+  menuItemDesc   String  @map("menu_item_desc")  
+  menuItemImageUrl      String    @map("menu_item_image_url")
+  price         Int    
+  stockQuantity Int       @map("stock_quantity")
+  isActive      Boolean   @default(true) @map("is_active")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  menuCategory  MenuCategory @relation(fields: [menuCategoryId], references: [menuCategoryId])
+  cartItems     CartItem[]
+  orderItems   OrderItem[]
+
+  @@index([menuItemName])
+
+  @@map("menu_items")
+}
+
+model Order {
+  orderId        String   @id @default(uuid()) @map("order_id")
+  customerId     String      @map("customer_id")
+  restaurantId   String     @map("restaurant_id")
+  totalAmount    Int      @map("total_amount")
+  orderStatus    OrderStatusKey     @map("order_status")
+
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+
+  orderStatusDetails OrderStatus @relation(fields: [orderStatus], references: [orderStatusKey])
+  orderTracking OrderTracking[]
+
+  orderItems OrderItem[]
+  
+  @@index([customerId])
+  @@index([restaurantId]) 
+  @@map("orders")
+}
+
+// Payment status (pending, paid, failed, etc.)
+model OrderStatus {
+  orderStatusId        String   @id @default(uuid()) @map("order_status_id") 
+  orderStatusName      String   @map("order_status_name")
+  orderStatusKey       OrderStatusKey   @unique @map("order_status_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_statuses")
+}
+
+enum OrderStatusKey {
+  PENDING
+  COMPLETED
+  CANCELED
+}
+
+// Delivery tracking status (ongoing, out for delivery, delivered, etc.)
+model OrderTracking {
+    orderTrackingId     String              @id @default(uuid()) @map("order_tracking_id") 
+    orderId             String   @map("order_id")
+    customerId          String   @map("customer_id")
+    trackingStatus      Json   @map("tracking_status")
+    createdAt           DateTime  @default(now())     @map("created_at")
+    updatedAt           DateTime  @updatedAt          @map("updated_at")
+
+    customer            Customer @relation(fields: [customerId] , references: [customerId])              
+    order               Order    @relation(fields: [orderId], references: [orderId])
+
+    // Relation
+    @@unique([orderId, customerId]) 
+    @@map("order_tracking")
+}
+
+model OrderItem {
+  orderItemId         String   @id @default(uuid()) @map("order_item_id") 
+  orderId    String      @map("order_id")
+  menuItemId String      @map("menu_item_id")
+  quantity   Int      @map("quantity")
+  price      Int      @map("price")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  order    Order    @relation(fields: [orderId], references: [orderId])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
+
+  @@index([orderId])
+  @@index([menuItemId])
+  @@map("order_items")
+}
+
+model PreferredPaymentSettings {
+  preferredPaymentSettingsId String   @id @default(uuid()) @map("preferred_payment_settings_id")
+  customerId                 String   @unique @map("customer_id")
+  paymentMethodId            String   @map("payment_method_id")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  paymentMethods PaymentMethod[]
+
+  customer Customer @relation(fields: [customerId], references: [customerId])
+
+  @@map("preferred_payment_settings")
+}
+
+model PaymentMethod {
+  paymentMethodId     String   @id @default(uuid()) @map("payment_method_id")
+  paymentMethodName   String   @map("payment_method_name")
+  paymentMethodData   Json     @map("payment_method_data")
+  preferredPaymentSettingsId String   @map("preferred_payment_settings_id")
+
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [paymentMethodId], references: [preferredPaymentSettingsId])
+
+  @@map("payment_methods")
+}
+
+model Rating {
+  ratingId    String   @id @default(uuid()) @map("rating_id")
+  customerId  String   @map("customer_id")
+  restaurantId String  @map("restaurant_id")
+  ratingScore        RatingScore  @map("rating_score")
+  review      String?  @map("review")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  customer   Customer   @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+
+  @@map("ratings")
+}
+
+// ====== Event Sourcing ======
+model CartEvent {
+  id          String   @id @default(uuid()) @map("id")
+  customerId  String   @map("customer_id")
+  eventType   CartEventType @map("event_type")
+  eventDate   DateTime @default(now()) @map("event_date")
+  
+  // Specific payload fields (Nullable because they don't apply to LOCK/CLEAR events)
+  menuItemId  String?  @map("menu_item_id")
+  itemName    String?  @map("item_name")
+  quantity    Int?     @map("quantity")
+  price       Int?     @map("price")
+
+  @@index([customerId])
+  @@map("cart_events")
+}
+
+enum CartEventType {
+  ADD_TO_CART
+  UPDATE_QUANTITY
+  REMOVE_FROM_CART
+  CLEAR_CART
+  LOCK_CART
+  UNLOCK_CART
+}
+
+enum RatingScore {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}
+
+enum TokenType {
+  REFRESH
+  VERIFICATION
+  FORGOT_PASSWORD
+}
+
+enum RoleKey {
+  ADMIN
+  CUSTOMER
+  RESTAURANT_MANAGER
+}

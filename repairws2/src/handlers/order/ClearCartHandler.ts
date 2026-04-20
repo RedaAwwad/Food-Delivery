@@ -1,0 +1,21 @@
+import { OrderHandler } from "./base/OrderHandler";
+import { OrderContext } from "../../types/OrderContext";
+import { cartService } from "../../services/cart.service";
+
+/**
+ * Clears the customer's cart after successful payment.
+ */
+export class ClearCartHandler extends OrderHandler {
+    protected async handle(context: OrderContext): Promise<void> {
+        if (!context.shouldClearCart) {
+            console.log(`[ClearCartHandler] Skipping cart clearing (payment failed)`);
+            return;
+        }
+
+        console.log(`[ClearCartHandler] Clearing cart`);
+
+        await cartService.clearCartByCustomerId(context.customerId, context.tx);
+
+        console.log(`[ClearCartHandler] Cart cleared successfully`);
+    }
+}

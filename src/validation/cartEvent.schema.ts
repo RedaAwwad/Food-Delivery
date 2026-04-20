@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { CartEventType } from "../generated/prisma/client";
+import { CartEventType } from "../generated/prisma/enums";
 
 export const CartEventSchema = Joi.object({
     eventType: Joi.string()

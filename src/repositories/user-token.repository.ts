@@ -1,8 +1,8 @@
 import { prisma } from "../config/prisma.config";
-import { TokenType } from "../generated/prisma/client";
 import { v7 as uuidv7 } from "uuid";
 import crypto from "crypto";
 import { CreateTokenData } from "../types/token";
+import { TokenType } from "../generated/prisma/enums";
 
 class UserTokenRepository {
   // Generate a cryptographically secure random token

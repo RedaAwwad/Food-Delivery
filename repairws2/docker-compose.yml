@@ -1,0 +1,31 @@
+services:
+  node-app:
+    container_name: express-node-app-container
+    build: .
+    volumes:
+      - ./src:/app/src
+      - ./prisma:/app/prisma
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./.env
+    environment:
+      - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:${DATABASE_PORT}/${DATABASE_NAME}?schema=public&connection_limit=50&pool_timeout=20
+    depends_on:
+      - postgres
+    command: ["npm", "run", "dev"]
+  postgres:
+    image: postgres:alpine
+    restart: always
+    container_name: postgres-db
+    ports:
+      - "${DATABASE_LOCAL_PORT}:5432"
+    volumes:
+      - postgres-db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME}
+      POSTGRES_USER: ${DATABASE_USER}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+    command: postgres -c 'max_connections=200'
+volumes:
+  postgres-db:

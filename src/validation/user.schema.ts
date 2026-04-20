@@ -1,5 +1,5 @@
 import Joi from "joi";
-import { RoleKey } from "../generated/prisma/client";
+import { RoleKey } from "../generated/prisma/enums";
 
 export const findAndUpdateUserSchema = Joi.object({
     userName: Joi.string().min(1).max(20).optional(),

@@ -5,7 +5,8 @@ import { SuccessResponse } from "../utils/response/success-response";
 
 class UserController {
     async findUserWithRestaurant(req: Request, res: Response) {
-        const result = await userService.findUserWithRestaurant(req.body);
+        const userRole = req.body.userRole || req.query.userRole as string || "restaurant";
+        const result = await userService.findUserWithRestaurant({ userId: req.user!.userId, userRole });
 
         return res
             .status(StatusCodes.OK)
@@ -37,7 +38,7 @@ class UserController {
     }
 
     async findUserById(req: Request, res: Response) {
-        const result = await userService.findUserById(req.body);
+        const result = await userService.findUserById(req.user!.userId);
 
         return res
             .status(StatusCodes.OK)

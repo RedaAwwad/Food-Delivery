@@ -1,0 +1,394 @@
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ====== User ======
+model User {
+  userId       String @id @default(uuid()) @map("user_id")
+  userName     String @map("user_name")
+  userPassword String @map("user_password")
+  userEmail    String @unique @map("user_email")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  isAdmin Boolean @default(false) @map("is_admin")
+
+  usersRoles        UserRole[]
+  customer          Customer?
+  restaurant        Restaurant?
+  userToken         UserToken?
+  userRefreshTokens RefreshToken[]
+  // Reverse relations
+  createdOrders     Order[]        @relation("CreatedOrders")
+  updatedOrders     Order[]        @relation("UpdatedOrders")
+
+  createdCustomers Customer[] @relation("CreatedCustomers")
+  updatedCustomers Customer[] @relation("UpdatedCustomers")
+
+  @@map("users")
+}
+
+// ====== Role ======
+model Role {
+  roleId    String   @id @default(uuid()) @map("role_id")
+  roleName  String   @map("role_name")
+  roleDesc  String?  @map("role_desc")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  usersRoles UserRole[]
+
+  @@map("roles")
+}
+
+// ====== UserRole ======
+model UserRole {
+  userId String @map("user_id")
+  roleId String @map("role_id")
+
+  user User @relation(fields: [userId], references: [userId])
+  role Role @relation(fields: [roleId], references: [roleId])
+
+  @@unique([userId, roleId])
+  @@map("users_roles")
+}
+
+model UserToken {
+  userTokenId String   @id @default(uuid()) @map("user_token_id")
+  userId      String   @unique @map("user_id")
+  token       String   @map("token")
+  expiresAt   DateTime @map("expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId])
+
+  @@map("user_tokens")
+}
+
+model RefreshToken {
+  refreshTokenId String   @id @default(uuid()) @map("refresh_token_id")
+  userId         String   @map("user_id")
+  token          String   @map("token")
+  expiresAt      DateTime @map("expires_at")
+
+  // Additional security fields
+  userAgent  String?  @map("user_agent")
+  ipAddress  String?  @map("ip_address")
+  deviceType String?  @map("device_type") // "mobile", "desktop", "tablet"
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+
+  // Security controls
+  isRevoked     Boolean   @default(false) @map("is_revoked")
+  revokedAt     DateTime? @map("revoked_at")
+  revokedReason String?   @map("revoked_reason") // "logout", "suspicious", "expired"
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([token])
+}
+
+// ====== Customer ======
+model Customer {
+  customerId               String                    @id @default(uuid()) @map("customer_id")
+  userId                   String                    @unique
+  customerPhone            String                    @map("customer_phone")
+  customerAvatar           String                    @map("customer_avatar")
+  createdAt                DateTime                  @default(now()) @map("created_at")
+  updatedAt                DateTime                  @updatedAt @map("updated_at")
+  isActive                 Boolean                   @default(false)
+  deactivatedAt            DateTime?
+  user                     User                      @relation(fields: [userId], references: [userId])
+  cart                     Cart?
+  preferredPaymentSettings PreferredPaymentSettings?
+
+  orders    Order[]
+  addresses Address[]
+  rating    Rating[]
+
+  createdById String
+  updatedById String
+
+  // Relations
+  createdBy User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
+  updatedBy User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
+
+  @@map("customers")
+}
+
+// ====== Restaurant ======
+model Restaurant {
+  restaurantId   String   @id @default(uuid()) @map("restaurant_id")
+  managerId      String   @unique @map("manager_id")
+  addressId      String   @unique @map("address_id")
+  restaurantName String
+  restaurantBio  String   @map("restaurant_bio")
+  restaurantLogo String?  @map("restaurant_logo")
+  isAvailable    Boolean  @map("is_available")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  manager User     @relation(fields: [managerId], references: [userId])
+  menu    Menu?
+  address Address?
+  rating  Rating[]
+
+  orders Order[]
+
+  @@map("restaurants")
+}
+
+// ====== Cart ======
+model Cart {
+  cartId     String  @id @default(uuid()) @map("cart_id")
+  customerId String  @unique @map("customer_id")
+  isLocked   Boolean @default(false) @map("is_locked")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  customer  Customer   @relation(fields: [customerId], references: [customerId])
+  cartItems CartItem[]
+
+  @@map("carts")
+}
+
+// ====== CartItem ======
+model CartItem {
+  cartItemId String @id @default(uuid()) @map("cart_item_id")
+  cartId     String @map("cart_id")
+  menuItemId String @map("menu_item_id")
+  quantity   Int    @map("quantity")
+  price      Int    @map("price")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cart     Cart     @relation(fields: [cartId], references: [cartId])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
+
+  @@unique([cartId, menuItemId])
+  @@map("cart_items")
+}
+
+// ====== Menu ======
+model Menu {
+  menuId       String  @id @default(uuid()) @map("menu_id")
+  restaurantId String  @unique @map("restaurant_id")
+  menuDesc     String  @map("menu_desc")
+  isActive     Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  restaurant     Restaurant     @relation(fields: [restaurantId], references: [restaurantId])
+  menuCategories MenuCategory[]
+
+  @@map("menus")
+}
+
+// ====== MenuCategory ======
+model MenuCategory {
+  menuCategoryId       String @id @default(uuid()) @map("menu_category_id")
+  menuId               String @map("menu_id")
+  menuCategoryName     String @map("menu_category_name")
+  menuCategoryImageUrl String @map("menu_category_image_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  menu      Menu       @relation(fields: [menuId], references: [menuId])
+  menuItems MenuItem[]
+
+  @@map("menu_categories")
+}
+
+// ====== MenuItem ======
+model MenuItem {
+  menuItemId       String  @id @default(uuid()) @map("menu_item_id")
+  menuCategoryId   String  @map("menu_category_id")
+  menuItemName     String
+  menuItemDesc     String  @map("menu_item_desc")
+  menuItemImageUrl String  @map("menu_item_image_url")
+  price            Int
+  stockQuantity    Int     @map("stock_quantity")
+  isActive         Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  menuCategory MenuCategory @relation(fields: [menuCategoryId], references: [menuCategoryId])
+  cartItems    CartItem[]
+  orderItems   OrderItem[]
+
+  @@map("menu_items")
+}
+
+model Order {
+  orderId        String   @id @default(uuid()) @map("order_id")
+  customerId     String   @map("customer_id")
+  restaurantId   String   @map("restaurant_id")
+  totalAmount    Int      @map("total_amount")
+  orderStatusKey String   @map("order_status_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  // Foreign keys
+  createdById String
+  updatedById String
+
+  // Relations
+  createdBy User? @relation("CreatedOrders", fields: [createdById], references: [userId])
+  updatedBy User? @relation("UpdatedOrders", fields: [updatedById], references: [userId])
+
+  customer   Customer   @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+
+  orderStatusDetails OrderStatus     @relation(fields: [orderStatusKey], references: [orderStatusKey])
+  orderTrackings     OrderTracking[]
+
+  orderItems OrderItem[]
+
+  @@map("orders")
+}
+
+// Payment status (pending, paid, failed, etc.)
+model OrderStatus {
+  orderStatusId   String @id @default(uuid()) @map("order_status_id")
+  orderStatusName String @map("order_status_name")
+  orderStatusKey  String @unique @map("order_status_key")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("order_statuses")
+}
+
+// Delivery tracking status (ongoing, out for delivery, delivered, etc.)
+model OrderTracking {
+  orderTrackingId    String            @id @default(uuid()) @map("order_tracking_id")
+  orderId            String            @map("order_id")
+  trackingStatusName String            @map("tracking_status_name")
+  trackingStatusKey  TrackingStatusKey @map("tracking_status_key")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  notes              String?
+  order              Order             @relation(fields: [orderId], references: [orderId]) // العلاقة
+
+  @@map("order_tracking")
+}
+
+enum TrackingStatusKey {
+  PENDING
+  ACCEPTED
+  PREPARING
+  PICKED_UP
+  DELIVERED
+}
+
+model OrderItem {
+  orderItemId String @id @default(uuid()) @map("order_item_id")
+  orderId     String @map("order_id")
+  menuItemId  String @map("menu_item_id")
+  quantity    Int    @map("quantity")
+  price       Int    @map("price")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  order    Order    @relation(fields: [orderId], references: [orderId])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [menuItemId])
+
+  @@map("order_items")
+}
+
+model Address {
+  addressId       String  @id @default(uuid()) @map("address_id")
+  customerId      String  @map("customer_id")
+  restaurantId    String  @unique @map("restaurant_id")
+  street          String
+  city            String
+  area            String
+  zipCode         Int     @map("zip_code")
+  block           String
+  apartmentNumber String
+  floor           String
+  latitude        Float
+  longitude       Float
+  isPrimary       Boolean @default(false) @map("is_primary")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  customer   Customer   @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+
+  @@map("addresses")
+}
+
+model PreferredPaymentSettings {
+  preferredPaymentSettingsId String @id @default(uuid()) @map("preferred_payment_settings_id")
+  customerId                 String @unique @map("customer_id")
+  paymentMethodId            String @map("payment_method_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  paymentMethods PaymentMethod[]
+
+  customer Customer @relation(fields: [customerId], references: [customerId])
+
+  @@map("preferred_payment_settings")
+}
+
+model PaymentMethod {
+  paymentMethodId            String @id @default(uuid()) @map("payment_method_id")
+  paymentMethodName          String @map("payment_method_name")
+  paymentMethodData          Json   @map("payment_method_data")
+  preferredPaymentSettingsId String @map("preferred_payment_settings_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [preferredPaymentSettingsId], references: [preferredPaymentSettingsId])
+
+  @@map("payment_methods")
+}
+
+model Rating {
+  ratingId     String      @id @default(uuid()) @map("rating_id")
+  customerId   String      @map("customer_id")
+  restaurantId String      @map("restaurant_id")
+  ratingScore  RatingScore @map("rating_score")
+  review       String?     @map("review")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  customer   Customer   @relation(fields: [customerId], references: [customerId])
+  restaurant Restaurant @relation(fields: [restaurantId], references: [restaurantId])
+
+  @@map("ratings")
+}
+
+enum RatingScore {
+  ONE
+  TWO
+  THREE
+  FOUR
+  FIVE
+}

@@ -1,5 +1,5 @@
 import { CartItemSummary } from "../types/CartItemSummary";
-import { OrderStatusKey } from "../generated/prisma/client";
+import { OrderStatusKey } from "../generated/prisma/enums";
 
 export type FindOrdersByIdDto = {
   orderId: string;

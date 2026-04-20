@@ -1,6 +1,7 @@
 import { prisma } from "../config/prisma.config";
 import { CreateCustomerRatingDto, updateCustomerRatingDto } from "../dto/rating.dto";
-import { RatingScore } from "../generated/prisma/client";
+import { RatingScore } from "../generated/prisma/enums";
+
 import { BadRequestError, NotFoundError } from "../utils/errors";
 
 class RatingRepository {
