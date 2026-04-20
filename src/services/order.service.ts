@@ -25,7 +25,6 @@ class OrderService {
     }
   }
 
-
   private async handleIdempotencyCheck(
     idempotencyKey: string,
     requestTimestamp: Date
@@ -79,6 +78,7 @@ class OrderService {
       requestTimestamp
     );
   }
+
   async findAllCustomerOrdersByCustomerId(customerId: string) {
     return await orderRepository.findAllCustomerOrdersByCustomerId(customerId);
   }
