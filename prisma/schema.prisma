@@ -85,6 +85,8 @@ model Customer {
 
   preferredPaymentSettings PreferredPaymentSettings?
 
+  providerCustomers ProviderCustomer[]
+
   // Relations
   createdBy   User? @relation("CreatedCustomers", fields: [createdById], references: [userId])
   updatedBy   User? @relation("UpdatedCustomers", fields: [updatedById], references: [userId])
@@ -229,6 +231,76 @@ model Order {
   @@index([customerId])
   @@index([restaurantId]) 
   @@map("orders")
+
+  paymentAttempts PaymentAttempt[]
+  refunds         Refund[]
+}
+
+enum PaymentAttemptStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model PaymentAttempt {
+  idempotencyKey String   @id @map("idempotency_key")
+  orderId        String?  @map("order_id")  // Nullable - set after order creation
+  status         PaymentAttemptStatus @map("status")
+  provider       String   @map("provider")
+  transactionId  String?  @map("transaction_id")
+  responseData   Json?    @map("response_data")
+  
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  order Order? @relation(fields: [orderId], references: [orderId])
+
+  @@index([orderId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payment_attempts")
+}
+
+enum RefundStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model Refund {
+  refundId            String   @id @default(uuid()) @map("refund_id")
+  orderId             String   @map("order_id")
+  paymentAttemptId    String   @map("payment_attempt_id")
+  refundTransactionId String   @map("refund_transaction_id")
+  amount              Decimal  @map("amount") @db.Decimal(10, 2)
+  status              RefundStatus @map("status")
+  provider            String   @map("provider")
+  
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [orderId])
+
+  @@index([orderId])
+  @@index([status])
+  @@map("refunds")
+}
+
+// Add to schema.prisma
+model ProviderCustomer {
+  providerCustomerId String   @id @default(uuid()) @map("provider_customer_id")
+  customerId         String   @map("customer_id")
+  provider           String   @map("provider")
+  externalCustomerId String   @map("external_customer_id")
+  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  
+  customer Customer @relation(fields: [customerId], references: [customerId])
+  
+  @@unique([customerId, provider])
+  @@index([provider])
+  @@map("provider_customers")
 }
 
 // Payment status (pending, paid, failed, etc.)
@@ -310,7 +382,7 @@ model PaymentMethod {
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
 
-  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [paymentMethodId], references: [preferredPaymentSettingsId])
+  preferredPaymentSettings PreferredPaymentSettings @relation(fields: [preferredPaymentSettingsId], references: [preferredPaymentSettingsId])
 
   @@map("payment_methods")
 }

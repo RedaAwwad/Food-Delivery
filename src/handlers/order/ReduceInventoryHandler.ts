@@ -8,11 +8,6 @@ import { InternalServerError } from "../../utils/errors";
  */
 export class ReduceInventoryHandler extends OrderHandler {
     protected async handle(context: OrderContext): Promise<void> {
-        if (!context.shouldReduceInventory) {
-            console.log(`[ReduceInventoryHandler] Skipping inventory reduction (payment failed)`);
-            return;
-        }
-
         console.log(`[ReduceInventoryHandler] Reducing inventory`);
 
         if (!context.cartItems) {

@@ -7,12 +7,12 @@ export type TrackingStatusStep = {
 export type OrderTrackingStatusDto = {
   orderId: string;
   customerId: string;
-  trackingStatus: TrackingStatusStep;
+  trackingStatus: TrackingStatusStep[];
 }
 
 export type UpdateOrderTrackingStatusDto = {
   orderId: string
   managerId: string
   customerId: string
-  orderStatusKey: string
+  orderStatusKey: TrackingStatusStep["orderStatusKey"]
 }

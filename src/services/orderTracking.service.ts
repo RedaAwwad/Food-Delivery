@@ -1,4 +1,4 @@
-import { TrackingStatusStep, UpdateOrderTrackingStatusDto } from "../dto/orderTrackingStatus.dto";
+import { UpdateOrderTrackingStatusDto } from "../dto/orderTrackingStatus.dto";
 import { orderTrackingRepository } from "../repositories/order-tracking.repository";
 import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { orderService } from "./order.service";
@@ -14,29 +14,18 @@ class OrderTrackingService {
   }
 
   async updateOrderTrackingStatus(updateDto: UpdateOrderTrackingStatusDto) {
-    const orderTrackingStatus = await this.getOrderTrackingStatus(
+    // Check if order exists and customer is authorized
+    await this.getOrderTrackingStatus(
       updateDto.orderId,
       updateDto.customerId
     );
 
-    if (!orderTrackingStatus) throw NotFoundError("Order Tracking Status Not Found")
-
-    // convert JsonValue to array && add to json
-    const trackingStatus = (orderTrackingStatus.trackingStatus as unknown as TrackingStatusStep[]) ?? []
-    if (trackingStatus.at(-1)?.orderStatusKey === updateDto.orderStatusKey) {
-      return orderTrackingStatus
-    }
-    trackingStatus.push({
-      orderStatusKey: updateDto.orderStatusKey as TrackingStatusStep['orderStatusKey'],
-      updatedAt: new Date(),
-      updatedBy: updateDto.managerId,
-    });
-
-    return await orderTrackingRepository.updateOrderTrackingStatus(
+    return await orderTrackingRepository.appendOrderTrackingStatus(
       updateDto.orderId,
       updateDto.customerId,
-      trackingStatus
-    )
+      updateDto.orderStatusKey,
+      updateDto.managerId
+    );
   }
 }
 

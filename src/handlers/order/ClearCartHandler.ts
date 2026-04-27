@@ -14,7 +14,7 @@ export class ClearCartHandler extends OrderHandler {
 
         console.log(`[ClearCartHandler] Clearing cart`);
 
-        await cartService.clearCartByCustomerId(context.customerId, context.tx);
+        await cartService.clearCartByCustomerId(context.customerId);
 
         console.log(`[ClearCartHandler] Cart cleared successfully`);
     }
