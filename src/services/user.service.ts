@@ -1,8 +1,22 @@
-import { Prisma, User } from "../generated/prisma/client";
+import { Prisma, RoleKey, User } from "../generated/prisma/client";
 import { userRepository } from "../repositories/user.repository";
-import { roleService } from "./role.service";
 import { ConflictError, InternalServerError, NotFoundError } from "../utils/errors";
-import { ExtendedTransactionClient } from "../config/prisma.config";
+import { ExtendedTransactionClient, prisma } from "../config/prisma.config";
+
+const DEFAULT_ROLE_DEFINITIONS: Record<RoleKey, { roleName: string; roleDesc?: string }> = {
+  ADMIN: {
+    roleName: "Admin",
+    roleDesc: "System administrator with full access",
+  },
+  CUSTOMER: {
+    roleName: "Customer",
+    roleDesc: "Default role assigned to customers during signup",
+  },
+  RESTAURANT_MANAGER: {
+    roleName: "Restaurant Manager",
+    roleDesc: "Restaurant manager role",
+  },
+};
 
 class UserService {
   async findUserWithRestaurant(body: { userId: string; userRole: string }) {
@@ -34,8 +48,24 @@ class UserService {
   }
 
   async assignRoleToUser(userId: string, roleKey: string, tx?: ExtendedTransactionClient) {
-    const roleExists = await roleService.findRoleByKey(roleKey as any);
-    if (!roleExists) throw InternalServerError("Role definition not found");
+    const client = tx || prisma;
+    const normalizedRoleKey = roleKey as RoleKey;
+    let roleExists = await client.role.findUnique({
+      where: { roleKey: normalizedRoleKey },
+    });
+
+    if (!roleExists) {
+      const defaultRoleDefinition = DEFAULT_ROLE_DEFINITIONS[normalizedRoleKey];
+      if (!defaultRoleDefinition) throw InternalServerError("Role definition not found");
+
+      roleExists = await client.role.create({
+        data: {
+          roleKey: normalizedRoleKey,
+          roleName: defaultRoleDefinition.roleName,
+          roleDesc: defaultRoleDefinition.roleDesc ?? null,
+        },
+      });
+    }
 
     const hasRole = await userRepository.hasRole(userId, roleKey, tx);
     if (hasRole) throw ConflictError("User already has this role");

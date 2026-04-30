@@ -11,6 +11,7 @@ import { refundService } from "./RefundService";
 import { menuItemService } from "./menuItem.service";
 import { OrderStatusKey } from "../generated/prisma/client";
 import { InternalServerError, NotFoundError, BadRequestError, ForbiddenError, ConflictError, CustomError } from "../utils/errors";
+import { cartService } from "./cart.service";
 
 class OrderService {
   private async createPendingAttempt(idempotencyKey: string, timestamp: Date): Promise<void> {
@@ -147,6 +148,31 @@ class OrderService {
     });
   }
 
+  private async resolveRestaurantIdFromCart(customerId: string): Promise<string> {
+    const cart = await cartService.getCartWithCartItemsByCustomerId(customerId);
+    const cartItems = cart?.cartItems || [];
+
+    if (cartItems.length === 0) {
+      throw BadRequestError("Cart is empty. Cannot place an order.");
+    }
+
+    const restaurantIds = new Set(
+      cartItems
+        .map((item: any) => item.menuItem?.menuCategory?.menu?.restaurantId)
+        .filter(Boolean)
+    );
+
+    if (restaurantIds.size === 0) {
+      throw BadRequestError("Unable to resolve restaurant from cart items.");
+    }
+
+    if (restaurantIds.size > 1) {
+      throw BadRequestError("Cart contains items from multiple restaurants.");
+    }
+
+    return Array.from(restaurantIds)[0] as string;
+  }
+
   private async processPaymentAndFinalize(
     resultContext: OrderContext,
     idempotencyKey: string,
@@ -184,11 +210,11 @@ class OrderService {
 
   async placeOrder(
     customerId: string, 
-    restaurantId: string, 
     customerEmail: string,
     paymentProvider?: string,
     paymentMethodId?: string
   ) {
+    const restaurantId = await this.resolveRestaurantIdFromCart(customerId);
     const requestTimestamp = new Date();
     const idempotencyKey = `cart_${customerId}_${restaurantId}`;
 

@@ -32,6 +32,12 @@ class CartService {
   }
 
   async addToCart(cartItem: CreateCartItemDTO, customerId: string) {
+    console.log("[cart.addToCart] Resolving menu item", {
+      customerId,
+      menuItemId: cartItem.menuItemId,
+      quantity: cartItem.quantity,
+    });
+
     const menuItem = await menuItemService.getMenuItemById(cartItem.menuItemId);
 
     if (!menuItem) throw NotFoundError("Menu Item not found");

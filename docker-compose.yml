@@ -13,7 +13,7 @@ services:
       - DATABASE_URL=postgresql://${DATABASE_USER}:${DATABASE_PASSWORD}@postgres:${DATABASE_PORT}/${DATABASE_NAME}?schema=public&connection_limit=50&pool_timeout=20
     depends_on:
       - postgres
-    command: ["npm", "run", "dev"]
+    command: ["sh", "-c", "npx prisma migrate deploy && npm run dev"]
   postgres:
     image: postgres:alpine
     restart: always

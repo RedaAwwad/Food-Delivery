@@ -40,7 +40,7 @@ class MenuItemRepository {
         stockQuantity: true,
       },
     });
-    if (!menuItem) throw NotFoundError("no menu item found");
+    if (!menuItem) throw NotFoundError("Menu item");
 
     return menuItem;
   }

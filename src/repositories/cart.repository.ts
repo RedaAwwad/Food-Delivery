@@ -72,6 +72,19 @@ class CartRepository {
             menuItemId: true,
             quantity: true,
             price: true,
+            menuItem: {
+              select: {
+                menuCategory: {
+                  select: {
+                    menu: {
+                      select: {
+                        restaurantId: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
         cartId: true,

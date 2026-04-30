@@ -1,15 +1,22 @@
 import { menuItemService } from "../services/menuItem.service";
 import { Request, Response } from "express";
+import { BadRequestError } from "../utils/errors";
 import { SuccessResponse } from "../utils/response/success-response";
 
 class MenuItemController {
   async getAllMenuItemByMenuCategoryId(req: Request, res: Response) {
-    const menuItem = await menuItemService.getAllMenuItemsByMenuCategoryId(req.body.menuCategoryId);
+    const menuCategoryId = req.params.menuCategoryId;
+    if (!menuCategoryId) throw BadRequestError("menuCategoryId is required");
+
+    const menuItem = await menuItemService.getAllMenuItemsByMenuCategoryId(menuCategoryId);
     return res.status(200).json(menuItem);
   }
 
   async getMenuItemById(req: Request, res: Response) {
-    const menuItem = await menuItemService.getMenuItemById(req.body.menuItemId);
+    const menuItemId = req.params.menuItemId;
+    if (!menuItemId) throw BadRequestError("menuItemId is required");
+
+    const menuItem = await menuItemService.getMenuItemById(menuItemId);
     return res.status(200).json(menuItem);
   }
 
