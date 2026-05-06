@@ -19,9 +19,10 @@ class NotificationService {
     /**
      * Sends a notification to the customer about their order.
      */
-    async notifyCustomer(customerId: string, orderId: string, orderStatus: string): Promise<void> {
+    async notifyCustomer(customerId: string, orderId: string, orderStatus: string, reason?: string): Promise<void> {
         // Mock implementation - in production, this would send actual notifications
         console.log(`📧 [NotificationService] Sending notification to customer ${customerId} about order ${orderId} (Status: ${orderStatus})`);
+        if (reason) console.log(`📧 [NotificationService] Reason: ${reason}`);
 
         // Simulate async operation
         await new Promise(resolve => setTimeout(resolve, 100));

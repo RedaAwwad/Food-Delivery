@@ -11,6 +11,9 @@ import { refundService } from "./RefundService";
 import { menuItemService } from "./menuItem.service";
 import { OrderStatusKey } from "../generated/prisma/client";
 import { InternalServerError, NotFoundError, BadRequestError, ForbiddenError, ConflictError, CustomError } from "../utils/errors";
+import { notificationService } from "./notification.service";
+import { orderTrackingService } from "./orderTracking.service";
+import { paymentService } from "./PaymentService";
 
 class OrderService {
   private async createPendingAttempt(idempotencyKey: string, timestamp: Date): Promise<void> {
@@ -96,26 +99,85 @@ class OrderService {
     return updateOrder;
   }
 
+  private async releasePaymentHold(orderId: string) {
+    const idempotencyKey = `order_${orderId}`;
+    const attempt = await paymentAttemptService.findAttempt(idempotencyKey);
+
+    if (!attempt) return;
+
+    if (attempt.status === PaymentAttemptStatus.AUTHORIZED) {
+      // Void the authorization hold — delegates Stripe call to PaymentService
+      await paymentService.voidHold(orderId);
+    } else if (attempt.status === PaymentAttemptStatus.SUCCESS) {
+      // Funds already captured, so process a full refund
+      await refundService.refundOrder(orderId);
+    }
+    // If PENDING or FAILED, no payment action needed.
+  }
+
   async cancelOrder(orderId: string, customerId: string) {
     const order = await orderRepository.findOrderById(orderId);
 
     if (!order) throw NotFoundError("Order not found");
     if (order.customerId !== customerId) throw ForbiddenError("Not your order");
-    if (order.orderStatus === OrderStatusKey.COMPLETED) throw BadRequestError("Cannot cancel delivered order");
+    if (order.orderStatus === OrderStatusKey.COMPLETED) throw BadRequestError("Cannot cancel completed order");
+    if (order.orderStatus === OrderStatusKey.CANCELED) throw BadRequestError("Order is already cancelled");
 
-    // 1. Process refund
-    await refundService.refundOrder(orderId);
+    // Guard: Prevent cancellation if PREPARING
+    const trackings = await orderTrackingService.getOrderTrackingStatus(orderId, customerId);
+    if (!trackings || !trackings.trackingStatus) throw NotFoundError("Order tracking not found");
+    const trackingList = trackings.trackingStatus as unknown as { orderStatusKey: string }[];
+    const hasReachedPreparing = trackingList.some(t => 
+      t.orderStatusKey === 'PREPARING' || 
+      t.orderStatusKey === 'OUTFORDELIVERY' || 
+      t.orderStatusKey === 'DELIVERED'
+    );
+    if (hasReachedPreparing) throw BadRequestError("Cannot cancel an order that is already being prepared");
 
-    // 2. Update order status
+    // Release the payment hold or refund
+    await this.releasePaymentHold(orderId);
+
+    // Update order status
     await orderRepository.updateOrderStatus({
       orderId,
       newOrderStatus: OrderStatusKey.CANCELED
     });
 
-    // 3. Restore inventory
+    // Restore inventory
     await menuItemService.restoreStock(orderId);
 
-    return { message: "Order cancelled and refund processed" };
+    return { message: "Order cancelled successfully" };
+  }
+
+  async cancelOrderByRestaurant(orderId: string, restaurantId: string, reason: string) {
+    const order = await orderRepository.findOrderById(orderId);
+
+    if (!order) throw NotFoundError("Order not found");
+    if (order.orderStatus === OrderStatusKey.COMPLETED) throw BadRequestError("Cannot cancel a completed order");
+    if (order.orderStatus === OrderStatusKey.CANCELED) throw BadRequestError("Order is already cancelled");
+
+    // Guard: ensure the calling restaurant owns this order
+    if (order.restaurantId !== restaurantId)
+        throw ForbiddenError("This order does not belong to your restaurant");
+
+    // Release the payment hold (or refund if already captured)
+    await this.releasePaymentHold(orderId);
+
+    // Update order status
+    await orderRepository.updateOrderStatus({ orderId, newOrderStatus: OrderStatusKey.CANCELED });
+
+    // Restore inventory
+    await menuItemService.restoreStock(orderId);
+
+    // Notify the customer with the reason
+    await notificationService.notifyCustomer(
+        order.customerId,
+        orderId,
+        `CANCELED`,
+        reason
+    );
+
+    return { message: "Order cancelled successfully", reason };
   }
 
   private async executeOrderTransaction(

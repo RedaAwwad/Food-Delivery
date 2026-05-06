@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import stripe from '../utils/payment/stripe';
 import { prisma } from '../config/prisma.config';
-import { orderRepository } from '../repositories/order.repository';
-import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
+import { orderService } from '../services/order.service';
+import { paymentAttemptService } from '../services/PaymentAttemptService';
 import { cartService } from '../services/cart.service';
 import { menuItemService } from '../services/menuItem.service';
 import { PaymentAttemptStatus, OrderStatusKey } from '../generated/prisma/client';
@@ -36,7 +36,10 @@ class StripeWebhookController {
         try {
             switch (event.type) {
                 case 'payment_intent.succeeded':
-                    await this.handlePaymentSuccess(event.data.object);
+                    await this.handlePaymentCaptured(event.data.object);
+                    break;
+                case 'payment_intent.amount_capturable_updated':
+                    await this.handlePaymentAuthorized(event.data.object);
                     break;
                 case 'payment_intent.payment_failed':
                     await this.handlePaymentFailure(event.data.object);
@@ -56,13 +59,68 @@ class StripeWebhookController {
     }
 
     /**
+     * payment_intent.amount_capturable_updated
+     * - Marks PaymentAttempt as AUTHORIZED
+     * - Order status remains PENDING
+     * - Saves payment method if requested
+     */
+    private async handlePaymentAuthorized(paymentIntent: any) {
+        const { orderId, customerId } = paymentIntent.metadata as {
+            orderId: string;
+            customerId: string;
+        };
+
+        if (!orderId) {
+            console.error('[Webhook] payment_intent.amount_capturable_updated missing orderId in metadata', paymentIntent.id);
+            return;
+        }
+
+        const idempotencyKey = `order_${orderId}`;
+
+        const attempt = await paymentAttemptService.findAttempt(idempotencyKey);
+        if (attempt?.status === PaymentAttemptStatus.AUTHORIZED || attempt?.status === PaymentAttemptStatus.SUCCESS) {
+            console.log(`[Webhook] Already processed authorization for order ${orderId} — skipping`);
+            return;
+        }
+
+        await paymentAttemptService.updateStatus(
+            idempotencyKey,
+            PaymentAttemptStatus.AUTHORIZED,
+            paymentIntent.id,
+            { amount: paymentIntent.amount / 100 }
+        );
+
+        console.log(`[Webhook] Order ${orderId} authorized. PaymentIntent: ${paymentIntent.id}`);
+
+        // Finalize cart-level attempt
+        try {
+            const order = await orderService.findOrderById(orderId);
+            const cartKey = `cart_${customerId}_${order.restaurantId}`;
+            const cartAttempt = await paymentAttemptService.findAttempt(cartKey);
+            if (cartAttempt && cartAttempt.status === PaymentAttemptStatus.PENDING) {
+                await paymentAttemptService.updateStatus(
+                    cartKey,
+                    PaymentAttemptStatus.SUCCESS,
+                    paymentIntent.id,
+                    { finalizedBy: 'webhook_auth', orderId }
+                );
+                console.log(`[Webhook] Cart-level attempt finalized for customer ${customerId}`);
+            }
+        } catch (err: any) {
+            console.warn(`[Webhook] Could not finalize cart-level attempt:`, err.message);
+        }
+
+        // Save new payment method
+        await this.savePaymentMethodInfo(paymentIntent, customerId);
+    }
+
+    /**
      * payment_intent.succeeded
      * - Updates order to COMPLETED
      * - Marks PaymentAttempt as SUCCESS
      * - Clears the cart
-     * - Idempotent: safe to run multiple times (Stripe retries for 72h)
      */
-    private async handlePaymentSuccess(paymentIntent: any) {
+    private async handlePaymentCaptured(paymentIntent: any) {
         const { orderId, customerId } = paymentIntent.metadata as {
             orderId: string;
             customerId: string;
@@ -70,31 +128,28 @@ class StripeWebhookController {
 
         if (!orderId) {
             console.error('[Webhook] payment_intent.succeeded missing orderId in metadata', paymentIntent.id);
-            return; // Can't recover without orderId — log and return 200 so Stripe stops retrying
+            return;
         }
 
         const idempotencyKey = `order_${orderId}`;
 
-        // --- Webhook idempotency guard ---
-        // Stripe retries webhooks for 72h. If we already processed this, return early.
-        const attempt = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+        const attempt = await paymentAttemptService.findAttempt(idempotencyKey);
         if (attempt?.status === PaymentAttemptStatus.SUCCESS) {
-            console.log(`[Webhook] Already processed payment for order ${orderId} — skipping`);
+            console.log(`[Webhook] Already processed capture for order ${orderId} — skipping`);
             return;
         }
 
-        // --- Atomically confirm the order and finalize the payment attempt ---
         await prisma.$transaction(async (tx) => {
-            await orderRepository.updateOrderStatus(
+            await orderService.updateOrderStatus(
                 { orderId, newOrderStatus: OrderStatusKey.COMPLETED },
                 tx
             );
 
-            await paymentAttemptRepository.updateStatus(
+            await paymentAttemptService.updateStatus(
                 idempotencyKey,
                 PaymentAttemptStatus.SUCCESS,
                 paymentIntent.id,
-                { amount: paymentIntent.amount / 100 }
+                { amount: paymentIntent.amount_received / 100 }
             );
 
             if (customerId) {
@@ -102,30 +157,10 @@ class StripeWebhookController {
             }
         });
 
-        console.log(`[Webhook] Order ${orderId} confirmed. PaymentIntent: ${paymentIntent.id}`);
+        console.log(`[Webhook] Order ${orderId} captured and completed. PaymentIntent: ${paymentIntent.id}`);
+    }
 
-        // --- Finalize the cart-level attempt so the user can place new orders ---
-        // The cart-level key (cart_{customerId}_{restaurantId}) stays PENDING unless we explicitly
-        // close it here. Without this, the next placeOrder call sees PENDING and throws "in progress".
-        try {
-            const order = await orderRepository.findOrderById(orderId);
-            const cartKey = `cart_${customerId}_${order.restaurantId}`;
-            const cartAttempt = await paymentAttemptRepository.findByIdempotencyKey(cartKey);
-            if (cartAttempt && cartAttempt.status === PaymentAttemptStatus.PENDING) {
-                await paymentAttemptRepository.updateStatus(
-                    cartKey,
-                    PaymentAttemptStatus.SUCCESS,
-                    paymentIntent.id,
-                    { finalizedBy: 'webhook', orderId }
-                );
-                console.log(`[Webhook] Cart-level attempt finalized for customer ${customerId}`);
-            }
-        } catch (err: any) {
-            // Non-fatal: the stale job will catch it if this fails
-            console.warn(`[Webhook] Could not finalize cart-level attempt:`, err.message);
-        }
-
-        // --- Save the new payment method if requested ---
+    private async savePaymentMethodInfo(paymentIntent: any, customerId: string) {
         if (paymentIntent.setup_future_usage === 'off_session' && paymentIntent.payment_method && customerId) {
             try {
                 // Ensure customer has settings
@@ -182,7 +217,6 @@ class StripeWebhookController {
                 console.error(`[Webhook] Handled non-fatal error saving payment method:`, err.message);
             }
         }
-        // Note: inventory was already reduced by ReduceInventoryHandler in the chain
     }
 
     /**
@@ -202,13 +236,13 @@ class StripeWebhookController {
         const idempotencyKey = `order_${orderId}`;
 
         // Guard against duplicate processing
-        const attempt = await paymentAttemptRepository.findByIdempotencyKey(idempotencyKey);
+        const attempt = await paymentAttemptService.findAttempt(idempotencyKey);
         if (attempt?.status === PaymentAttemptStatus.FAILED) {
             console.log(`[Webhook] Already processed failure for order ${orderId} — skipping`);
             return;
         }
 
-        await paymentAttemptRepository.updateStatus(
+        await paymentAttemptService.updateStatus(
             idempotencyKey,
             PaymentAttemptStatus.FAILED,
             paymentIntent.id,
@@ -218,7 +252,7 @@ class StripeWebhookController {
         // Atomic: if restoreStock fails, the status update rolls back
         // and Stripe retries the webhook cleanly.
         await prisma.$transaction(async (tx) => {
-            await orderRepository.updateOrderStatus(
+            await orderService.updateOrderStatus(
                 { orderId, newOrderStatus: OrderStatusKey.CANCELED },
                 tx
             );

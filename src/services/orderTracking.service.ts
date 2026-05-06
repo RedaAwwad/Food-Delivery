@@ -2,6 +2,7 @@ import { UpdateOrderTrackingStatusDto } from "../dto/orderTrackingStatus.dto";
 import { orderTrackingRepository } from "../repositories/order-tracking.repository";
 import { ForbiddenError, NotFoundError } from "../utils/errors";
 import { orderService } from "./order.service";
+import { paymentService } from "./PaymentService";
 
 class OrderTrackingService {
   async getOrderTrackingStatus(orderId: string, customerId: string) {
@@ -19,6 +20,13 @@ class OrderTrackingService {
       updateDto.orderId,
       updateDto.customerId
     );
+
+    // If restaurant marks as PREPARING → trigger payment capture.
+    // This MUST succeed before the status update proceeds.
+    // If capture fails, the request errors out and the restaurant can retry.
+    if (updateDto.orderStatusKey === 'PREPARING') {
+      await paymentService.capturePayment(updateDto.orderId);
+    }
 
     return await orderTrackingRepository.appendOrderTrackingStatus(
       updateDto.orderId,

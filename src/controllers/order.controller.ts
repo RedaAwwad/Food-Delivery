@@ -20,7 +20,16 @@ class OrderController {
   }
 
   async cancelOrder(req: Request, res: Response) {
-    const order = await orderService.cancelOrder(req.body, req.user?.customerId!);
+    const order = await orderService.cancelOrder(req.params.orderId!, req.user?.customerId!);
+    res.status(StatusCodes.OK).json({ success: true, data: order });
+  }
+
+  async cancelOrderByRestaurant(req: Request, res: Response) {
+    const order = await orderService.cancelOrderByRestaurant(
+      req.params.orderId!,
+      req.user?.restaurantId!,
+      req.body.reason
+    );
     res.status(StatusCodes.OK).json({ success: true, data: order });
   }
 

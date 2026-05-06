@@ -1,4 +1,4 @@
-import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentResult, RefundResult, CaptureResult } from './IPaymentStrategy';
 
 export class CashOnDeliveryStrategy implements IPaymentStrategy {
     async processPayment(
@@ -14,6 +14,11 @@ export class CashOnDeliveryStrategy implements IPaymentStrategy {
             message: 'Cash on delivery confirmed',
             requiresAction: false
         };
+    }
+
+    async capturePayment(transactionId: string, amount?: number): Promise<CaptureResult> {
+        console.log(`[COD] Capture request for ${transactionId} (No-op)`);
+        return { success: true, message: 'COD — no capture needed' };
     }
 
     async refund(

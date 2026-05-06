@@ -51,6 +51,16 @@ export class PaymentAttemptService {
         timestamp?: Date
     ) {
         const status = success ? PaymentAttemptStatus.SUCCESS : PaymentAttemptStatus.FAILED;
+        return this.updateStatus(key, status, transactionId, data, timestamp);
+    }
+
+    async updateStatus(
+        key: string,
+        status: PaymentAttemptStatus,
+        transactionId?: string,
+        data: any = {},
+        timestamp?: Date
+    ) {
         return paymentAttemptRepository.updateStatus(key, status, transactionId, data, timestamp);
     }
 

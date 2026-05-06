@@ -2,7 +2,7 @@ import express from "express";
 import { orderController } from "../controllers/order.controller";
 import { isAuthenticated, isAuthorized } from "../middleware/auth.middleware";
 import { validateRequest } from "../middleware/validate-request";
-import { updateOrderStatusSchema } from "../validation/order.schema";
+import { cancelOrderByRestaurantSchema, updateOrderStatusSchema } from "../validation/order.schema";
 
 const orderRouter = express.Router();
 
@@ -130,8 +130,15 @@ orderRouter.patch(
  */
 orderRouter.patch(
   "/:orderId/cancel",
-  isAuthorized(["RESTAURANT_MANAGER"]),
+  isAuthorized(["CUSTOMER"]),
   orderController.cancelOrder
+);
+
+orderRouter.patch(
+  "/:orderId/cancel-by-restaurant",
+  validateRequest(cancelOrderByRestaurantSchema),
+  isAuthorized(["RESTAURANT_MANAGER"]),
+  orderController.cancelOrderByRestaurant
 );
 
 /**

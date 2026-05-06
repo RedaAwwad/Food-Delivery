@@ -1,4 +1,4 @@
-import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentResult, RefundResult, CaptureResult } from './IPaymentStrategy';
 import stripe from '../../../utils/payment/stripe';
 
 export class StripeStrategy implements IPaymentStrategy {
@@ -36,6 +36,9 @@ export class StripeStrategy implements IPaymentStrategy {
             intentParams.setup_future_usage = 'off_session';
         }
 
+        // Set capture method to manual to place a hold (authorization) rather than immediate charge
+        intentParams.capture_method = 'manual';
+
         const paymentIntent = await stripe.paymentIntents.create(intentParams, { idempotencyKey }); // CRITICAL: Stripe deduplicates for 24h on same key
 
         console.log(`[Stripe] PaymentIntent created: ${paymentIntent.id}`);
@@ -46,6 +49,24 @@ export class StripeStrategy implements IPaymentStrategy {
             clientSecret: paymentIntent.client_secret!,
             requiresAction: true,
         };
+    }
+
+    async capturePayment(transactionId: string, amount?: number): Promise<CaptureResult> {
+        try {
+            console.log(`[Stripe] Capturing payment_intent ${transactionId}`);
+            const captureParams: any = {};
+            if (amount !== undefined) {
+                captureParams.amount_to_capture = Math.round(amount * 100);
+            }
+            await stripe.paymentIntents.capture(transactionId, captureParams);
+            return { success: true };
+        } catch (error: any) {
+            console.error('[Stripe] Capture failed:', error);
+            return {
+                success: false,
+                message: error.message || 'Stripe capture failed'
+            };
+        }
     }
 
     async refund(transactionId: string, amount: number): Promise<RefundResult> {

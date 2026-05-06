@@ -1,12 +1,12 @@
 import { PaymentStrategyFactory } from './payment/PaymentStrategyFactory';
 import { preferredPaymentSettingsService } from './PreferredPaymentSettingsService';
 import { paymentAttemptService } from './PaymentAttemptService';
-import { paymentAttemptRepository } from '../repositories/PaymentAttemptRepository';
 import { PaymentAttemptStatus } from '../generated/prisma/client';
 import { UnprocessableEntityError, InternalServerError } from '../utils/errors/error-factories';
 import { PaymentResult } from './payment/strategies/IPaymentStrategy';
 import { CustomError } from '../utils/errors';
 import { prisma } from '../config/prisma.config';
+import stripe from '../utils/payment/stripe';
 
 export class PaymentService {
 
@@ -101,8 +101,8 @@ export class PaymentService {
             );
 
             if (result.requiresAction) {
-                // Keep PENDING, save clientSecret for retries. Webhook will set to SUCCESS.
-                await paymentAttemptRepository.updateStatus(
+                // Keep PENDING, save clientSecret for retries. Webhook will set to AUTHORIZED.
+                await paymentAttemptService.updateStatus(
                     idempotencyKey,
                     PaymentAttemptStatus.PENDING,
                     result.transactionId,
@@ -110,7 +110,7 @@ export class PaymentService {
                 );
             } else {
                 // Fully synchronous success (e.g. COD).
-                await paymentAttemptRepository.updateStatus(
+                await paymentAttemptService.updateStatus(
                     idempotencyKey,
                     PaymentAttemptStatus.SUCCESS,
                     result.transactionId,
@@ -124,6 +124,50 @@ export class PaymentService {
             if (error instanceof CustomError) throw error;
             throw InternalServerError("Payment processing failed", error);
         }
+    }
+
+    async capturePayment(orderId: string, amount?: number): Promise<void> {
+        const idempotencyKey = `order_${orderId}`;
+        const attempt = await paymentAttemptService.findAttempt(idempotencyKey);
+
+        if (!attempt) throw new CustomError({ statusCode: 404, message: `No payment attempt for order ${orderId}` });
+        if (attempt.status === PaymentAttemptStatus.SUCCESS) {
+            return; // Already captured
+        }
+        if (attempt.status !== PaymentAttemptStatus.AUTHORIZED) {
+            throw new CustomError({ statusCode: 400, message: `Cannot capture payment in status ${attempt.status}` });
+        }
+        if (!attempt.transactionId) throw InternalServerError("Missing transactionId for capture");
+
+        const strategy = PaymentStrategyFactory.getStrategy(attempt.provider);
+        await strategy.capturePayment(attempt.transactionId, amount);
+        
+        await paymentAttemptService.updateStatus(
+            idempotencyKey,
+            PaymentAttemptStatus.SUCCESS,
+            attempt.transactionId,
+            { capturedAt: new Date().toISOString() }
+        );
+    }
+
+    /**
+     * Voids an AUTHORIZED hold. Called by OrderService during cancellation.
+     * Keeps the Stripe interaction inside the Payment domain.
+     */
+    async voidHold(orderId: string): Promise<void> {
+        const idempotencyKey = `order_${orderId}`;
+        const attempt = await paymentAttemptService.findAttempt(idempotencyKey);
+
+        if (!attempt || attempt.status !== PaymentAttemptStatus.AUTHORIZED || !attempt.transactionId) return;
+
+        await stripe.paymentIntents.cancel(attempt.transactionId);
+
+        await paymentAttemptService.updateStatus(
+            idempotencyKey,
+            PaymentAttemptStatus.FAILED,
+            attempt.transactionId,
+            { error: 'Hold voided due to cancellation' }
+        );
     }
 }
 

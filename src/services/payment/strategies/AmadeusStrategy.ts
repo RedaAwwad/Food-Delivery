@@ -1,4 +1,4 @@
-import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentResult, RefundResult, CaptureResult } from './IPaymentStrategy';
 
 export class AmadeusStrategy implements IPaymentStrategy {
     async processPayment(
@@ -14,6 +14,11 @@ export class AmadeusStrategy implements IPaymentStrategy {
             requiresAction: true,
             clientSecret: '' // Placeholder for actual Amadeus action
         };
+    }
+
+    async capturePayment(transactionId: string, amount?: number): Promise<CaptureResult> {
+        console.log(`[Amadeus] Capture request for ${transactionId} (No-op stub)`);
+        return { success: true, message: 'Amadeus capture stub' };
     }
 
     async refund(

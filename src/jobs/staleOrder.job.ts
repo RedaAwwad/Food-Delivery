@@ -62,9 +62,10 @@ async function processStaleOrder(orderId: string) {
 
     // Guard: if the order-level attempt is already SUCCESS, the webhook already confirmed
     // payment but hasn't had a chance to update the order status yet (e.g., server restart,
-    // delayed webhook delivery). Do NOT cancel — let the webhook finalize it.
-    if (attempt?.status === PaymentAttemptStatus.SUCCESS) {
-        console.log(`[StaleOrderJob] Order ${orderId} has a SUCCESS payment attempt — skipping cancellation.`);
+    // delayed webhook delivery). AUTHORIZED means a real order waiting for the restaurant.
+    // Do NOT cancel — let the webhook/restaurant finalize it.
+    if (attempt?.status === PaymentAttemptStatus.SUCCESS || attempt?.status === PaymentAttemptStatus.AUTHORIZED) {
+        console.log(`[StaleOrderJob] Order ${orderId} has a SUCCESS or AUTHORIZED payment attempt — skipping cancellation.`);
         return;
     }
 

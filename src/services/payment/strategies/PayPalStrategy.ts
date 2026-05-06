@@ -1,4 +1,4 @@
-import { IPaymentStrategy, PaymentResult, RefundResult } from './IPaymentStrategy';
+import { IPaymentStrategy, PaymentResult, RefundResult, CaptureResult } from './IPaymentStrategy';
 
 export class PayPalStrategy implements IPaymentStrategy {
     async processPayment(
@@ -14,6 +14,11 @@ export class PayPalStrategy implements IPaymentStrategy {
             requiresAction: true,
             clientSecret: '' // Placeholder for actual PayPal approval URL or similar
         };
+    }
+
+    async capturePayment(transactionId: string, amount?: number): Promise<CaptureResult> {
+        console.log(`[PayPal] Capture request for ${transactionId} (No-op stub)`);
+        return { success: true, message: 'PayPal capture stub' };
     }
 
     async refund(

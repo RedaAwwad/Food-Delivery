@@ -238,6 +238,7 @@ model Order {
 
 enum PaymentAttemptStatus {
   PENDING
+  AUTHORIZED
   SUCCESS
   FAILED
 }
