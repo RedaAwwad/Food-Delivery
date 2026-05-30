@@ -22,7 +22,7 @@ import { userRepository } from "../repositories/user.repository";
 import { UserSession, UserWithRelations } from "../types/user.type";
 
 class AuthService {
-  async signup(signupDto: SignupDTO) {
+  async signup(signupDto: SignupDTO): Promise<void> {
     const { name, password, email, phone } = signupDto;
 
     const userCheck = await userService.findUserByEmail(email);
@@ -30,45 +30,35 @@ class AuthService {
 
     const hashedPassword = await PasswordUtils.hash(password);
 
-    await prisma
-      .$transaction(async (tx: ExtendedTransactionClient) => {
-        const newUser = await userService.createUser(
-          {
-            userName: name,
-            userEmail: email,
-            userPassword: hashedPassword,
-          },
-          tx
-        );
+    await prisma.$transaction(async (tx: ExtendedTransactionClient) => {
+      const newUser = await userService.createUser(
+        {
+          userName: name,
+          userEmail: email,
+          userPassword: hashedPassword,
+          // Email verification disabled: accounts are active immediately.
+          isConfirmed: true,
+        },
+        tx
+      );
 
-        if (!newUser) throw BadRequestError("Failed to Create User");
+      if (!newUser) throw BadRequestError("Failed to Create User");
 
-        const newCustomer = await customerService.createCustomer(
-          {
-            userId: newUser.userId,
-            customerPhone: phone,
-            createdById: newUser.userId,
-            updatedById: newUser.userId,
-          },
-          tx
-        );
+      const newCustomer = await customerService.createCustomer(
+        {
+          userId: newUser.userId,
+          customerPhone: phone,
+          createdById: newUser.userId,
+          updatedById: newUser.userId,
+        },
+        tx
+      );
 
-        if (!newCustomer) throw BadRequestError("Failed to Create Customer");
+      if (!newCustomer) throw BadRequestError("Failed to Create Customer");
 
-        // Assign default 'Customer' role
-        await userService.assignRoleToUser(newUser.userId, "CUSTOMER", tx);
-
-        return { newUser };
-      })
-      .then(async ({ newUser }) => {
-        const verificationLink = this.generateVerificationToken(newUser.userId, newUser.userEmail);
-
-        await emailService.sendVerificationEmail(
-          newUser.userEmail,
-          verificationLink,
-          newUser.userName
-        );
-      });
+      // Assign default 'Customer' role
+      await userService.assignRoleToUser(newUser.userId, "CUSTOMER", tx);
+    });
   }
 
   async login(loginDto: loginDTO): Promise<{
@@ -172,16 +162,22 @@ class AuthService {
     }
   }
 
-  async resendVerification(email: string): Promise<void> {
+  async resendVerification(email: string): Promise<string | null> {
     const user = await userService.findUserByEmail(email);
 
-    if (!user) return;
+    if (!user) return null;
 
     if (user.isConfirmed) throw BadRequestError("Email is already verified");
 
     const verificationLink = this.generateVerificationToken(user.userId, user.userEmail);
 
-    await emailService.sendVerificationEmail(user.userEmail, verificationLink, user.userName);
+    try {
+      await emailService.sendVerificationEmail(user.userEmail, verificationLink, user.userName);
+    } catch (err) {
+      console.error("[resendVerification] Email failed to send:", err);
+    }
+
+    return verificationLink;
   }
 
   async refreshToken(token: string | null): Promise<{

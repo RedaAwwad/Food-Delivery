@@ -1,0 +1,20 @@
+# Netlify: React landing app (client/). API must be hosted separately; set VITE_API_URL in Netlify env.
+[build]
+  base = "client"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback for React Router (basename /landing)
+[[redirects]]
+  from = "/landing/*"
+  to = "/landing/index.html"
+  status = 200
+
+# Site entry
+[[redirects]]
+  from = "/"
+  to = "/landing/"
+  status = 302

@@ -26,6 +26,69 @@ class MenuItemRepository {
     return menuItem;
   }
 
+  async findAllMenuItemsByRestaurantIdForAdmin(restaurantId: string) {
+    const menu = await prisma.menu.findUnique({
+      where: { restaurantId },
+      include: {
+        menuCategories: {
+          include: {
+            menuItems: { orderBy: { menuItemName: "asc" } },
+          },
+          orderBy: { menuCategoryName: "asc" },
+        },
+      },
+    });
+
+    const categories = menu?.menuCategories ?? [];
+    const items = categories.flatMap((c) =>
+      c.menuItems.map((item) => ({
+        ...item,
+        menuCategory: {
+          menuCategoryId: c.menuCategoryId,
+          menuCategoryName: c.menuCategoryName,
+        },
+      }))
+    );
+
+    return {
+      menu: menu
+        ? {
+            menuId: menu.menuId,
+            restaurantId: menu.restaurantId,
+            menuDesc: menu.menuDesc,
+            isActive: menu.isActive,
+          }
+        : null,
+      categories: categories.map((c) => ({
+        menuCategoryId: c.menuCategoryId,
+        menuId: c.menuId,
+        menuCategoryName: c.menuCategoryName,
+        menuCategoryImageUrl: c.menuCategoryImageUrl,
+        itemCount: c.menuItems.length,
+      })),
+      items,
+    };
+  }
+
+  async getOrderableItemsByRestaurantId(restaurantId: string) {
+    return await prisma.menuItem.findMany({
+      where: {
+        isActive: true,
+        stockQuantity: { gt: 0 },
+        menuCategory: { menu: { restaurantId } },
+      },
+      select: {
+        menuItemId: true,
+        menuItemName: true,
+        menuItemDesc: true,
+        menuItemImageUrl: true,
+        price: true,
+        stockQuantity: true,
+      },
+      take: 120,
+    });
+  }
+
   async getMenuItemById(menuItemId: string) {
     const menuItem = await prisma.menuItem.findUnique({
       where: {

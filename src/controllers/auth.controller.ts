@@ -13,7 +13,7 @@ class AuthController {
     await authService.signup(signupDto);
     return res.status(StatusCodes.CREATED).json(
       new SuccessResponse({
-        message: "Signup successful. Please verify your email.",
+        message: "Signup successful. Your account is ready.",
       })
     );
   }

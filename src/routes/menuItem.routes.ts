@@ -37,6 +37,24 @@ menuItemRouter.get("/menu-category/:menuCategoryId", menuItemController.getAllMe
 
 /**
  * @swagger
+ * /api/v1/menu-items/restaurant/{restaurantId}:
+ *   get:
+ *     summary: Get orderable (active, in-stock) menu items for a restaurant
+ *     tags: [MenuItem]
+ *     parameters:
+ *       - in: path
+ *         name: restaurantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of orderable menu items
+ */
+menuItemRouter.get("/restaurant/:restaurantId", menuItemController.getOrderableItemsByRestaurantId);
+
+/**
+ * @swagger
  * /api/v1/menuItem/{menuItemId}:
  *   get:
  *     summary: Get menu item by ID

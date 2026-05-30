@@ -5,6 +5,9 @@ services:
     volumes:
       - ./src:/app/src
       - ./prisma:/app/prisma
+      - ./storefront:/app/storefront
+      - ./public:/app/public
+      - ./client/dist:/app/client/dist
     ports:
       - "4000:4000"
     env_file:

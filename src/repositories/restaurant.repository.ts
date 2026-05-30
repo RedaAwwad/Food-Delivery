@@ -58,6 +58,53 @@ class RestaurantRepository {
     return { restaurants, total };
   }
 
+  async findAllRestaurantsEnriched(query: PaginationDto) {
+    const pagination = handleQueryPagination(query);
+    const restaurants = await prisma.restaurant.findMany({
+      ...pagination,
+      orderBy: { restaurantName: "asc" },
+      select: {
+        restaurantId: true,
+        restaurantName: true,
+        restaurantBio: true,
+        restaurantLogo: true,
+        isAvailable: true,
+        averageRating: true,
+        ratingCount: true,
+        addresses: true,
+        manager: { select: { userName: true } },
+        _count: { select: { orders: true } },
+      },
+    });
+
+    const ids = restaurants.map((r) => r.restaurantId);
+    const revenueByRestaurant =
+      ids.length > 0
+        ? await prisma.order.groupBy({
+            by: ["restaurantId"],
+            where: {
+              restaurantId: { in: ids },
+              orderStatus: "COMPLETED",
+            },
+            _sum: { totalAmount: true },
+          })
+        : [];
+
+    const revenueMap = new Map(
+      revenueByRestaurant.map((row) => [row.restaurantId, row._sum.totalAmount ?? 0])
+    );
+
+    const enriched = restaurants.map((r) => ({
+      ...r,
+      orderCount: r._count.orders,
+      revenue: revenueMap.get(r.restaurantId) ?? 0,
+      managerName: r.manager?.userName ?? null,
+    }));
+
+    const total = await prisma.restaurant.count();
+    return { restaurants: enriched, total };
+  }
+
   async createRestaurant(data: createRestaurantDto) {
     const restaurant = await prisma.restaurant.create({
       data: {
@@ -72,11 +119,10 @@ class RestaurantRepository {
 
   async updateRestaurant(data: updateRestaurantDto) {
     try {
+      const { restaurantId, ...fields } = data;
       const restaurant = await prisma.restaurant.update({
-        where: { restaurantId: data.restaurantId },
-        data: {
-          ...data,
-        },
+        where: { restaurantId },
+        data: fields,
       });
 
       return restaurant;

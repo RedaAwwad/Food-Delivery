@@ -3,6 +3,7 @@ import { OrderContext } from "../../types/OrderContext";
 import { orderRepository } from "../../repositories/order.repository";
 import { OrderStatusKey } from "../../generated/prisma/enums";
 import { InternalServerError } from "../../utils/errors";
+import { prisma } from "../../config/prisma.config";
 
 /**
  * Creates the order record with PENDING status.
@@ -23,6 +24,15 @@ export class CreateOrderHandler extends OrderHandler {
         }, context.tx);
 
         context.order = order;
+
+        await prisma.orderTracking.create({
+            data: {
+                orderId: order.orderId,
+                customerId: context.customerId,
+                trackingStatus: [{ orderStatusKey: "PENDING", updatedAt: new Date() }],
+            },
+        }).catch(() => {});
+
         console.log(`[CreateOrderHandler] Order created with ID: ${order.orderId}`);
     }
 }

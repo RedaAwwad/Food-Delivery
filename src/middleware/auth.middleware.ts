@@ -39,8 +39,11 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
 
 export const isAuthorized = (roles: RoleKey[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    const userRoles: RoleKey[] = req.user!.userRoles || [];
+    if (req.user?.isAdmin) {
+      return next();
+    }
 
+    const userRoles: RoleKey[] = req.user!.userRoles || [];
     const hasPermission = userRoles.some((roleKey: RoleKey) => roles.includes(roleKey));
     if (!hasPermission) {
       throw ForbiddenError("You are not authorized to perform this action!");

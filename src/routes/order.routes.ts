@@ -26,6 +26,16 @@ orderRouter.use(isAuthenticated);
  *       200:
  *         description: List of all orders
  */
+orderRouter.get(
+  "/admin/stats",
+  isAuthorized(["ADMIN", "RESTAURANT_MANAGER"]),
+  orderController.getAdminDashboardStats
+);
+orderRouter.get(
+  "/admin",
+  isAuthorized(["ADMIN", "RESTAURANT_MANAGER"]),
+  orderController.findAllOrdersForAdmin
+);
 orderRouter.get("/", orderController.findAllOrdersByCustomerId);
 
 /**
@@ -47,6 +57,7 @@ orderRouter.get("/", orderController.findAllOrdersByCustomerId);
  *       404:
  *         description: Order not found
  */
+orderRouter.get("/:orderId/tracking", orderController.getOrderTracking);
 orderRouter.get("/:orderId", orderController.findOrderById);
 
 /**
@@ -158,5 +169,11 @@ orderRouter.patch(
  *         description: Order placed successfully
  */
 orderRouter.post("/check-out", orderController.placeOrder);
+
+/**
+ * Confirm Stripe payment after client-side confirmCardPayment succeeds.
+ * Updates order to COMPLETED when webhook did not run (e.g. wrong STRIPE_WEBHOOK_SECRET locally).
+ */
+orderRouter.post("/confirm-payment", orderController.confirmPayment);
 
 export { orderRouter };

@@ -12,6 +12,7 @@ import { menuItemService } from "./menuItem.service";
 import { OrderStatusKey } from "../generated/prisma/client";
 import { InternalServerError, NotFoundError, BadRequestError, ForbiddenError, ConflictError, CustomError } from "../utils/errors";
 import { cartService } from "./cart.service";
+import { confirmStripePaymentForOrder } from "./stripeOrderCompletion.service";
 
 class OrderService {
   private async createPendingAttempt(idempotencyKey: string, timestamp: Date): Promise<void> {
@@ -84,6 +85,14 @@ class OrderService {
     return await orderRepository.findAllCustomerOrdersByCustomerId(customerId);
   }
 
+  async findAllOrdersForAdmin() {
+    return orderRepository.findAllOrdersForAdmin();
+  }
+
+  async getAdminDashboardStats() {
+    return orderRepository.getAdminDashboardStats();
+  }
+
   async findOrderByOrderIdAndCustomerId(orderId: string, customerId: string) {
     return await orderRepository.findOrderByOrderIdAndCustomerId(orderId, customerId);
   }
@@ -95,6 +104,10 @@ class OrderService {
   async updateOrderStatus(data: UpdateOrderStatusDto, tx: PrismaTx | PrismaClient = prisma) {
     const updateOrder = await orderRepository.updateOrderStatus(data, tx);
     return updateOrder;
+  }
+
+  async confirmStripePayment(customerId: string, orderId: string) {
+    return confirmStripePaymentForOrder(customerId, orderId);
   }
 
   async cancelOrder(orderId: string, customerId: string) {

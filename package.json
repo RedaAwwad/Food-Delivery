@@ -11,6 +11,8 @@
     "swagger": "tsx ./src/lib/swagger/swagger.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "tsx prisma/seed.ts",
+    "client:dev": "npm run dev --prefix client",
+    "client:build": "npm run build --prefix client",
     "generate-jmeter": "tsx scripts/generate_jmeter_data.ts"
   },
   "repository": {

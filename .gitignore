@@ -1,6 +1,10 @@
 node_modules
 dist
+client/node_modules
+client/dist
 .env
+client/.env
+client/.env.local
 .DS_Store
 
 npm-debug.log

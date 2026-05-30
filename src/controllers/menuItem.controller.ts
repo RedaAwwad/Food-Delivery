@@ -12,6 +12,14 @@ class MenuItemController {
     return res.status(200).json(menuItem);
   }
 
+  async getOrderableItemsByRestaurantId(req: Request, res: Response) {
+    const restaurantId = req.params.restaurantId;
+    if (!restaurantId) throw BadRequestError("restaurantId is required");
+
+    const items = await menuItemService.getOrderableItemsByRestaurantId(restaurantId);
+    return res.status(200).json(new SuccessResponse({ data: items }));
+  }
+
   async getMenuItemById(req: Request, res: Response) {
     const menuItemId = req.params.menuItemId;
     if (!menuItemId) throw BadRequestError("menuItemId is required");

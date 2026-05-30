@@ -17,6 +17,10 @@ class MenuItemService {
     return menuItem;
   }
 
+  async getOrderableItemsByRestaurantId(restaurantId: string) {
+    return await menuItemRepository.getOrderableItemsByRestaurantId(restaurantId);
+  }
+
   async createMenuItem(data: createMenuItemDto) {
     const menuItem = await menuItemRepository.createMenuItem(data);
     return menuItem;
